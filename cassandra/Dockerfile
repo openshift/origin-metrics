@@ -33,10 +33,10 @@ EXPOSE 7000
 EXPOSE 7001
 
 # The Cassandra version
-ENV CASSANDRA_VERSION 2.1.6
+ENV CASSANDRA_VERSION 2.2.1
 
 # The Hawkular Metrics version
-ENV HAWKULAR_METRICS_VERSION 0.7.0-SNAPSHOT
+ENV HAWKULAR_METRICS_VERSION 0.8.0-SNAPSHOT
 
 # The Cassandra home location
 ENV CASSANDRA_HOME /opt/apache-cassandra
@@ -61,6 +61,7 @@ RUN cd /opt; \
 COPY cassandra.yaml /opt/apache-cassandra/conf/cassandra.yaml
 
 # Copy the jar containing the kubernetes away jar
+#COPY cassandra-seed-provider.jar /opt/apache-cassandra/lib/
 RUN cd $CASSANDRA_HOME/lib/ && \
     curl -Lo cassandra-seed-provider.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=cassandra-seed-provider\&e=jar\&v=${HAWKULAR_METRICS_VERSION}
 

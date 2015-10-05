@@ -207,6 +207,7 @@ if [ -n "$TRUSTSTORE_PASSWORD" ]; then
    sed -i 's#${TRUSTSTORE_PASSWORD}#'$TRUSTSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
+#while true; do echo 'Sleeping'; sleep 5; done
 
 if [ -n "$CASSANDRA_HOME" ]; then
   exec ${CASSANDRA_HOME}/bin/cassandra -f

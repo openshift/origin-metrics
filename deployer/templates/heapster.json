@@ -1,11 +1,11 @@
 {
-  "id": "hawkular-heapster-template",
+  "id": "hawkular-heapster",
   "kind": "Template",
   "apiVersion": "v1",
   "name": "Hawkular Heapster Template",
   "description": "Configures a Heapster template to be used with Hawkular Metrics.",
   "metadata" : {
-    "name": "hawkular-heapster-template",
+    "name": "hawkular-heapster",
     "labels": {
       "metrics-infra": "heapster"
     }
@@ -15,9 +15,15 @@
       "name": "OAP_MASTER_URL",
       "value": "https://kubernetes.default.svc.cluster.local:443"
     },
-    { "description": "Internal URL for the master, for authentication retrieval",
-      "name": "HEAPSTER_IMAGE",
-      "value": "gcr.io/google_containers/heapster:v0.18.1"
+    {
+      "description": "Specify prefix for metrics components; e.g. for \"openshift/origin-metrics-deployer:v1.1\", set prefix \"openshift/origin-\"",
+      "name": "IMAGE_PREFIX",
+      "value": "hawkular/"
+    },
+    {
+      "description": "Specify version for metrics components; e.g. for \"openshift/origin-metrics-deployer:v1.1\", set version \"v1.1\"",
+      "name": "IMAGE_VERSION",
+      "value": "latest"
     }
   ],
   "objects": [
@@ -65,24 +71,35 @@
           },
           "spec": {
             "containers": [{
-              "image": "${HEAPSTER_IMAGE}",
+              "image": "${IMAGE_PREFIX}metrics-heapster:${IMAGE_VERSION}",
               "name" : "heapster",
               "ports": [
                 { "name": "http-endpoint", "containerPort": 8082}
               ],
-              "command" : ["./heapster",
+              "command" : ["./heapster-wrapper.sh",
+                "--wrapper.username_file=/hawkular-account/hawkular-metrics.username",
+                "--wrapper.password_file=/hawkular-account/hawkular-metrics.password",
+                "--wrapper.allowed_users_file=/secrets/heapster.allowed_users",
                 "--source=kubernetes:${OAP_MASTER_URL}?useServiceAccount=true&kubeletHttps=false&kubeletPort=10266&auth=",
-                "--sink=hawkular:https://hawkular-metrics:443?tenant:_system&labelToTenant=pod_namespace&useServiceAccount=true&caCert=/secrets/hawkular-metrics-ca.certificate",
+                "--sink=hawkular:https://hawkular-metrics:443?tenant:_system&labelToTenant=pod_namespace&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&label(container_name:^[/system.slice/|/user.slice].*)",
                 "--logtostderr=true",
-                "--vmodule=*=4"],
+                "--vmodule=*=4",
+                "--tls_cert=/secrets/heapster.cert",
+                "--tls_key=/secrets/heapster.key",
+                "--tls_client_ca=/secrets/heapster.client-ca",
+                "--allowed_users=%allowed_users%"],
               "volumeMounts": [
-                { "name": "hawkular-metrics-certificate", "mountPath": "/secrets"}
+                { "name": "heapster-secrets", "mountPath": "/secrets"},
+                { "name": "hawkular-metrics-certificate", "mountPath": "/hawkular-cert"},
+                { "name": "hawkular-metrics-account", "mountPath": "/hawkular-account"}
               ]
             }],
             "volumes": [
-              { "name": "hawkular-metrics-certificate", "secret": { "secretName": "hawkular-metrics-certificate"} }
+              { "name": "heapster-secrets", "secret": { "secretName": "heapster-secrets"} },
+              { "name": "hawkular-metrics-certificate", "secret": { "secretName": "hawkular-metrics-certificate"} },
+              { "name": "hawkular-metrics-account", "secret": { "secretName": "hawkular-metrics-account"} }
             ],
-            "serviceAccount" : "hawkular"
+            "serviceAccount" : "heapster"
           }
         }
       }

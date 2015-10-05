@@ -18,11 +18,24 @@
 
 set -ex
 
-# Set the default values here in case someone is running the script locally and not in a container
+# The version of everything to deploy
 image_prefix=${IMAGE_PREFIX:-openshift/origin-}
 image_version=${IMAGE_VERSION:-latest}
+
 master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:8443}
 
+# Set to true to undeploy everything before deploying
+redeploy=${REDEPLOY:-false}
+
+# The number of initial Cassandra Nodes to Deploy
+cassandra_nodes=${CASSANDRA_NODES:-1}
+# The size of each Cassandra Node
+cassandra_pv_size=${CASSANDRA_PV_SIZE-10Gi}
+
+# How long metrics should be stored in days
+metric_duration=${METRIC_DURATION:-7}
+
+# The project we are deployed in
 project=${PROJECT:-default}
 
 # the master certificate and service account tokens
@@ -34,15 +47,14 @@ dir=${PROCESSING_DIR:-_output} #directory used to write files which generating c
 
 hawkular_metrics_hostname=${HAWKULAR_METRICS_HOSTNAME:-hawkular-metrics.example.com}
 hawkular_metrics_alias=${HAWKULAR_METRICS_ALIAS:-hawkular-metrics}
-
 hawkular_cassandra_alias=${HAWKULAR_CASSANDRA_ALIAS:-hawkular-cassandra}
 
 rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
 
 # cp/generate CA
 if [ -s /secret/ca.key ]; then
-  cp {/secret,$dir}/ca.key
-  cp {/secret,$dir}/ca.crt
+  cp /secret/ca.key
+  cp /secret/ca.crt
   echo "01" > $dir/ca.serial.txt
 else
     openshift admin ca create-signer-cert  \
@@ -57,7 +69,7 @@ if [ -n "${HAWKUKAR_METRICS_PEM}" ]; then
     echo "${HAWKULAR_METRICS_PEM}" | base64 -d > $dir/hawkular-metrics.pem
 elif [ -s /secret/hawkular-metrics.pem ]; then
     # use files from secret if present
-    cp {/secret,$dir}/hawkular-metrics.pem $dir
+    cp /secret/hawkular-metrics.pem $dir
 else #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/hawkular-metrics.key \
@@ -72,7 +84,7 @@ if [ -n "${HAWKUKAR_CASSANDRA_PEM}" ]; then
     echo "${HAWKULAR_CASSANDRA_PEM}" | base64 -d > $dir/hawkular-cassandra.pem
 elif [ -s /secret/hawkular-cassandra.pem ]; then
     # use files from secret if present
-    cp {/secret,$dir}/hawkular-cassandra.pem $dir
+    cp /secret/hawkular-cassandra.pem $dir
 else #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/hawkular-cassandra.key \
@@ -81,6 +93,41 @@ else #fallback to creating one
       --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
       cat $dir/hawkular-cassandra.key $dir/hawkular-cassandra.crt > $dir/hawkular-cassandra.pem
 fi
+
+# Use existing or generate new Heapster certificates
+if [ -n "${HEAPSTER_CERT}" ]; then
+  echo "${HEAPSTER_CERT}" | base64 -d > $dir/heapster.cert
+  echo "${HEAPSTER_KEY}" | base64 -d > $dir/heapster.key
+elif  [ -s /secret/heapster.cert ]; then
+    # use files from secret if present
+    cp /secret/heapster.cert $dir
+    cp /secret/heapster.key $dir
+else #fallback to creating one
+    openshift admin ca create-server-cert  \
+      --key=$dir/heapster.key \
+      --cert=$dir/heapster.cert \
+      --hostnames=heapster \
+      --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
+fi
+
+# Get the Heapster allowed users
+if [ -n "${HEAPSTER_ALLOWED_USERS}" ]; then
+  echo "${HEAPSTER_ALLOWED_USERS}" | base64 -d > $dir/heapster_allowed_users
+elif [ -s /secret/heapster_allowed_users ]; then
+  cp /secret/heapster_allowed_users $dir
+else #create an empty allowed users
+  echo "" > $dir/heapster_allowed_users
+fi
+
+# Get the Heapster Client CA
+if [ -n "${HEAPSTER_CLIENT_CA}" ]; then
+  echo "${HEAPSTER_CLIENT_CA}" | base64 -d > $dir/heapster_client_ca.cert
+elif [ -s /secret/heapster_client_ca.cert ]; then
+  cp /secret/heapster_client_ca.cert $dir
+else #use the ca we already have for signing our own certificates
+  cp $dir/ca.crt $dir/heapster_client_ca.cert
+fi
+  
 
 echo 03 > $dir/ca.serial.txt  # otherwise openssl chokes on the file
 
@@ -119,6 +166,15 @@ keytool -noprompt -import -v -trustcacerts -alias $hawkular_cassandra_alias -fil
 echo "Importing the Hawkular Cassandra Certificate into the Cassandra Truststore"
 keytool -noprompt -import -v -trustcacerts -alias $hawkular_cassandra_alias -file $dir/hawkular-cassandra.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
 
+echo "Importing the CA Certificate into the Cassandra Truststore"
+keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
+
+echo "Importing the CA Certificate into the Hawkular Metrics Truststore"
+keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
+
+hawkular_metrics_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
+htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password 
+
 echo
 echo "Creating the Hawkular Metrics Secrets configuration json file"
 cat > $dir/hawkular-metrics-secrets.json <<EOF
@@ -137,7 +193,8 @@ cat > $dir/hawkular-metrics-secrets.json <<EOF
         "hawkular-metrics.keystore.password": "$(base64 <<< `echo $hawkular_metrics_keystore_password`)",
         "hawkular-metrics.truststore": "$(base64 -w 0 $dir/hawkular-metrics.truststore)",
         "hawkular-metrics.truststore.password": "$(base64 <<< `echo $hawkular_metrics_truststore_password`)",
-        "hawkular-metrics.keystore.alias": "$(base64 <<< `echo $hawkular_metrics_alias`)"
+        "hawkular-metrics.keystore.alias": "$(base64 <<< `echo $hawkular_metrics_alias`)",
+        "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)"
       }
     }
 EOF
@@ -162,6 +219,25 @@ cat > $dir/hawkular-metrics-certificate.json <<EOF
     }
 EOF
 
+echo
+echo "Creating the Hawkular Metrics User Account Secrets"
+cat > $dir/hawkular-metrics-account.json <<EOF
+    {
+      "apiVersion": "v1",
+      "kind": "Secret",
+      "metadata":
+      { "name": "hawkular-metrics-account",
+        "labels": {
+          "metrics-infra": "hawkular-metrics"
+        }
+      },
+      "data":
+      {
+        "hawkular-metrics.username": "$(base64 <<< `echo hawkular`)",
+        "hawkular-metrics.password": "$(base64 <<< `echo $hawkular_metrics_password`)"
+      }
+    }
+EOF
 
 echo
 echo "Creating the Cassandra Secrets configuration file"
@@ -206,6 +282,29 @@ cat > $dir/cassandra-certificate.json <<EOF
     }
 EOF
 
+echo
+echo "Creating the Heapster Secrets configuration json file"
+cat > $dir/heapster-secrets.json <<EOF
+    {
+      "apiVersion": "v1",
+      "kind": "Secret",
+      "metadata":
+      { "name": "heapster-secrets",
+        "labels": {
+          "metrics-infra": "heapster"
+        }
+      },
+      "data":
+      {
+        "heapster.cert": "$(base64 -w 0 $dir/heapster.cert)",
+        "heapster.key": "$(base64 -w 0 $dir/heapster.key)",
+        "heapster.client-ca": "$(base64 -w 0 $dir/heapster_client_ca.cert)",
+        "heapster.allowed-users":"$(base64 -w 0 $dir/heapster_allowed_users)"
+      }
+    }
+EOF
+
+
 # set up configuration for client
 if [ -n "${WRITE_KUBECONFIG}" ]; then
     # craft a kubeconfig, usually at $KUBECONFIG location
@@ -222,49 +321,56 @@ if [ -n "${WRITE_KUBECONFIG}" ]; then
     oc config use-context current
 fi
 
-echo "Deleting any previous deployment"
-oc delete all --selector="metrics-infra=hawkular-metrics"
-oc delete all --selector="metrics-infra=hawkular-cassandra"
-oc delete all --selector="metrics-infra=heapster"
-oc delete all --selector="metrics-infra=support"
+if [ "$redeploy" = true  ]; then
+  echo "Deleting any previous deployment"
+  oc delete all --selector="metrics-infra=hawkular-metrics"
+  oc delete all --selector="metrics-infra=hawkular-cassandra"
+  oc delete all --selector="metrics-infra=heapster"
+  oc delete all --selector="metrics-infra=support"
 
-# deleting the exisiting service account
-oc delete sa --selector="metrics-infra=support"
+  echo "Deleting any exisiting service account"
+  oc delete sa --selector="metrics-infra=support"
 
-# delete the templates
-oc delete templates --selector="metrics-infra=hawkular-metrics"
-oc delete templates --selector="metrics-infra=hawkular-cassandra"
-oc delete templates --selector="metrics-infra=heapster"
-oc delete templates --selector="metrics-infra=support"
+  echo "Deleting the templates"
+  oc delete templates --selector="metrics-infra=hawkular-metrics"
+  oc delete templates --selector="metrics-infra=hawkular-cassandra"
+  oc delete templates --selector="metrics-infra=heapster"
+  oc delete templates --selector="metrics-infra=support"
 
-# delete the secrets
-oc delete secrets --selector="metrics-infra=hawkular-metrics"
-oc delete secrets --selector="metrics-infra=hawkular-cassandra"
-oc delete secrets --selector="metrics-infra=heapster"
-oc delete secrets --selector="metrics-infra=support"
+  echo "Deleting the secrets"
+  oc delete secrets --selector="metrics-infra=hawkular-metrics"
+  oc delete secrets --selector="metrics-infra=hawkular-cassandra"
+  oc delete secrets --selector="metrics-infra=heapster"
+  oc delete secrets --selector="metrics-infra=support"
+fi
 
 echo "Creating secrets"
 oc create -f $dir/hawkular-metrics-secrets.json
 oc create -f $dir/hawkular-metrics-certificate.json
+oc create -f $dir/hawkular-metrics-account.json
 oc create -f $dir/cassandra-secrets.json
 oc create -f $dir/cassandra-certificate.json
+oc create -f $dir/heapster-secrets.json
 
 echo "Creating templates"
-#oc process -f templates/hawkular-metrics.json -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
-#oc process -f templates/hawkular-cassandra.json -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
 oc create -f templates/hawkular-metrics.json
 oc create -f templates/hawkular-cassandra.json
+oc create -f templates/hawkular-cassandra-node.json
 oc create -f templates/heapster.json
 oc create -f templates/support.json
 
-#echo "Enabling service account"
-#sa="system:serviceaccount:$project:hawkular"
-#oadm policy add-cluster-role-to-user cluster-reader $sa
-
 echo "Deploying components"
-oc process hawkular-metrics-template -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
-oc process hawkular-cassandra-template -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
-oc process hawkular-heapster-template | oc create -f -
-oc process hawkular-support-template | oc create -f -
+oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration" | oc create -f -
+oc process hawkular-cassandra-services | oc create -f -
+oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
+oc process hawkular-support | oc create -f -
+
+# Deploy the main 'master' Cassandra node
+oc process hawkular-cassandra-node -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f -
+# Deploy any subsequent Cassandra nodes
+for i in $(seq 2 $cassandra_nodes);
+do
+  oc process hawkular-cassandra-node -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f -
+done
 
 echo 'Success!'

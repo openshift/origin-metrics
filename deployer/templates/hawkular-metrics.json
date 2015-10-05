@@ -1,11 +1,11 @@
 {
-  "id": "hawkular-metrics-template",
+  "id": "hawkular-metrics",
   "kind": "Template",
   "apiVersion": "v1",
   "name": "Hawkular Metrics Template",
-  "description": "Configures a Hawkular Metrics template.",
+  "description": "A template to created a Hawkular Metrics instance.",
   "metadata" : {
-    "name": "hawkular-metrics-template",
+    "name": "hawkular-metrics",
     "labels": {
           "metrics-infra": "hawkular-metrics"
     }
@@ -20,6 +20,11 @@
       "description": "Specify version for metrics components; e.g. for \"openshift/origin-metrics-deployer:v1.1\", set version \"v1.1\"",
       "name": "IMAGE_VERSION",
       "value": "latest" 
+    },
+    {
+      "description": "Specify the number of days that metrics should be stored for.",
+      "name": "METRIC_DURATION",
+      "value": "7"
     }
   ],
   "objects": [
@@ -81,8 +86,10 @@
                 "-Dhawkular-metrics.cassandra-use-ssl",
                 "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true",
                 "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true",
-                "-Dhawkular-metrics.openshift.auth-methods=openshift-oauth",
+                "-Dhawkular-metrics.openshift.auth-methods=openshift-oauth,htpasswd",
+                "-Dhawkular-metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file",
                 "-Dhawkular.metrics.allowed-cors-access-control-allow-headers=authorization",
+                "-Dhawkular.metrics.default-ttl=${METRIC_DURATION}",
                 "--hmw.keystore=/secrets/hawkular-metrics.keystore",
                 "--hmw.truststore=/secrets/hawkular-metrics.truststore",
                 "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password",

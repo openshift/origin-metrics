@@ -1,0 +1,146 @@
+{
+  "id": "hawkular-cassandra-node",
+  "kind": "Template",
+  "apiVersion": "v1",
+  "name": "Hawkular Cassandra Node Template",
+  "description": "Configures a Cassandra Node to be added to a cluster.",
+  "metadata" : {
+    "name": "hawkular-cassandra-node",
+     "labels" : {
+       "metrics-infra": "hawkular-cassandra"
+     }
+  },
+ "parameters" : [
+    {
+      "description": "Specify prefix for metrics components; e.g. for \"openshift/origin-metrics-deployer:v1.1\", set prefix \"openshift/origin-\"",
+      "name": "IMAGE_PREFIX",
+      "value": "hawkular/"
+    },
+    {
+      "description": "Specify version for metrics components; e.g. for \"openshift/origin-metrics-deployer:v1.1\", set version \"v1.1\"",
+      "name": "IMAGE_VERSION",
+      "value": "latest" 
+    },
+    {
+      "description": "If this Cassandra node should be the 'master' node.",
+      "name": "MASTER",
+      "value": "false"
+    },
+    {
+      "description": "The persistent volume claim prefix.",
+      "name": "PV_PREFIX",
+      "value": "metrics-cassandra"
+    },
+    {
+      "description": "The node number for the Cassandra cluster.",
+      "name": "NODE",
+      "required": true
+    },
+    {
+      "description": "The size of storage requested.",
+      "name": "PV_SIZE",
+      "value": "10Gi"
+    }
+  ],
+  "objects": [
+    {
+      "kind": "PersistentVolumeClaim",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${PV_PREFIX}-${NODE}",
+        "labels": {
+          "metrics-infra": "hawkular-cassandra"
+        }
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce",
+          "ReadWriteMany"
+        ],
+        "resources": {
+          "requests": {
+            "storage": "${PV_SIZE}"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ReplicationController",
+      "metadata": {
+        "name": "hawkular-cassandra-${NODE}",
+        "labels" : {
+          "metrics-infra": "hawkular-cassandra",
+          "name": "hawkular-cassandra",
+          "type": "hawkular-cassandra"
+        }
+      },
+      "spec": {
+        "selector" : {
+          "name": "hawkular-cassandra-${NODE}"
+        },
+        "replicas": 1,
+        "template": {
+          "version": "v1",
+          "metadata": {
+            "labels" : {
+              "metrics-infra": "hawkular-cassandra",
+              "name": "hawkular-cassandra-${NODE}",
+              "type": "hawkular-cassandra"
+            }
+          },
+          "spec": {
+            "serviceAccount": "cassandra",
+            "containers": [{
+              "image": "${IMAGE_PREFIX}metrics-cassandra:${IMAGE_VERSION}",
+              "name" : "hawkular-cassandra-${NODE}",
+              "ports": [
+                { "name": "cql-port", "containerPort": 9042},
+                { "name": "thift-port", "containerPort": 9160},
+                { "name": "tcp-port", "containerPort": 7000},
+                { "name": "ssl-port", "containerPort": 7001}
+              ],
+              "command" : ["/opt/apache-cassandra/bin/cassandra-docker.sh",
+                "--seed_provider_classname=org.hawkular.openshift.cassandra.OpenshiftSeedProvider",
+                "--cluster_name=hawkular-metrics",
+                "--data_volume=/cassandra_data",
+                "--internode_encryption=all",
+                "--require_node_auth=true",
+                "--enable_client_encryption=true",
+                "--require_client_auth=true",
+                "--keystore_file=/secret/cassandra.keystore",
+                "--keystore_password_file=/secret/cassandra.keystore.password",
+                "--truststore_file=/secret/cassandra.truststore",
+                "--truststore_password_file=/secret/cassandra.truststore.password"
+                ],
+              "env" : [
+                {"name": "CASSANDRA_MASTER", "value":"${MASTER}" },
+                {"name": "POD_NAMESPACE", "valueFrom": {"fieldRef": {"fieldPath": "metadata.namespace"}}}
+                ],
+              "volumeMounts": [
+                { "name": "cassandra-data", "mountPath": "/cassandra_data" },
+                { "name": "hawkular-cassandra-secrets", "mountPath": "/secret"}
+              ],
+              "lifecycle": {
+                "postStart": {
+                  "exec": {
+                    "command": ["/opt/apache-cassandra/bin/cassandra-docker-ready.sh"]
+                  }
+                },
+                "preStop": {
+                  "exec": {
+                    "command": ["/opt/apache-cassandra/bin/cassandra-docker-pre-stop.sh"]
+                  }
+                }
+              }
+            }],
+            "volumes": [
+              { "name": "cassandra-data", "persistentVolumeClaim": { "claimName": "${PV_PREFIX}-${NODE}" }},
+              { "name": "hawkular-cassandra-secrets", "secret": { "secretName": "hawkular-cassandra-secrets" }}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

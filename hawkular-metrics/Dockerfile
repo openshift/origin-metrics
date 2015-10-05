@@ -34,7 +34,7 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT 8080
 EXPOSE $HAWKULAR_METRICS_ENDPOINT_PORT
 
 # The Hawkular Metrics version
-ENV HAWKULAR_METRICS_VERSION 0.7.0-SNAPSHOT
+ENV HAWKULAR_METRICS_VERSION 0.8.0-SNAPSHOT
 
 # Get and copy the hawkular metrics war to the EAP deployment directory
 #COPY hawkular-metrics-api-rest-1.1-openshift.war $JBOSS_HOME/standalone/deployments/hawkular-metrics-api-jaxrs.war

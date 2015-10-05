@@ -57,6 +57,14 @@ objects:
           value: ${PUBLIC_MASTER_URL}
         - name: MASTER_URL
           value: ${MASTER_URL}
+        - name: REDEPLOY
+          value: ${REDEPLOY}
+        - name: CASSANDRA_NODES
+          value: ${CASSANDRA_NODES}
+        - name: CASSANDRA_PV_SIZE
+          value: ${CASSANDRA_PV_SIZE}
+        - name: METRIC_DURATION
+          value: ${METRIC_DURATION}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -87,3 +95,15 @@ parameters:
   description: "If set to true the deployer will try and delete all the existing components before trying to redeploy."
   name: REDEPLOY
   value: "false"
+-
+  description: "The number of Cassandra Nodes to deploy for the initial cluster"
+  name: CASSANDRA_NODES
+  value: "1"
+-
+  description: "The persistent volume size for each of the Cassandra nodes"
+  name: CASSANDRA_PV_SIZE
+  value: "1Gi"
+-
+  description: "How many days metrics should be stored for."
+  name: METRIC_DURATION
+  value: "7"

@@ -111,6 +111,9 @@
             <logger category="jacorb.config">
                 <level name="ERROR"/>
             </logger>
+            <logger category="com.datastax">
+                <level name="INFO"/>
+            </logger>
             <root-logger>
                 <level name="INFO"/>
                 <handlers>
