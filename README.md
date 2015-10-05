@@ -92,7 +92,7 @@ To create the metrics deployer service account, the following command can be run
 
 ### Service Account Permissions
 
-Note: the following commands assumes you are running in the 'metric' project, if you are running in another project, your service account will need to be updated the service account accordingly. The format follows the following format  'system:serviceaccount:$PROJECT_NAME:$SERVICE_ACCOUNT_NAME'
+Note: the following commands assumes you are running in the 'metric' project, if you are running in another project, your service account will need to be updated the service account accordingly. The format follows the following format  `system:serviceaccount:$PROJECT_NAME:$SERVICE_ACCOUNT_NAME`
 
 #### Metrics Deployer Service Account
 
