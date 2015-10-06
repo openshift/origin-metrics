@@ -111,7 +111,8 @@
                 "--keystore_file=/secret/cassandra.keystore",
                 "--keystore_password_file=/secret/cassandra.keystore.password",
                 "--truststore_file=/secret/cassandra.truststore",
-                "--truststore_password_file=/secret/cassandra.truststore.password"
+                "--truststore_password_file=/secret/cassandra.truststore.password",
+                "--cassandra_pem_file=/secret/cassandra.pem"
                 ],
               "env" : [
                 {"name": "CASSANDRA_MASTER", "value":"${MASTER}" },

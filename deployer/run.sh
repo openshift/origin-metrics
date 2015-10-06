@@ -261,7 +261,8 @@ cat > $dir/cassandra-secrets.json <<EOF
         "cassandra.keystore.password": "$(base64 <<< `echo $hawkular_cassandra_keystore_password`)",
         "cassandra.keystore.alias": "$(base64 <<< `echo $hawkular_cassandra_alias`)",
         "cassandra.truststore": "$(base64 -w 0 $dir/hawkular-cassandra.truststore)",
-        "cassandra.truststore.password": "$(base64 <<< `echo $hawkular_cassandra_truststore_password`)"
+        "cassandra.truststore.password": "$(base64 <<< `echo $hawkular_cassandra_truststore_password`)",
+        "cassandra.pem": "$(base64 -w 0 $dir/hawkular-cassandra.pem)"
       }
     }
 EOF

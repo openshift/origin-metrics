@@ -61,6 +61,9 @@ do
     --truststore_password_file=*)
       TRUSTSTORE_PASSWORD_FILE="${args#*=}"
     ;;
+    --cassandra_pem_file=*)
+      CASSANDRA_PEM_FILE="${args#*=}"
+    ;;
     --help)
       HELP=true
     ;;
@@ -207,7 +210,19 @@ if [ -n "$TRUSTSTORE_PASSWORD" ]; then
    sed -i 's#${TRUSTSTORE_PASSWORD}#'$TRUSTSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
-#while true; do echo 'Sleeping'; sleep 5; done
+# create the cqlshrc file so that cqlsh can be used much more easily from the system
+mkdir $HOME/.cassandra
+cat >> $HOME/.cassandra/cqlshrc << DONE
+[connection]
+hostname= $HOSTNAME
+factory = cqlshlib.ssl.ssl_transport_factory
+port = 9042
+
+[ssl]
+certfile = ${CASSANDRA_PEM_FILE}
+userkey = ${CASSANDRA_PEM_FILE}
+usercert = ${CASSANDRA_PEM_FILE}
+DONE
 
 if [ -n "$CASSANDRA_HOME" ]; then
   exec ${CASSANDRA_HOME}/bin/cassandra -f

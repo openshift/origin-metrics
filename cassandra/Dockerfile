@@ -41,6 +41,9 @@ ENV HAWKULAR_METRICS_VERSION 0.8.0-SNAPSHOT
 # The Cassandra home location
 ENV CASSANDRA_HOME /opt/apache-cassandra
 
+#
+ENV HOME /home/cassandra
+
 # TODO: figure out if there is a better way to handle this
 # If we don't specify values here then the cassandra bin tries to automatically determine
 # the size which relies on other binaries not installed in the RHEL image.
@@ -87,7 +90,10 @@ ENV CASSANDRA_NODES_SERVICE_NAME hawkular-cassandra-nodes
 RUN groupadd -r cassandra -g 312 && \
     useradd -u 313 -r -g cassandra -d /opt/apache-cassandra -s /sbin/nologin cassandra && \
     chown -R cassandra:cassandra /opt/apache-cassandra && \
-    chmod -R go+rw /opt/apache-cassandra
+    chmod -R go+rw /opt/apache-cassandra && \
+    mkdir $HOME && \
+    chown -R cassandra:cassandra $HOME && \
+    chmod -R go+rw $HOME
 
 USER 313
 
