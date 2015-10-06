@@ -73,6 +73,9 @@
         "to" : {
           "kind": "Service",
           "name": "hawkular-metrics"
+        },
+        "tls" : {
+          "termination": "passthrough"
         }
       }
     }
