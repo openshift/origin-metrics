@@ -10,6 +10,13 @@
       "metrics-infra": "support"
     }
   },
+ "parameters" : [
+    {
+      "description": "",
+      "name": "HAWKULAR_METRICS_HOSTNAME",
+      "required": true
+    }
+  ],
   "objects": [
     {
       "apiVersion": "v1",
@@ -51,6 +58,23 @@
         { "name": "hawkular-metrics-certificate" },
         { "name": "hawkular-metrics-account" }
       ]
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Route",
+      "metadata": {
+        "name": "hawkular-metrics",
+        "labels" : {
+          "metrics-infra": "support"
+        }
+      },
+      "spec": {
+        "host": "${HAWKULAR_METRICS_HOSTNAME}",
+        "to" : {
+          "kind": "Service",
+          "name": "hawkular-metrics"
+        }
+      }
     }
   ]
 }

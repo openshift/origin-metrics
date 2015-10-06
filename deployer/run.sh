@@ -70,13 +70,15 @@ if [ -n "${HAWKUKAR_METRICS_PEM}" ]; then
 elif [ -s /secret/hawkular-metrics.pem ]; then
     # use files from secret if present
     cp /secret/hawkular-metrics.pem $dir
+    cp /secret/hawkular-metrics-ca.cert $dir
 else #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/hawkular-metrics.key \
       --cert=$dir/hawkular-metrics.crt \
       --hostnames=hawkular-metrics,${hawkular_metrics_hostname} \
       --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
-      cat $dir/hawkular-metrics.key $dir/hawkular-metrics.crt > $dir/hawkular-metrics.pem
+    cat $dir/hawkular-metrics.key $dir/hawkular-metrics.crt > $dir/hawkular-metrics.pem
+    cp $dir/ca.crt $dir/hawkular-metrics-ca.cert  
 fi
 
 # Use existing or generate new Hawkular Cassandra certificates
@@ -85,13 +87,15 @@ if [ -n "${HAWKUKAR_CASSANDRA_PEM}" ]; then
 elif [ -s /secret/hawkular-cassandra.pem ]; then
     # use files from secret if present
     cp /secret/hawkular-cassandra.pem $dir
+    cp /secret/hawkualr-cassandra-ca.cert $dir
 else #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/hawkular-cassandra.key \
       --cert=$dir/hawkular-cassandra.crt \
       --hostnames=hawkular-cassandra \
       --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
-      cat $dir/hawkular-cassandra.key $dir/hawkular-cassandra.crt > $dir/hawkular-cassandra.pem
+    cat $dir/hawkular-cassandra.key $dir/hawkular-cassandra.crt > $dir/hawkular-cassandra.pem
+    cp $dir/ca.crt $dir/hawkular-cassandra-ca.cert
 fi
 
 # Use existing or generate new Heapster certificates
@@ -214,7 +218,7 @@ cat > $dir/hawkular-metrics-certificate.json <<EOF
       "data":
       {
         "hawkular-metrics.certificate": "$(base64 -w 0 $dir/hawkular-metrics.cert)",
-        "hawkular-metrics-ca.certificate": "$(base64 -w 0 $dir/ca.crt)"
+        "hawkular-metrics-ca.certificate": "$(base64 -w 0 $dir/hawkular-metrics-ca.cert)"
       }
     }
 EOF
@@ -277,7 +281,7 @@ cat > $dir/cassandra-certificate.json <<EOF
       "data":
       {
         "cassandra.certificate": "$(base64 -w 0 $dir/hawkular-cassandra.cert)",
-        "cassandra-ca.certificate": "$(base64 -w 0 $dir/ca.crt)"
+        "cassandra-ca.certificate": "$(base64 -w 0 $dir/hawkular-cassandra-ca.cert)"
       }
     }
 EOF
@@ -323,25 +327,19 @@ fi
 
 if [ "$redeploy" = true  ]; then
   echo "Deleting any previous deployment"
-  oc delete all --selector="metrics-infra=hawkular-metrics"
-  oc delete all --selector="metrics-infra=hawkular-cassandra"
-  oc delete all --selector="metrics-infra=heapster"
-  oc delete all --selector="metrics-infra=support"
+  oc delete all --selector="metrics-infra"
 
   echo "Deleting any exisiting service account"
-  oc delete sa --selector="metrics-infra=support"
+  oc delete sa --selector="metrics-infra"
 
   echo "Deleting the templates"
-  oc delete templates --selector="metrics-infra=hawkular-metrics"
-  oc delete templates --selector="metrics-infra=hawkular-cassandra"
-  oc delete templates --selector="metrics-infra=heapster"
-  oc delete templates --selector="metrics-infra=support"
+  oc delete templates --selector="metrics-infra"
 
   echo "Deleting the secrets"
-  oc delete secrets --selector="metrics-infra=hawkular-metrics"
-  oc delete secrets --selector="metrics-infra=hawkular-cassandra"
-  oc delete secrets --selector="metrics-infra=heapster"
-  oc delete secrets --selector="metrics-infra=support"
+  oc delete secrets --selector="metrics-infra"
+
+  echo "Deleting any pvc"
+  oc delete pvc --selector="metrics-infra"
 fi
 
 echo "Creating secrets"
@@ -363,7 +361,7 @@ echo "Deploying components"
 oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration" | oc create -f -
 oc process hawkular-cassandra-services | oc create -f -
 oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
-oc process hawkular-support | oc create -f -
+oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f -
 
 # Deploy the main 'master' Cassandra node
 oc process hawkular-cassandra-node -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f -
