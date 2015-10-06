@@ -167,7 +167,7 @@ To deploy the metric components, you will need to deploy the 'metrics' template.
 You will need to use the same IMAGE_PREFIX and IMAGE_VERSION used to build the containers:
 
 	oc process -f metrics.yaml -v \
-	HAWKULAR_METRICS_HOSTNAME=metrics.example.com,IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel \
+	HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel \
 	| oc create -f -
 	
 #### Template Parameters
