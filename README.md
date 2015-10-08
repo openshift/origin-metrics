@@ -111,7 +111,7 @@ The heapster component requires accessing the kubernetes node to find all the av
 
 The following command will give the `heapster` service account the required permission:
 
-	openshift admin policy add-cluster-role-to-user cluster-reader \
+	oadm policy add-cluster-role-to-user cluster-reader \
           system:serviceaccount:metrics:heapster
 
 
