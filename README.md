@@ -1,6 +1,7 @@
 # origin-metrics
 
 TODO: write brief introduction here.
+TODO: specify the role needed to perform the following operations
 
 ## Building the Docker Containers
 
@@ -24,11 +25,11 @@ The Metrics components require a properly running OpenShift instances. How to pr
 
 ### Enabling the Read Only Kubelet Endpoint
 
-Currently the kubelet endpoints are secured with certificate authentication and are not accessible to metric contianers. This is a known issue which is currently being worked on: https://github.com/openshift/origin/pull/4873 
+Currently the kubelet endpoints are secured with certificate authentication and are not accessible to metric containers. This is a known issue which is currently being worked on: https://github.com/openshift/origin/pull/4873 
 
 Until this is properly fix in OpenShift, you will need to enable the RO endpoint for each of your nodes.
 
-For each of your node's `node-config.yaml` you will need to run the following command to enable read only access:
+For each node, you will need to update its `node-config.yaml` to enable read only access:
 
 	cat >> node-config.yaml << DONE
 	kubeletArguments:
@@ -67,7 +68,7 @@ For example if you have a NFS server running on localhost with an exposed direct
 
 ### Create a Metrics Project
 
-To prevent unwanted components from accessing the metric's persistent volume claim, it is highly recommended to deploy all the metric components within their own project. Management of the metric components is also easier if they are separated in their own project as well.
+To prevent unwanted components from accessing the metric's persistent volume claim, it is highly recommended to deploy all the metric components within their own project (eg metrics-infra). Management of the metric components is also easier if they are separated in their own project as well.
 
 For the instructions presented here we are going to do so in a project named `metrics`.
 
@@ -77,7 +78,7 @@ To create a new project called `metrics` you will need to run the following comm
 
 ### Create the Deployer Service Account
 
-A pod is used to setup, confiure and deploy all the various metric components. This deployer pod is run under the `metrics-deployer` service account.
+A pod is used to setup, configure and deploy all the various metric components. This deployer pod is run under the `metrics-deployer` service account.
 
 To create the metrics deployer service account, the following command can be run:
 
@@ -100,7 +101,7 @@ In order to deploy components within the project, the `metrics-deployer` service
 
 This can be accomplished by running the following command:
 
-	openshift admin policy add-role-to-user edit \
+	oadm policy add-role-to-user edit \
           system:serviceaccount:metrics:metrics-deployer
 
 
@@ -116,12 +117,14 @@ The following command will give the `heapster` service account the required perm
 
 ### Create the Hawkular Deployer Secret
 
-The Hawkular deployer pod can use secrets to be used when configuring and deploying the various components. This is useful for specifying certificates and other configuration options. All of these secrets are optional, if no secret is specified the system will either autogenerate a secret, or use defaults.
+In order to deploy the Hawkular deployer pod, a secret must first be created. These secrets allow an admin to specify their own ssl certificates instead of letting the deployer autogenerate self-signed ones. 
 
-Even if we are using only defaults, a secret will still need to exist. To create an empty secret which will cause the system to generate and use defaults, the following command can be run:
+If you wish to let the deployer generate all the certificates for you, you will just need to create an empty secret:
+
 
 	oc secrets new metrics-deployer nothing=/dev/null
 
+If you wish to provide any of your own certificates, then you will need to specify the certifcate that you wish to provide.
 
 The following is a list of configuration options which can be specifed as a secret for the deployer:
 
@@ -202,6 +205,8 @@ How many days that metrics should be stored for. This defaults to 7 days.
 ### Cassandra Scaling
 
 Since the Cassandra nodes use persistent storage, we cannot currently scale up or down using replication controllers.
+
+In a subsequent release, nominal services will allow replication controllers to handle this type of scaling and these extra steps will not be needed. But for now a few extra steps are required.
 
 In order to scale up a Cassandra cluster, you will need to use the `hawkular-cassandra-node` template.
 

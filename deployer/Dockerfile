@@ -26,8 +26,7 @@ ENV BIN_DIR=/opt/deploy \
     KUBECONFIG=/etc/deploy/.kubeconfig \
     WRITE_KUBECONFIG=1
 
-RUN yum install -y java-1.8.0-openjdk openssl && yum clean all
-RUN yum install -y httpd-tools && yum clean all
+RUN yum install -y java-1.8.0-openjdk openssl httpd-tools && yum clean all
 
 RUN mkdir -p ${HOME} ${PROCESSING_DIR} ${BIN_DIR} && chmod 777 ${HOME} && chmod 555 ${BIN_DIR}
 COPY . ${BIN_DIR}
