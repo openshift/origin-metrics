@@ -16,15 +16,11 @@
 # limitations under the License.
 #
 
-echo "STARTING WRAPPER"
-echo "ARGS : %@"
-
 # Set up the parameters to pass to EAP while removing the ones specific to the wrapper
 heapster_args=
 
 for args in "$@"
 do
-  echo "ARG $args"
   if [[ $args == --wrapper\.* ]]; then
     case $args in
       --wrapper.username_file=*)
@@ -94,6 +90,6 @@ do
   final_args="$final_args $arg"
 done
 
-echo HEAPSTER ARGS : $final_args
+echo Starting Heapster with the following arguments: $final_args
 
 exec /heapster $final_args

@@ -29,6 +29,8 @@ redeploy=${REDEPLOY:-false}
 
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
+# If we should use persistent storage or not
+use_persistent_storage=${USE_PERSISTENT_STORAGE:-true}
 # The size of each Cassandra Node
 cassandra_pv_size=${CASSANDRA_PV_SIZE-10Gi}
 
@@ -141,11 +143,6 @@ hawkular_metrics_keystore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | hea
 hawkular_metrics_truststore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
 hawkular_cassandra_keystore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
 hawkular_cassandra_truststore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-
-echo "Hawkular Metrics Keystore Password :" $hawkular_metrics_keystore_password
-echo "Hawkular Metrics Keystore Password :" $hawkular_metrics_truststore_password
-echo "Hawkular Cassandra Keystore Password :" $hawkular_cassandra_keystore_password
-echo "Hawkular Cassandra Keystore Password :" $hawkular_cassandra_truststore_password
 
 echo "Creating the Hawkular Metrics keystore from the PEM file"
 openssl pkcs12 -export -in $dir/hawkular-metrics.pem -out $dir/hawkular-metrics.pkcs12 -name $hawkular_metrics_alias -noiter -nomaciter -password pass:$hawkular_metrics_keystore_password
@@ -354,7 +351,8 @@ oc create -f $dir/heapster-secrets.json
 echo "Creating templates"
 oc create -f templates/hawkular-metrics.json
 oc create -f templates/hawkular-cassandra.json
-oc create -f templates/hawkular-cassandra-node.json
+oc create -f templates/hawkular-cassandra-node-pv.json
+oc create -f templates/hawkular-cassandra-node-emptydir.json
 oc create -f templates/heapster.json
 oc create -f templates/support.json
 
@@ -364,12 +362,18 @@ oc process hawkular-cassandra-services | oc create -f -
 oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version" | oc create -f -
 oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f -
 
-# Deploy the main 'master' Cassandra node
-oc process hawkular-cassandra-node -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f -
-# Deploy any subsequent Cassandra nodes
-for i in $(seq 2 $cassandra_nodes);
-do
-  oc process hawkular-cassandra-node -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f -
-done
+if [ "${use_persistent_storage}" = true ]; then
+  echo "Setting up Cassandra with Persistent Storage"
+  # Deploy the main 'master' Cassandra node
+  oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f -
+  # Deploy any subsequent Cassandra nodes
+  for i in $(seq 2 $cassandra_nodes);
+  do
+    oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f -
+  done
+else 
+  echo "Setting up Cassandra with Non Persistent Storage"
+  oc process hawkular-cassandra-node-emptydir -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,MASTER=true" | oc create -f -  
+fi
 
 echo 'Success!'

@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
 # and other contributors as indicated by the @author tags.
@@ -15,17 +16,29 @@
 # limitations under the License.
 #
 
-# Hawkular-Metrics Cassandra Docker Image
-
-# Image based off of the jboss base image with JDK8
-#FROM gcr.io/google_containers/heapster:v0.18.1
-FROM docker.io/jimmidyson/heapster:secure
-
-# The image is maintained by the Hawkular Metrics team
-MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
-
-RUN apk add --update bash && rm -rf /var/cache/apk/*
-
-ADD heapster-wrapper.sh /heapster-wrapper.sh
-
-ENTRYPOINT ["/heapster-wrapper.sh"]
+apiVersion: "v1"
+kind: "List"
+metadata:
+  name: metrics-deployer-setup
+  annotations:
+    description: "Required dependencies for the metrics deployer pod."
+    tags: "infrastructure"
+labels:
+  metrics-infra: deployer
+  provider: openshift
+  component: deployer
+items:
+-
+  apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: metrics-deployer
+  secrets:
+  - name: metrics-deployer
+-
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: metrics-deployer
+  data:
+    empty: ""

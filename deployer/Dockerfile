@@ -21,7 +21,6 @@ FROM openshift/origin:latest
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 ENV BIN_DIR=/opt/deploy \
-    HOME=/etc/deploy \
     PROCESSING_DIR=/etc/deploy/_output \
     KUBECONFIG=/etc/deploy/.kubeconfig \
     WRITE_KUBECONFIG=1
@@ -29,9 +28,10 @@ ENV BIN_DIR=/opt/deploy \
 RUN yum install -y java-1.8.0-openjdk openssl httpd-tools && yum clean all
 
 RUN mkdir -p ${HOME} ${PROCESSING_DIR} ${BIN_DIR} && chmod 777 ${HOME} && chmod 555 ${BIN_DIR}
+
 COPY . ${BIN_DIR}
+
 WORKDIR ${BIN_DIR}
 
-VOLUME ${HOME}
 ENTRYPOINT ["./run.sh"]
 USER 1000

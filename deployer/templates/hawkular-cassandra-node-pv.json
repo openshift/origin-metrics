@@ -1,11 +1,11 @@
 {
-  "id": "hawkular-cassandra-node",
+  "id": "hawkular-cassandra-node-pv",
   "kind": "Template",
   "apiVersion": "v1",
-  "name": "Hawkular Cassandra Node Template",
+  "name": "Hawkular Cassandra Node Template: Persistent Storage",
   "description": "Configures a Cassandra Node to be added to a cluster.",
   "metadata" : {
-    "name": "hawkular-cassandra-node",
+    "name": "hawkular-cassandra-node-pv",
      "labels" : {
        "metrics-infra": "hawkular-cassandra"
      }

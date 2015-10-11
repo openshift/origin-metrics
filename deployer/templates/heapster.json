@@ -80,7 +80,7 @@
                 "--wrapper.username_file=/hawkular-account/hawkular-metrics.username",
                 "--wrapper.password_file=/hawkular-account/hawkular-metrics.password",
                 "--wrapper.allowed_users_file=/secrets/heapster.allowed_users",
-                "--source=kubernetes:${OAP_MASTER_URL}?useServiceAccount=true&kubeletHttps=false&kubeletPort=10266&auth=",
+                "--source=kubernetes:${OAP_MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250",
                 "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^/system.slice.*|^/user.slice)",
                 "--logtostderr=true",
                 "--vmodule=*=4",
