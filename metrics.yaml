@@ -59,6 +59,10 @@ objects:
           value: ${MASTER_URL}
         - name: REDEPLOY
           value: ${REDEPLOY}
+        - name: USE_PERSISTENT_STORAGE
+          value: ${USE_PERSISTENT_STORAGE}
+        - name: HAWKULAR_METRICS_HOSTNAME
+          value: ${HAWKULAR_METRICS_HOSTNAME}
         - name: CASSANDRA_NODES
           value: ${CASSANDRA_NODES}
         - name: CASSANDRA_PV_SIZE
@@ -95,6 +99,10 @@ parameters:
   description: "If set to true the deployer will try and delete all the existing components before trying to redeploy."
   name: REDEPLOY
   value: "false"
+-
+  description: "Set to true for persistent storage, set to false to use non persistent storage"
+  name: USE_PERSISTENT_STORAGE
+  value: "true"
 -
   description: "The number of Cassandra Nodes to deploy for the initial cluster"
   name: CASSANDRA_NODES

@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
 # and other contributors as indicated by the @author tags.
@@ -15,23 +16,29 @@
 # limitations under the License.
 #
 
-FROM openshift/origin:latest
-
-# The image is maintained by the Hawkular Metrics team
-MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
-
-ENV BIN_DIR=/opt/deploy \
-    PROCESSING_DIR=/etc/deploy/_output \
-    KUBECONFIG=/etc/deploy/.kubeconfig \
-    WRITE_KUBECONFIG=1
-
-RUN yum install -y java-1.8.0-openjdk openssl httpd-tools && yum clean all
-
-RUN mkdir -p ${HOME} ${PROCESSING_DIR} ${BIN_DIR} && chmod 777 ${HOME} && chmod 555 ${BIN_DIR}
-
-COPY . ${BIN_DIR}
-
-WORKDIR ${BIN_DIR}
-
-ENTRYPOINT ["./run.sh"]
-USER 1000
+apiVersion: "v1"
+kind: "List"
+metadata:
+  name: metrics-deployer-setup
+  annotations:
+    description: "Required dependencies for the metrics deployer pod."
+    tags: "infrastructure"
+labels:
+  metrics-infra: deployer
+  provider: openshift
+  component: deployer
+items:
+-
+  apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: metrics-deployer
+  secrets:
+  - name: metrics-deployer
+-
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: metrics-deployer
+  data:
+    empty: ""

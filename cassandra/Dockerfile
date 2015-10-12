@@ -23,32 +23,18 @@ FROM jboss/base-jdk:8
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
-# Cassandra CQL transport port
-EXPOSE 9042
-# Cassandra Thirft transport port
-EXPOSE 9160
-# Cassandra TCP port
-EXPOSE 7000
-# Cassandra SSL port
-EXPOSE 7001
+# Cassandra exposed ports: CQL, thrift, tcp, ssl
+EXPOSE 9042 9160 7000 7001
 
 # The Cassandra version
-ENV CASSANDRA_VERSION 2.2.1
-
-# The Hawkular Metrics version
-ENV HAWKULAR_METRICS_VERSION 0.8.0-SNAPSHOT
-
-# The Cassandra home location
-ENV CASSANDRA_HOME /opt/apache-cassandra
-
-#
-ENV HOME /home/cassandra
-
-# TODO: figure out if there is a better way to handle this
-# If we don't specify values here then the cassandra bin tries to automatically determine
-# the size which relies on other binaries not installed in the RHEL image.
-ENV MAX_HEAP_SIZE=512M
-ENV HEAP_NEWSIZE=100M
+ENV CASSANDRA_VERSION="2.2.1" \
+    HAWKULAR_METRICS_VERSION="0.8.0.Final" \
+    CASSANDRA_HOME="/opt/apache-cassandra" \
+    HOME="/home/cassandra" \
+    MAX_HEAP_SIZE="512M" \
+    HEAP_NEWSIZE="100M" \
+    PATH="/opt/apache-cassandra/bin:$PATH" \
+    CASSANDRA_NODES_SERVICE_NAME="hawkular-cassandra-nodes"
 
 # Become the root user to be able to install and setup Cassandra under /opt
 USER root
@@ -68,23 +54,11 @@ COPY cassandra.yaml /opt/apache-cassandra/conf/cassandra.yaml
 RUN cd $CASSANDRA_HOME/lib/ && \
     curl -Lo cassandra-seed-provider.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=cassandra-seed-provider\&e=jar\&v=${HAWKULAR_METRICS_VERSION}
 
-# Copy our customized run script over to the cassandra bin directory
-COPY cassandra-docker.sh /opt/apache-cassandra/bin/
-
-# Copy the preStop script over to the cassandra bin directory
-COPY cassandra-docker-pre-stop.sh /opt/apache-cassandra/bin/
-
-# Copy the Readiness script over to the cassandra bin directory
-COPY cassandra-docker-ready.sh /opt/apache-cassandra/bin/
-
-# TODO: remove this line once https://bugzilla.redhat.com/show_bug.cgi?id=1201848 has been fixed
-ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-# Add the Cassandra bin directory to $PATH
-ENV PATH /opt/apache-cassandra/bin:$PATH
-
-# The name of the service exposing the Cassandra nodes
-ENV CASSANDRA_NODES_SERVICE_NAME hawkular-cassandra-nodes
+# Copy across the scripts
+COPY cassandra-docker.sh \
+     cassandra-docker-pre-stop.sh \
+     cassandra-docker-ready.sh \
+     /opt/apache-cassandra/bin/
 
 # Create a 'Cassandra' user to own the directory and set it to be readable & writable by any user
 RUN groupadd -r cassandra -g 312 && \

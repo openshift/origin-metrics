@@ -1,7 +1,32 @@
 # origin-metrics
 
-TODO: write brief introduction here.
-TODO: specify the role needed to perform the following operations
+**This document and its corresponding contianers are meant to run on [OpenShift Origin](https://github.com/openshift/origin), built from its current master branch. Metric gathering will not function properly on any currently released version, up to and including the latest v1.0.6.**
+
+The following document will describe how to build, configure and install metric components for OpenShift.
+
+The metric components will gather metrics for all containers and nodes across an entire OpenShift cluster. As such it needs to be performed by a cluster administrator.
+
+## Overview
+
+There are three main components to the metrics gathering:
+
+#### Heapster
+
+[Heapster](https://github.com/kubernetes/heapster) is the component which gathers the various metrics from the OpenShift cluster. It connects to each node in an OpenShift cluster and reads the kubelet's `/stats` endpoint to retrieve metrics.
+
+It retrieves cpu and memory metrics for every container running in the cluster, across all namespaces. It also retrieves metrics for the node itself, the kubelet, and the docker daemon.
+
+Heapster does not store metrics itself and requires sending the metrics to another component for storage. For this setup, the component which deals with historically saved metrics is Hawkular Metrics.
+
+#### Hawkular Metrics
+[Hawkular Metrics](https://github.com/hawkular/hawkular-metrics/) is the metric storage engine from the [Hawkular](http://www.hawkular.org/) project. It provides means of creating, accessing and managing historically stored metrics via an easy to use json based REST interface.
+
+Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface. Hawkular Metrics then stores the metrics into a Cassandra database.
+
+#### Cassandra
+
+[Cassandra](http://cassandra.apache.org/) is the database used to store the gathered metrics.
+
 
 ## Building the Docker Containers
 
@@ -21,50 +46,11 @@ For instance, as with the above command, a prefix of `openshift/origin-` and ver
 	
 ## Setting up your System
 
-The Metrics components require a properly running OpenShift instances. How to properly install and configure OpenShift is beyond the scope of this document. Please see the [OpenShift documentation](https://docs.openshift.org/latest/welcome/index.html) on how to properly install and setup your system.
+The Metrics components requires that OpenShift is properly installed and configured. How to properly install and configure OpenShift is beyond the scope of this document. Please see the [OpenShift documentation](https://docs.openshift.org/latest/welcome/index.html) on how to properly install and setup your system.
 
-### Enabling the Read Only Kubelet Endpoint
-
-Currently the kubelet endpoints are secured with certificate authentication and are not accessible to metric containers. This is a known issue which is currently being worked on: https://github.com/openshift/origin/pull/4873 
-
-Until this is properly fix in OpenShift, you will need to enable the RO endpoint for each of your nodes.
-
-For each node, you will need to update its `node-config.yaml` to enable read only access:
-
-	cat >> node-config.yaml << DONE
-	kubeletArguments:
- 	read-only-port:
- 	- "10266"
-	DONE
-
-### Creating Persistent Storage
-
-The Cassandra database stores its data to persistent storage. For each Cassandra node you deploy, you will need a persistent volume with sufficient data available. You do not need to directly manage peristent volume claims as the deployer and templates will take care of that for you.
-
-Please see the [OpenShift documentation](https://docs.openshift.org/latest/architecture/additional_concepts/storage.html) for how to setup and configure persistent volumes.
-
-For example if you have a NFS server running on localhost with an exposed directory at `/persistent_storage/pv01`, the following command will generate a 10 gigabyte persistent volume:
-
-	oc create -f - <<API
-	apiVersion: v1
-	kind: PersistentVolume
-	metadata:
-	  name: my_pv
-	spec:
-	  capacity:
-	    storage: 10Gi
-	  accessModes:
-	    - ReadWriteOnce
-	    - ReadWriteMany
-	  persistentVolumeReclaimPolicy: Recycle
-	  nfs:
-	    server: localhost
-	    path: /persistent_storage/pv01
-	API
-
+Please be aware of things such as firewall and selinux permission issues, as well as things like making sure that Openshift's dns server starts properly.
 
 ## Deploying
-
 
 ### Create a Metrics Project
 
@@ -80,16 +66,9 @@ To create a new project called `metrics` you will need to run the following comm
 
 A pod is used to setup, configure and deploy all the various metric components. This deployer pod is run under the `metrics-deployer` service account.
 
-To create the metrics deployer service account, the following command can be run:
+The `metrics-deployer` can be created from the `metrics-deployer-setup.yaml` configuration file. The following command will create the service account for you:
 
-	oc create -f - <<API
-	apiVersion: v1
-	kind: ServiceAccount
-	metadata:
-	  name: metrics-deployer
-	secrets:
-	- name: metrics-deployer
-	API
+	oc create -f metrics-deployer-setup.yaml
 
 ### Service Account Permissions
 
@@ -121,103 +100,41 @@ In order to deploy the Hawkular deployer pod, a secret must first be created. Th
 
 If you wish to let the deployer generate all the certificates for you, you will just need to create an empty secret:
 
-
 	oc secrets new metrics-deployer nothing=/dev/null
-
-If you wish to provide any of your own certificates, then you will need to specify the certifcate that you wish to provide.
-
-The following is a list of configuration options which can be specifed as a secret for the deployer:
-
-* hawkular-metrics.pem
-	* The pem file used for the Hawkular Metrics certificate
-	* if not specified: autogenerated
-* hawkular-metrics-ca.cert
-	* The certificate for the CA used to sign the hawkular-metrics.pem
-	* required if hawkular-metrics.pem is specified, ignored otherwise
-* hawkular-cassandra.pem
-	* The pem file used for the Cassandra certificate
-	* if not specified: autogenerated
-* hawkular-cassandra-ca.cert
-	* The certificate for the CA used to sign the hawkular-cassandra.pem
-	* required if hawkular-cassandra-ca.cert is specified, ignored otherwise
-* heapster.cert
-	* The certificate used by Heapster
-	* if not specified: autogenerated
-* heapster.key
-	* The key to be used with the heapster certificate
-	* only required if heapster.cert is specified, ignored otherwise
-* heapster_client_ca.cert
-	* The certificate authority certificate used to generate heapster.cert
-	* required if heapster.cert is specified, otherwise set to an autogenerated ca certificate
-* heapster_allowed_users
-	* A file containing a comma separated list of CN to accept from certificates signed with the specified CA
-	* required if heapster.cert is specified, otherwise set to no allowed users
 	
-If the secrets to be used are placed all within a single directory, the following command will create the secret for you:
-
-	oc secrets new metrics-deployer path/to/dir
-	
-If the secrets are not all located within a single directory, the following command can be used to specify the location of the files:
-
-	oc secrets new metric-deployer hawkular-metrics.pem=/my/dir/hm.pem \
-	                               hawkular-metrics-ca.cert=/my/dir/hm-ca.cert
-
+If you wish to provide any of your own certificates, then you will need to specify the certificates that you wish to provide. Please see the [advanced configuration](docs/advanced_configuration.md#configuring-the-deployer) document for instructions in how to accomplish this.
 
 ### Deploying the Metrics Components
 
+#### Persistent Storage
+
+You can deploy the metrics components with or without persistent storage.
+
+Running with persistent storage means that your metrics will be stored to a [persistent volume](https://docs.openshift.org/latest/architecture/additional_concepts/storage.html) and be able to survive a pod being restarted or recreated. This requires an admin to have setup and made available a persistent volume of sufficient size. Running with persistent storage is highly recommended if you require metric data to be guarded against data loss. Please see the [advanced configuration](docs/advanced_configuration.md#creating-persistent-storage) page for more information.
+
+Running with non-persistent storage means that any stored metrics will be deleted when the pod is deleted or restarted. Metrics will still survive a container being restarted. It is much easier to run with non-persistent data, but with the tradeoff of potentially losing this metric data. Running with non-persistent data should only be done when data loss under certain situations is acceptable.
+
+#### Deployer Template
+
 To deploy the metric components, you will need to deploy the 'metrics' template.
 
-You will need to use the same IMAGE_PREFIX and IMAGE_VERSION used to build the containers:
+You will need to use the same IMAGE_PREFIX and IMAGE_VERSION used to build the containers.
+
+The only requires template parameter is `HAWKULAR_METRICS_HOSTNAME`. This specifies the hostname that hawkular metrics is going to be hosted under. This is used to generate the Hawkular Metrics certificate and is used for the host in the route configuration.
+
+For the full list of deployer template options, please see the [advanced configuration](docs/advanced_configuration.md#deployer-template-options) page.
+
+If you are using non-persistent data, the following command will deploy the metric components without requiring a persistent volume to be created before hand:
 
 	oc process -f metrics.yaml -v \
-	HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel \
+	HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel,USE_PERSISTENT_STORAGE=false \
 	| oc create -f -
 	
-#### Template Parameters
+If you are using persistent data, the following command will deploy the metric components but requires a storage volume of sufficient size to be available:
 
-The following are the various parameters the template will accept
-
-#####IMAGE_PREFX
-The prefix selected when the containers were built.
-
-#####IMAGE_VERSION
-The version selected when the containers were built.
-
-##### HAWKULAR_METRICS_HOSTNAME
-The hostname that hawkular metrics is going to be hosted under. This is used to generate the Hawkular Metrics certificate and is used for the host in the route configuration.
-
-##### REDEPLOY
-If the redeploy parameter is set to `true` it will delete all the components, service accounts, secrets and persistent volume claim. This will permanently delete any metrics which are stored.
-
-##### MASTER_URL
-The url to used for components to access the kubernetes master. Defaults to `https://kubernetes.default.svc.cluster.local:443`
-
-##### CASSANDRA_NODES
-How many initial Cassandra nodes should be deployed. This defaults to a single node cluster.
-
-##### CASSANDRA_PV_SIZE
-The requested size that each Cassandra node is requesting. This defaults to 1gi
-
-##### METRIC_DURATION
-How many days that metrics should be stored for. This defaults to 7 days.
-
-	
-### Cassandra Scaling
-
-Since the Cassandra nodes use persistent storage, we cannot currently scale up or down using replication controllers.
-
-In a subsequent release, nominal services will allow replication controllers to handle this type of scaling and these extra steps will not be needed. But for now a few extra steps are required.
-
-In order to scale up a Cassandra cluster, you will need to use the `hawkular-cassandra-node` template.
-
-By default, the Cassandra cluster is a single node cluster. To add a second node with 1Gi of storage, you would need to call the following command:
-
-	oc process hawkular-cassandra-node -v \
-	"IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel,PV_SIZE=1Gi,NODE=2"
-	
-To deploy more nodes, you would need to just increase the `NODE` value.
-
-Note: when you add a new node to a Cassandra cluster, the data stored in the cluster will rebalance across the cluster. The same thing will happen when you remove a node from the Cluster. Adding and removing Cassandra nodes can be an expensive operation.
+	oc process -f metrics.yaml -v \
+	HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel,USE_PERSISTENT_STORAGE=true \
+	| oc create -f -
 
 ### Cleanup
 
