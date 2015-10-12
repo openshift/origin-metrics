@@ -1,0 +1,57 @@
+id: hawkular-cassandra-services
+kind: Template
+apiVersion: v1
+name: Hawkular Cassandra Services
+description: Configures the Cassandra services for Hawkular Metrics support.
+metadata:
+  name: hawkular-cassandra-services
+  labels:
+    metrics-infra: hawkular-cassandra
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hawkular-cassandra
+    labels:
+      metrics-infra: hawkular-cassandra
+      name: hawkular-cassandra
+  spec:
+    selector:
+      type: hawkular-cassandra
+    ports:
+    - name: cql-port
+      port: 9042
+      targetPort: cql-port
+    - name: thift-port
+      port: 9160
+      targetPort: thift-port
+    - name: tcp-port
+      port: 7000
+      targetPort: tcp-port
+    - name: ssl-port
+      port: 7001
+      targetPort: ssl-port
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hawkular-cassandra-nodes
+    labels:
+      metrics-infra: hawkular-cassandra
+      name: hawkular-cassandra
+  spec:
+    selector:
+      type: hawkular-cassandra
+    portalIp: None
+    ports:
+    - name: cql-port
+      port: 9042
+      targetPort: cql-port
+    - name: thift-port
+      port: 9160
+      targetPort: thift-port
+    - name: tcp-port
+      port: 7000
+      targetPort: tcp-port
+    - name: ssl-port
+      port: 7001
+      targetPort: ssl-port

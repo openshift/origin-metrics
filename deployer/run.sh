@@ -349,12 +349,12 @@ oc create -f $dir/cassandra-certificate.json
 oc create -f $dir/heapster-secrets.json
 
 echo "Creating templates"
-oc create -f templates/hawkular-metrics.json
-oc create -f templates/hawkular-cassandra.json
-oc create -f templates/hawkular-cassandra-node-pv.json
-oc create -f templates/hawkular-cassandra-node-emptydir.json
-oc create -f templates/heapster.json
-oc create -f templates/support.json
+oc create -f templates/hawkular-metrics.yaml
+oc create -f templates/hawkular-cassandra.yaml
+oc create -f templates/hawkular-cassandra-node-pv.yaml
+oc create -f templates/hawkular-cassandra-node-emptydir.yaml
+oc create -f templates/heapster.yaml
+oc create -f templates/support.yaml
 
 echo "Deploying components"
 oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration" | oc create -f -

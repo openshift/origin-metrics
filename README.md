@@ -18,20 +18,15 @@ It retrieves cpu and memory metrics for every container running in the cluster, 
 
 Heapster does not store metrics itself and requires sending the metrics to another component for storage. For this setup, the component which deals with historically saved metrics is Hawkular Metrics.
 
-For more information about Heapster, please see https://github.com/kubernetes/heapster
-
 #### Hawkular Metrics
 [Hawkular Metrics](https://github.com/hawkular/hawkular-metrics/) is the metric storage engine from the [Hawkular](http://www.hawkular.org/) project. It provides means of creating, accessing and managing historically stored metrics via an easy to use json based REST interface.
 
 Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface. Hawkular Metrics then stores the metrics into a Cassandra database.
 
-For more information about Hawkular Metrics, please see https://github.com/hawkular/hawkular-metrics/
-
 #### Cassandra
 
 [Cassandra](http://cassandra.apache.org/) is the database used to store the gathered metrics.
 
-For more information about Cassandra, please visit its website: http://cassandra.apache.org/
 
 ## Building the Docker Containers
 
