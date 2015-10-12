@@ -19,7 +19,8 @@
 
 # Image based off of the jboss base image with JDK8
 #FROM gcr.io/google_containers/heapster:v0.18.1
-FROM docker.io/jimmidyson/heapster:secure
+#FROM docker.io/jimmidyson/heapster:secure
+FROM burmanm/hawkular-heapster:0.18.3
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
