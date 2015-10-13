@@ -148,3 +148,6 @@ If you wish to undeploy and remove everything deployed by the deployer, the foll
 	
 Note: the persistent volume claim will not be deleted by the above command. If you wish to permanently delete the data in persistent storage you can run `oc delete pvc --selector=metrics-infa`
 
+## Known Issues
+
+Please see the [known issues](docs/known_issues.md) page in the documentation.
