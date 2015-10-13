@@ -90,7 +90,7 @@ parameters:
 -
   description: "Internal URL for the master, for authentication retrieval"
   name: MASTER_URL
-  value: "https://kubernetes.default.svc.cluster.local:443"
+  value: "https://kubernetes.default.svc:443"
 -
   description: "External hostname where clients will reach Hawkular Metrics"
   name: HAWKULAR_METRICS_HOSTNAME

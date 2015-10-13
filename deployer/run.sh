@@ -22,7 +22,7 @@ set -ex
 image_prefix=${IMAGE_PREFIX:-openshift/origin-}
 image_version=${IMAGE_VERSION:-latest}
 
-master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:8443}
+master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 
 # Set to true to undeploy everything before deploying
 redeploy=${REDEPLOY:-false}
@@ -357,7 +357,7 @@ oc create -f templates/heapster.yaml
 oc create -f templates/support.yaml
 
 echo "Deploying components"
-oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration" | oc create -f -
+oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url" | oc create -f -
 oc process hawkular-cassandra-services | oc create -f -
 oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,MASTER_URL=$master_url" | oc create -f -
 oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f -

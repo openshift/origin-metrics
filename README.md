@@ -124,7 +124,7 @@ The only requires template parameter is `HAWKULAR_METRICS_HOSTNAME`. This specif
 
 For the full list of deployer template options, please see the [advanced configuration](docs/advanced_configuration.md#deployer-template-options) page.
 
-**Note**: the following options assumes that the kubernetes master will be available under `https://kubernetes.default.svc.cluster.local:443` if this is not the case please set the [MASTER_URL](https://github.com/openshift/origin-metrics/blob/master/docs/advanced_configuration.md#master_url). Failure to properly set this may result in strange i/o timeout errors in the deployer logs.
+**Note**: the following options assumes that the kubernetes master will be available under `https://kubernetes.default.svc:443` if this is not the case please set the [MASTER_URL](https://github.com/openshift/origin-metrics/blob/master/docs/advanced_configuration.md#master_url). Failure to properly set this may result in strange i/o timeout errors in the deployer logs.
 
 If you are using non-persistent data, the following command will deploy the metric components without requiring a persistent volume to be created before hand:
 
