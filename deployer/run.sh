@@ -357,7 +357,7 @@ oc create -f templates/heapster.yaml
 oc create -f templates/support.yaml
 
 echo "Deploying components"
-oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration" | oc create -f -
+oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url" | oc create -f -
 oc process hawkular-cassandra-services | oc create -f -
 oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,MASTER_URL=$master_url" | oc create -f -
 oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f -

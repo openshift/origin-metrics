@@ -19,6 +19,9 @@ parameters:
 - description: Specify the number of days that metrics should be stored for.
   name: METRIC_DURATION
   value: '7'
+- description: Internal URL for the master, for authentication retrieval
+  name: MASTER_URL
+  value: https://kubernetes.default.svc.cluster.local:443
 objects:
 - apiVersion: v1
   kind: Service
@@ -76,6 +79,7 @@ objects:
           - "-Dhawkular-metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.metrics.allowed-cors-access-control-allow-headers=authorization"
           - "-Dhawkular.metrics.default-ttl=${METRIC_DURATION}"
+          - "-DKUBERNETES_MASTER_URL=${MASTER_URL}"
           - "--hmw.keystore=/secrets/hawkular-metrics.keystore"
           - "--hmw.truststore=/secrets/hawkular-metrics.truststore"
           - "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password"
