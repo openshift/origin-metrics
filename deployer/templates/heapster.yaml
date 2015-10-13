@@ -9,7 +9,7 @@ metadata:
     metrics-infra: heapster
 parameters:
 - description: Internal URL for the master, for authentication retrieval
-  name: OAP_MASTER_URL
+  name: MASTER_URL
   value: https://kubernetes.default.svc.cluster.local:443
 - description: Specify prefix for metrics components; e.g. for "openshift/origin-metrics-deployer:v1.1",
     set prefix "openshift/origin-"
@@ -63,7 +63,7 @@ objects:
           - "--wrapper.username_file=/hawkular-account/hawkular-metrics.username"
           - "--wrapper.password_file=/hawkular-account/hawkular-metrics.password"
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
-          - "--source=kubernetes:${OAP_MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
+          - "--source=kubernetes:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
           - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^/system.slice.*|^/user.slice)"
           - "--logtostderr=true"
           - "--vmodule=*=4"
