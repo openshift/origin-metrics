@@ -90,7 +90,7 @@ The hostname that hawkular metrics is going to be hosted under. This is used to 
 If the redeploy parameter is set to `true` it will delete all the components, service accounts, secrets and persistent volume claim. This will permanently delete any metrics which are stored.
 
 ##### MASTER_URL
-The url to used for components to access the kubernetes master. Defaults to `https://kubernetes.default.svc.cluster.local:443`
+The url to used for components to access the kubernetes master. Defaults to `https://kubernetes.default.svc:443`
 
 ##### CASSANDRA_NODES
 How many initial Cassandra nodes should be deployed. This defaults to a single node cluster.

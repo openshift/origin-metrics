@@ -22,7 +22,7 @@ set -ex
 image_prefix=${IMAGE_PREFIX:-openshift/origin-}
 image_version=${IMAGE_VERSION:-latest}
 
-master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:8443}
+master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 
 # Set to true to undeploy everything before deploying
 redeploy=${REDEPLOY:-false}
