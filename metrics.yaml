@@ -36,7 +36,6 @@ objects:
   spec:
     containers:
     - image: ${IMAGE_PREFIX}metrics-deployer:${IMAGE_VERSION}
-      imagePullPolicy: IfNotPresent
       name: deployer
       volumeMounts:
       - name: secret
