@@ -34,9 +34,6 @@ objects:
     selector:
       name: hawkular-metrics
     ports:
-    - name: http-endpoint
-      port: 80
-      targetPort: http-endpoint
     - name: https-endpoint
       port: 443
       targetPort: https-endpoint
