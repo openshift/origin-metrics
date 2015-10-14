@@ -35,10 +35,3 @@ items:
     name: metrics-deployer
   secrets:
   - name: metrics-deployer
--
-  apiVersion: v1
-  kind: Secret
-  metadata:
-    name: metrics-deployer
-  data:
-    empty: ""
