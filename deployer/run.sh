@@ -89,7 +89,7 @@ if [ -n "${HAWKUKAR_CASSANDRA_PEM}" ]; then
 elif [ -s /secret/hawkular-cassandra.pem ]; then
     # use files from secret if present
     cp /secret/hawkular-cassandra.pem $dir
-    cp /secret/hawkualr-cassandra-ca.cert $dir
+    cp /secret/hawkular-cassandra-ca.cert $dir
 else #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/hawkular-cassandra.key \
@@ -169,9 +169,13 @@ keytool -noprompt -import -v -trustcacerts -alias $hawkular_cassandra_alias -fil
 
 echo "Importing the CA Certificate into the Cassandra Truststore"
 keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
+keytool -noprompt -import -v -trustcacerts -alias metricca -file ${dir}/hawkular-metrics-ca.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
+keytool -noprompt -import -v -trustcacerts -alias cassandraca -file ${dir}/hawkular-cassandra-ca.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
 
 echo "Importing the CA Certificate into the Hawkular Metrics Truststore"
 keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
+keytool -noprompt -import -v -trustcacerts -alias metricsca -file ${dir}/hawkular-metrics-ca.cert -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
+keytool -noprompt -import -v -trustcacerts -alias cassandraca -file ${dir}/hawkular-cassandra-ca.cert -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
 
 hawkular_metrics_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
 htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password 
