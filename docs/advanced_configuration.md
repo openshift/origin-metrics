@@ -66,7 +66,7 @@ If the secrets to be used are placed all within a single directory, the followin
 	
 If the secrets are not all located within a single directory, the following command can be used to specify the location of the files:
 
-	oc secrets new metric-deployer hawkular-metrics.pem=/my/dir/hm.pem \
+	oc secrets new metrics-deployer hawkular-metrics.pem=/my/dir/hm.pem \
 	                               hawkular-metrics-ca.cert=/my/dir/hm-ca.cert
 
 ### Deployer Template Options
