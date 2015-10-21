@@ -63,7 +63,7 @@ else
       --key="${dir}/ca.key" \
       --cert="${dir}/ca.crt" \
       --serial="${dir}/ca.serial.txt" \
-      --name="metrics-signer"
+      --name="metrics-signer@$(date +%s)"
 fi
 
 # Use existing or generate new Hawkular Metrics certificates
