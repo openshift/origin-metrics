@@ -71,7 +71,7 @@ $KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -fi
 popd
 
 
-exec /opt/eap/bin/standalone.sh \
+exec 2>&1 /opt/eap/bin/standalone.sh \
   -Djavax.net.ssl.keyStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.keystore \
   -Djavax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD \
   -Djavax.net.ssl.trustStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore \
