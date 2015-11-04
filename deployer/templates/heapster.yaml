@@ -66,7 +66,6 @@ objects:
           - "--source=kubernetes:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
           - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^/system.slice.*|^/user.slice)"
           - "--logtostderr=true"
-          - "--vmodule=*=4"
           - "--tls_cert=/secrets/heapster.cert"
           - "--tls_key=/secrets/heapster.key"
           - "--tls_client_ca=/secrets/heapster.client-ca"
