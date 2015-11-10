@@ -1,6 +1,6 @@
 # origin-metrics
 
-**This document and its corresponding contianers are meant to run on [OpenShift Origin](https://github.com/openshift/origin), built from its current master branch. Metric gathering will not function properly on any currently released version, up to and including the latest v1.0.6.**
+**This document and its corresponding contianers are meant to run on version v1.0.8 or later of [OpenShift Origin](https://github.com/openshift/origin)**
 
 The following document will describe how to build, configure and install metric components for OpenShift.
 
@@ -52,15 +52,13 @@ Please be aware of things such as firewall and selinux permission issues, as wel
 
 ## Deploying
 
-### Create a Metrics Project
+### Using the `openshift-infra` Project
 
-To prevent unwanted components from accessing the metric's persistent volume claim, it is highly recommended to deploy all the metric components within their own project (eg metrics-infra). Management of the metric components is also easier if they are separated in their own project as well.
+In order to use the horizontal pod autoscaler (HPA), you will need to deploy the metrics components to the `openshift-infra` project.
 
-For the instructions presented here we are going to do so in a project named `metrics`.
+	oc project openshift-infra
 
-To create a new project called `metrics` you will need to run the following command:
-
-	oc new-project metrics
+If you do not wish to use the HPA, it is possible to deploy the metrics to any other project you choose.
 
 ### Create the Deployer Service Account
 
@@ -72,7 +70,7 @@ The `metrics-deployer` can be created from the `metrics-deployer-setup.yaml` con
 
 ### Service Account Permissions
 
-Note: the following commands assumes you are running in the 'metric' project, if you are running in another project, your service account will need to be updated the service account accordingly. The format follows the following format  `system:serviceaccount:$PROJECT_NAME:$SERVICE_ACCOUNT_NAME`
+Note: the following commands assumes you are running in the 'openshift-infra' project, if you are running in another project, your service account will need to be updated the service account accordingly. The format follows the following format  `system:serviceaccount:$PROJECT_NAME:$SERVICE_ACCOUNT_NAME`
 
 #### Metrics Deployer Service Account
 
@@ -81,7 +79,7 @@ In order to deploy components within the project, the `metrics-deployer` service
 This can be accomplished by running the following command:
 
 	oadm policy add-role-to-user edit \
-          system:serviceaccount:metrics:metrics-deployer
+          system:serviceaccount:openshift-infra:metrics-deployer
 
 
 #### Heapster Service Account
@@ -91,7 +89,7 @@ The heapster component requires accessing the kubernetes node to find all the av
 The following command will give the `heapster` service account the required permission:
 
 	oadm policy add-cluster-role-to-user cluster-reader \
-          system:serviceaccount:metrics:heapster
+          system:serviceaccount:openshift-infra:heapster
 
 
 ### Create the Hawkular Deployer Secret

@@ -31,8 +31,7 @@ objects:
     selector:
       name: heapster
     ports:
-    - name: http-endpoint
-      port: 80
+    - port: 80
       targetPort: http-endpoint
 - apiVersion: v1
   kind: ReplicationController
