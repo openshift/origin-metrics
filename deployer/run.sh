@@ -119,19 +119,19 @@ fi
 # Get the Heapster allowed users
 if [ -n "${HEAPSTER_ALLOWED_USERS}" ]; then
   echo "${HEAPSTER_ALLOWED_USERS}" | base64 -d > $dir/heapster_allowed_users
-elif [ -s /secret/heapster_allowed_users ]; then
-  cp /secret/heapster_allowed_users $dir
-else #create an empty allowed users
-  echo "" > $dir/heapster_allowed_users
+elif [ -s /secret/heapster-allowed-users ]; then
+  cp /secret/heapster-allowed-users $dir/heapster_allowed_users
+else #by default accept access from the api proxy
+  echo "system:master-proxy" > $dir/heapster_allowed_users
 fi
 
 # Get the Heapster Client CA
 if [ -n "${HEAPSTER_CLIENT_CA}" ]; then
   echo "${HEAPSTER_CLIENT_CA}" | base64 -d > $dir/heapster_client_ca.cert
-elif [ -s /secret/heapster_client_ca.cert ]; then
-  cp /secret/heapster_client_ca.cert $dir
-else #use the ca we already have for signing our own certificates
-  cp $dir/ca.crt $dir/heapster_client_ca.cert
+elif [ -s /secret/heapster-client-ca.cert ]; then
+  cp /secret/heapster-client-ca.cert $dir/heapster_client_ca.cert
+else #use the service account ca by default
+  cp /var/run/secrets/kubernetes.io/serviceaccount/ca.crt $dir/heapster_client_ca.cert
 fi
   
 
