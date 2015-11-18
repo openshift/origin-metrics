@@ -92,4 +92,4 @@ done
 
 echo Starting Heapster with the following arguments: $final_args
 
-exec /heapster $final_args
+exec heapster $final_args
