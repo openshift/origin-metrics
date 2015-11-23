@@ -17,7 +17,7 @@
 #
 
 # Set up the parameters to pass to EAP while removing the ones specific to the wrapper
-eap_args=
+as_args=
 
 for args in "$@"
 do
@@ -43,7 +43,7 @@ do
         ;;
     esac
   else
-    eap_args="$eap_args $args"
+    as_args="$as_args $args"
   fi
 done
 
@@ -71,9 +71,9 @@ $KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -fi
 popd
 
 
-exec 2>&1 /opt/eap/bin/standalone.sh \
+exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -Djavax.net.ssl.keyStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.keystore \
   -Djavax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD \
   -Djavax.net.ssl.trustStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore \
   -Djavax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD \
-  $eap_args
+  $as_args

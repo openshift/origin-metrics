@@ -63,7 +63,7 @@ objects:
           - name: http-endpoint
             containerPort: 8080
           - name: https-endpoint
-            containerPort: 8444
+            containerPort: 8443
           command:
           - "/opt/hawkular/scripts/hawkular-metrics-wrapper.sh"
           - "-b"
