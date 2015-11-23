@@ -143,6 +143,7 @@ If you wish to undeploy and remove everything deployed by the deployer, the foll
 	oc delete all --selector=metrics-infra
 	oc delete secrets --selector=metrics-infra
 	oc delete sa --selector=metrics-infra
+	oc delete templates --selector=metrics-infra
 	
 Note: the persistent volume claim will not be deleted by the above command. If you wish to permanently delete the data in persistent storage you can run `oc delete pvc --selector=metrics-infa`
 
