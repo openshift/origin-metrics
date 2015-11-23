@@ -15,13 +15,30 @@
 # limitations under the License.
 #
 
-# Heapster Docker Image
-FROM openshift/origin-metrics-heapster-base:latest
+# Heapster Docker Base Image
+FROM centos:centos7
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
-# Add the wrapper we use to start the process
-ADD heapster-wrapper.sh /opt/heapster-wrapper.sh
+EXPOSE 8082
 
-ENTRYPOINT ["opt/heapster-wrapper.sh"]
+ENV HEAPSTER_COMMIT=af4752e
+
+RUN yum install -y -q go git wget make && \
+    yum clean all && \
+    export GOPATH=/tmp/gopath && \
+    export PATH=$PATH:$GOPATH/bin && \
+    mkdir -p $GOPATH && \
+    cd $GOPATH && \
+    go get -d k8s.io/heapster && \
+    cd src/k8s.io/heapster && \
+    git checkout $HEAPSTER_COMMIT && \
+    make && \
+    cp heapster /opt && \
+    rm -rf $GOPATH && \
+    yum remove -y -q go git wget make
+    
+ENV PATH=$PATH:/opt
+
+ENTRYPOINT ["/opt/heapster"]

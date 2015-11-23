@@ -58,7 +58,7 @@ objects:
           - name: http-endpoint
             containerPort: 8082
           command:
-          - "./heapster-wrapper.sh"
+          - "heapster-wrapper.sh"
           - "--wrapper.username_file=/hawkular-account/hawkular-metrics.username"
           - "--wrapper.password_file=/hawkular-account/hawkular-metrics.password"
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
