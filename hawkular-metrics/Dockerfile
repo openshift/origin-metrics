@@ -20,14 +20,14 @@
 # This dockerfile can be used to create a Hawkular-Metrics docker
 # image to be run on Openshift.
 
-FROM registry.access.redhat.com/jboss-eap-6/eap-openshift
+FROM jboss/wildfly:9.0.2.Final
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.8.0.Final" \
+    HAWKULAR_METRICS_VERSION="0.10.0-SNAPSHOT" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/"
 
@@ -35,9 +35,9 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
 EXPOSE 8080 8444
 
 # Get and copy the hawkular metrics war to the deployment directory
-#COPY hawkular-metrics-api-rest-1.1-openshift.war $JBOSS_HOME/standalone/deployments/hawkular-metrics-api-jaxrs.war
+#COPY hawkular-metrics-api-rest-openshift.war $JBOSS_HOME/standalone/deployments/hawkular-metrics-api-jaxrs.war
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
-    curl -Lo hawkular-metrics-api-jaxrs.war https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-api-jaxrs-1.1-openshift\&e=war\&v=${HAWKULAR_METRICS_VERSION}
+    curl -Lo hawkular-metrics-api-jaxrs.war https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-api-jaxrs-openshift\&e=war\&v=${HAWKULAR_METRICS_VERSION}
 
 # Copy the scripts
 COPY hawkular-metrics-poststart.py \
