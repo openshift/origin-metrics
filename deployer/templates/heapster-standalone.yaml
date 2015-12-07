@@ -1,10 +1,10 @@
-id: hawkular-heapster
+id: heapster-standalone
 kind: Template
 apiVersion: v1
-name: Hawkular Heapster Template
-description: Configures a Heapster template to be used with Hawkular Metrics.
+name: Heapster Standalone Template
+description: Configures a Heapster template to be used with the HPA.
 metadata:
-  name: hawkular-heapster
+  name: heapster-standalone
   labels:
     metrics-infra: heapster
 parameters:
@@ -28,8 +28,6 @@ objects:
       metrics-infra: support
   secrets:
   - name: heapster-secrets
-  - name: hawkular-metrics-certificate
-  - name: hawkular-metrics-account
 - apiVersion: v1
   kind: Service
   metadata:
@@ -69,11 +67,8 @@ objects:
             containerPort: 8082
           command:
           - "heapster-wrapper.sh"
-          - "--wrapper.username_file=/hawkular-account/hawkular-metrics.username"
-          - "--wrapper.password_file=/hawkular-account/hawkular-metrics.password"
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
           - "--source=kubernetes:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
-          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^/system.slice.*|^/user.slice)"
           - "--tls_cert=/secrets/heapster.cert"
           - "--tls_key=/secrets/heapster.key"
           - "--tls_client_ca=/secrets/heapster.client-ca"
@@ -81,18 +76,8 @@ objects:
           volumeMounts:
           - name: heapster-secrets
             mountPath: "/secrets"
-          - name: hawkular-metrics-certificate
-            mountPath: "/hawkular-cert"
-          - name: hawkular-metrics-account
-            mountPath: "/hawkular-account"
         volumes:
         - name: heapster-secrets
           secret:
             secretName: heapster-secrets
-        - name: hawkular-metrics-certificate
-          secret:
-            secretName: hawkular-metrics-certificate
-        - name: hawkular-metrics-account
-          secret:
-            secretName: hawkular-metrics-account
         serviceAccount: heapster

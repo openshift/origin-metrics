@@ -19,9 +19,9 @@
 apiVersion: "v1"
 kind: "Template"
 metadata:
-  name: metrics-deployer-template
+  name: metrics-heapster-deployer-template
   annotations:
-    description: "Template for deploying the required Metrics integration. Requires cluster-admin 'metrics-deployer' service account and 'metrics-deployer' secret."
+    description: "Template for deploying a standalone Heapster for HPA. Requires cluster-admin 'metrics-deployer' service account and 'metrics-deployer' secret."
     tags: "infrastructure"
 labels:
   metrics-infra: deployer
@@ -58,16 +58,8 @@ objects:
           value: ${MASTER_URL}
         - name: REDEPLOY
           value: ${REDEPLOY}
-        - name: USE_PERSISTENT_STORAGE
-          value: ${USE_PERSISTENT_STORAGE}
-        - name: HAWKULAR_METRICS_HOSTNAME
-          value: ${HAWKULAR_METRICS_HOSTNAME}
-        - name: CASSANDRA_NODES
-          value: ${CASSANDRA_NODES}
-        - name: CASSANDRA_PV_SIZE
-          value: ${CASSANDRA_PV_SIZE}
-        - name: METRIC_DURATION
-          value: ${METRIC_DURATION}
+        - name: HEAPSTER_STANDALONE
+          value: "true"
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -91,26 +83,6 @@ parameters:
   name: MASTER_URL
   value: "https://kubernetes.default.svc:443"
 -
-  description: "External hostname where clients will reach Hawkular Metrics"
-  name: HAWKULAR_METRICS_HOSTNAME
-  required: true
--
   description: "If set to true the deployer will try and delete all the existing components before trying to redeploy."
   name: REDEPLOY
   value: "false"
--
-  description: "Set to true for persistent storage, set to false to use non persistent storage"
-  name: USE_PERSISTENT_STORAGE
-  value: "true"
--
-  description: "The number of Cassandra Nodes to deploy for the initial cluster"
-  name: CASSANDRA_NODES
-  value: "1"
--
-  description: "The persistent volume size for each of the Cassandra nodes"
-  name: CASSANDRA_PV_SIZE
-  value: "1Gi"
--
-  description: "How many days metrics should be stored for."
-  name: METRIC_DURATION
-  value: "7"

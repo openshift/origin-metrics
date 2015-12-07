@@ -29,16 +29,6 @@ objects:
   secrets:
   - name: hawkular-cassandra-secrets
 - apiVersion: v1
-  kind: ServiceAccount
-  metadata:
-    name: heapster
-    labels:
-      metrics-infra: support
-  secrets:
-  - name: heapster-secrets
-  - name: hawkular-metrics-certificate
-  - name: hawkular-metrics-account
-- apiVersion: v1
   kind: Route
   metadata:
     name: hawkular-metrics
