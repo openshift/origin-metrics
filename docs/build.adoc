@@ -1,0 +1,60 @@
+= Building the Origin Metrics Docker Images
+
+If you wish to build your own _Origin Metric_ docker images, the easiest way is to use the *_hack/build-images.sh_* script.
+
+This will allow you to build all the docker images, as well as optionally push those images out to a docker registry.
+
+The script takes the following parameters
+
+. *--prefix* : This is applied to the begining of your image names and can be used to specify the docker registry, user account and any other prefix desired.
+
+. *--version* : The version tag to apply to the build images.
+
+. *--push* : If you wish to push out your image to a docker registry
+
+All the images must have the same prefix and version tag in order for the deployer to deploy them. Components with different prefixes or versions are not currently supported.
+
+By default, the *_--prefix_* and *_--version_* values will correspond to *_docker.io/openshift/origin-_* and *_latest_*. The default build will create the following images:
+
+----
+openshift/origin-metrics-deployer
+openshift/origin-metrics-heapster
+openshift/origin-metrics-cassandra
+openshift/origin-metrics-hawkular-metrics
+----
+
+If you wanted to build your images under the `myName` account with a version tag of `devel` and an image prefix of `origin-`, you would perform the following command:
+
+[options="nowrap"]
+----
+$ cd hack
+$ ./build-images.sh --prefix=myName/origin- --version=devel
+----
+	
+If you wish to optionally build and push your images to a registry, you will just need to add the `--push` option
+
+[options="nowrap"]
+----
+$ cd hack
+$ ./build-images.sh --prefix=myName/origin- --version=devel --push
+----
+
+[NOTE]
+====
+The heapster base image is not build by default using the *_hack/build-images.sh_*. If you wish to build this image you will need to do so manually with its provided link:../heapster-base/Dockerfile[*_Dockerfile_*] in the *_heapster-base_* directory.
+====
+
+= Using the Built Images
+
+If you have built the images with the default _prefix_ and _version_ then there is no extra step required when deploying the metrics components. The deployer will use these values as its defaults.
+
+If you have built the images with a different _prefix_ or _version_ then you will need to set the _IMAGE_PREFIX_ and _IMAGE_VERSION_ template parameters when deploying the deployer.
+
+For instance, if the *_prefix_* corresponded to *_myName/origin-_* and the *_version_* corresponded to *_latest_*, then the deployer command would look something like this:
+
+[options="nowrap"]
+----
+oc process -f metrics.yaml -v \
+HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,IMAGE_PREFIX=myName/origin-,IMAGE_VERSION=latest,USE_PERSISTENT_STORAGE=false \
+| oc create -f -
+----

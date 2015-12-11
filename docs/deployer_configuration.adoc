@@ -1,0 +1,112 @@
+# Deployer Configuration
+
+## Deployer Secrets
+
+The following table contains more advanced configuration options, detailing all the secrets which can be used by the deployer:
+
+[cols="2,4",options="header"]
+|===
+
+|Secret Name |Description
+
+|*_hawkular-metrics.pem_*
+|The *_pem_* file to use for the Hawkular Metrics certificate. This is
+auto-generated if unspecified.
+
+|*_hawkular-metrics-ca.cert_*
+|The certificate for the CA used to sign the *_hawkular-metrics.pem_*. This
+option is ignored if the *_hawkular-metrics.pem_* option is not specified.
+
+|*_hawkular-cassandra.pem_*
+|The *_.pem_* file to use for the Cassandra certificate. This is auto-generated
+if unspecified.
+
+|*_hawkular-cassandra-ca.cert_*
+|The certificate for the CA used to sign the *_hawkular-cassandra.pem_*. This
+option is ignored if the *_hawkular-cassandra.pem_* option is not specified.
+
+|*_heapster.cert_*
+|The certificate for Heapster to use. This is auto-generated if unspecified.
+
+|*_heapster.key_*
+|The key to use with the Heapster certificate. This is ignored if
+*_heapster.cert_* is not specified
+
+|*_heapster_client_ca.cert_*
+|The certificate that generates *_heapster.cert_*. This is required if
+*_heapster.cert_* is specified.  Otherwise, the main CA for the OpenShift installation
+is used. In order for link:../dev_guide/pod_autoscaling.html[horizontal pod autoscaling]
+to function properly, this should not be overridden.
+
+|*_heapster_allowed_users_*
+|A file containing a comma-separated list of CN to accept from certificates
+signed with the specified CA. By default, this is set to allow the OpenShift service
+proxy to connect.  If you override this, make sure to add `system:master-proxy` to the
+list in order to allow link:../dev_guide/pod_autoscaling.html[horizontal pod autoscaling]
+to function properly.
+
+|===
+
+
+## Deployer Template Parameters
+
+The following table contains descriptions of the deployer's template parameters
+
+[cols="2,10,1",options="header"]
+|===
+
+|Parameter Name |Description |Required
+
+|*_IMAGE_PREFIX_*
+|Specify prefix for metrics components; e.g. for "openshift/origin-metrics-deployer:v1.1", set prefix "openshift/origin-"
+
+Default: *"openshift/origin-"*
+|
+
+|*_IMAGE_VERSION_*
+|Specify version for metrics components; e.g. for "openshift/origin-metrics-deployer:v1.1", set version "v1.1"
+
+Default: *"latest"*
+|
+
+|*_MASTER_URL_*
+|Internal URL for the master, for authentication retrieval
+
+Default: *"https://kubernetes.default.svc:443"*
+|
+
+|*_HAWKULAR_METRICS_HOSTNAME_*
+|External hostname where clients will reach Hawkular Metrics
+|:white_check_mark:
+
+|*_REDEPLOY_*
+|If set to true the deployer will try and delete all the existing components before trying to redeploy.
+
+Default: *"false"*
+|
+
+|*_USE_PERSISTENT_STORAGE_*
+|Set to true for persistent storage, set to false to use non persistent storage
+
+Default: *"true"*
+|
+
+|*_CASSANDRA_NODES_*
+|The number of Cassandra Nodes to deploy for the initial cluster
+
+Default: *"1"*
+|
+
+|*_CASSANDRA_PV_SIZE_*
+|The persistent volume size for each of the Cassandra nodes
+
+Default: *"10Gi"*
+|
+
+|*_METRIC_DURATION_*
+|How many days metrics should be stored for.
+
+Default: *"7"*
+|
+
+|===
