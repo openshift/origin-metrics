@@ -1,0 +1,22 @@
+# Scaling the Cassandra Components
+
+Since the Cassandra nodes use persistent storage, we cannot currently scale up or down using replication controllers.
+
+In a subsequent release, nominal services will allow replication controllers to handle this type of scaling and these extra steps will not be needed. But for now a few extra steps are required.
+
+In order to scale up a Cassandra cluster, you will need to use the `hawkular-cassandra-node` template.
+
+By default, the Cassandra cluster is a single node cluster. To add a second node with 10Gi of storage, you would need to call the following command:
+
+[options="nowrap"]
+----
+$ oc process hawkular-cassandra-node-pv -v \
+"IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel,PV_SIZE=10Gi,NODE=2"
+----
+
+To deploy more nodes, you would need to just increase the `NODE` value.
+
+[NOTE]
+====
+when you add a new node to a Cassandra cluster, the data stored in the cluster will rebalance across the cluster. The same thing will happen when you remove a node from the Cluster. Adding and removing Cassandra nodes can be an expensive operation.
+====
