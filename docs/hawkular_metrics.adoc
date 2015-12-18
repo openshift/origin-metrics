@@ -20,12 +20,12 @@ For the `_system` tenant, the user requesting to read from this tenant must have
 
 The bearer token is sent to the Hawkular Metrics server via the `Authorization` header.
 
-# Simple Example
+# Simple Examples
 
 The following example assumes that the Hawkular Metrics route hostname is set to _hawkular-metrics.example.com_ and that we are dealing with metrics from a project named `test`. Retrieval of the bearer token is outside of the scope of these examples. 
 These just represent some very simple examples on how to query data directly from Hawkular Metrics. It is by no means an exhaustive list. For more detailed information please see the link:http://www.hawkular.org/docs/rest/rest-metrics.html[Hawkular Metrics documentation].
 
-## Accessing all metrics
+## Accessing all metrics for a Project
 
 If you wish to get a list of all metrics on available under the project `test` you can perform the following command
 
@@ -74,6 +74,31 @@ This will return a list of metrics in the following format:
 ]
 ----
 
+## Accessing Node Metrics
+
+As mention link:#hawkular-tenants\--openshift-projects[previously] there is a special tenant called `_system` which is used to store the metrics coming from the node itself and not coming from a particular container.
+
+The Hawkular API access for the `_system` tenant is exactly the same as for any of the other metrics access. Access to this tenant requires cluster-reader or cluster-admin level access.
+
+For instance, taking our example above, to get all the metrics from the `_system` tenant, you would just need to change the `Hawkular-tenant` to `_system`:
+
+----
+$ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
+       -H "Hawkular-tenant: _system" 
+       -X GET https://hawkular-metrics.example.com/hawkular/metrics/metrics | python -m json.tool
+----
+
+The system level metrics actually contain a few more metrics than those gathered by the container. Specifically it includes network and disk usage metrics.
+
+The following command will list the ids for all the `machine` level metrics:
+----
+$ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
+       -H "Hawkular-tenant: _system" 
+       -X GET https://hawkular-metrics.example.com/hawkular/metrics/metrics | python -m json.tool | grep -i \"id\" | grep -i machine
+----
+
+For more information on what each of these metrics contains, please see the link:https://github.com/kubernetes/heapster/blob/master/docs/storage-schema.md[Heapster schema] page.
+
 ## Querying based on tag
 You can further query down the result that you are looking for by querying based on tags.
 
@@ -91,7 +116,25 @@ $ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
        -X GET https://hawkular-metrics.example.com/hawkular/metrics/metrics?tags=descriptor_name:cpu/usage,pod_name:myPod  | python -m json.tool
 ----
 
-## Accessing A specific Metric
+*Regular Expressions: Accessing all pods where the `container_base_image` contains `test`*
+
+Regular expressions can also be used in tag queries. The following example will return all metrics where the `container_base_image` contains `test`:
+
+----
+$ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
+       -H "Hawkular-tenant: test" 
+       -X GET https://hawkular-metrics.example.com/hawkular/metrics/metrics?tags=container_base_image:.*test.*  | python -m json.tool
+----
+
+*Regular Expressions: Accessing all pods where the `container_base_image` start with `test/`*
+
+----
+$ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
+       -H "Hawkular-tenant: test" 
+       -X GET https://hawkular-metrics.example.com/hawkular/metrics/metrics?tags=container_base_image:test/.*  | python -m json.tool
+----
+
+## Accessing A Specific Metric
 
 From the querying results above, you will notice that each metric contains an `id` value. You can use this value to directly access the metric itself and the data it contains.
 
@@ -156,3 +199,82 @@ $ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
        -X GET https://hawkular-metrics.example.com/hawkular/metrics/counters/data?tags=descriptor_name:cpu/usage,pod_name:myPod\&stacked=true\&buckets=3\&start=`date -d -10minutes +%s%3N`  | python -m json.tool
 ----
 
+## Calcuating Percentage CPU Usage
+
+From the link:https://github.com/kubernetes/heapster/blob/master/docs/storage-schema.md#metrics[Heapster schema], what the `cpu/usage` stores is the amount of time in nanoseconds that a core of the CPU has been in use since the container has started.
+
+With just this raw data, it is not intuitive what this data really means or what you can do with it.
+
+The following examples will take this data, along with the `uptime` and `cpu/limit` metrics and transform it into something more consumable.
+
+*Calculating CPU Core Percentage*
+
+A more intuitive measurement would be to calculate the CPU core usage. 
+
+[NOTE]
+====
+The calculations are based on the percentage of use for a single CPU core, therefor machine with multiple cores may report values higher than 100%.
+====
+
+We know from the `cpu/usage` metric how much of the CPU has been used in nanoseconds, but we also have access to the `uptime` metric which specifies how long the container has been running in milliseconds. 
+
+From this it is just a simple calculation to determine the percentage of a CPU core used
+
+----
+% core = `cpu/usage` / ( `uptime` * 1000000 )
+----
+
+The steps involved to this is up to the client to determine. Hawkular Metrics does not currently support performing this type of calculation directly. The client will have to fetch the metric values from Hawkular Metrics and then perform the calculations itself.
+
+To determine the CPU usage between a particular start and stop time requires the following steps:
+
+- usageStart = the `cpu/usage` at the start time
+- usageEnd = the `cpu/usage` at the end time
+- uptimeStart = fetch the `uptime` at the start time
+- uptimeEnd = the `uptime` at the end time
+
+core_percentage = ( $usageEnd - $usageStart ) / ( ($uptimeEnd - $uptimeStart) * 1000000 )
+
+If you want to do the calculation for the total since the container has been running, then you will only need to fetch the `cpu/usage` and `uptime` at the end time. You do not need to fetch anything at the start time (since at the start both of the values will be 0).
+
+[IMPORTANT]
+====
+When a container is restarted, its `cpu/usage` and `uptime` will go back to being zero. These values are reset and do not continue counting from where they were previously.
+====
+
+
+*Calculating CPU Millicore Percentage*
+
+If you want to convert percent of cores used into a millicore used metric instead you just need to multiple the percentage by 1000: 
+
+----
+millicore_percentage = core_percentage * 1000
+----
+
+*Calculating Percentage Usage Based on Limit*
+
+It is possible to set the limit on a contianer for both the cpu and memory usage. For limiting based on CPU, you specify the maximum millicores that a container is allowed to use.
+
+For example, the following will startup the ruby-hello-world container and limits its usage CPU usage to 300 millicores:
+
+----
+apiVersion: "v1"
+kind: "Pod"
+metadata:
+  name: test
+spec:
+  containers:
+  - image: openshift/ruby-hello-world
+    name: test
+    resources:
+      limits:
+        cpu: 300m
+----
+
+The `cpu/limit` metric returns the cpu limit for that container in millicores.
+
+From the previous step we showed how to calculate millicores used. To get the percentage used, we then just need to take that value and divide it by the `cpu/limit` value.
+
+----
+limit_percentage = ( % millicores used ) / ( 'cpu/limit')
+----
