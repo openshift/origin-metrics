@@ -188,6 +188,27 @@ $ oc process -f metrics.yaml -v \
 ----
 ====
 
+== Verifying the Components after Installation
+
+The first check should always be to see that the Hawkular Metrics, Cassandra, and Heapster pods are in the running state.
+
+----
+$ oc get pods -n openshift-infra
+----
+
+If all pods are in the running state, then you will want to check the Hawkular-Metrics status page:
+
+----
+$ curl -X GET https://${HAWKULAR_METRICS_HOSTNAME}/hawkular/metrics/status
+----
+
+This will return a short json document. The important thing to look at here is the `MetricsService` value, if this is `STARTED` then it means that Hawkular Metrics has fully started and was able to successfully connect to Cassandra.
+
+The next step will be to check the Heapster validate page. The link:#accessing-heapster-directly[Accessing Heapster Directly] section fully describes how to connect to this page. This page will show you some information about the current Heapster setup as well as how many metrics it knows about and has written into Hawkular Metrics.
+
+Please see the link:docs/troubleshooting.adoc[troubleshooting guide] if you are running into any issues.
+
+
 == Configurations for the OpenShift Console
 
 The OpenShift web console uses the data coming from the Hawkular Metrics service
