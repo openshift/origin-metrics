@@ -56,7 +56,6 @@ RUN cd $CASSANDRA_HOME/lib/ && \
 
 # Copy across the scripts
 COPY cassandra-docker.sh \
-     cassandra-docker-pre-stop.sh \
      cassandra-docker-ready.sh \
      /opt/apache-cassandra/bin/
 

@@ -25,7 +25,18 @@ hawkularEndpointPort = os.environ.get("HAWKULAR_METRICS_ENDPOINT_PORT")
 
 statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/status"
 
+startTime = time.time()
+
 while True:
+  
+  # If we have been checking for more than 2 minute, then exit
+  #
+  # 'Pending' containers cannot be killed by Kubernetes if something goes wrong
+  # and without a timeout the container will be unkillable
+  if ( (time.time() - startTime) > 120 ):
+    print "Hawkular Metrics did not start up within the timeout. Exiting"
+    exit(1)
+ 
   try:
     response = urllib2.urlopen(statusURL)
     statusCode = response.getcode();

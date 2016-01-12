@@ -22,6 +22,8 @@ FROM openshift/origin-metrics-heapster-base:latest
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 # Add the wrapper we use to start the process
-ADD heapster-wrapper.sh /opt/heapster-wrapper.sh
+ADD heapster-wrapper.sh \
+    heapster-poststart.sh \
+    /opt/
 
 ENTRYPOINT ["opt/heapster-wrapper.sh"]

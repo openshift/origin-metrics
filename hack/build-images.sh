@@ -2,10 +2,13 @@
 
 set -e
 
-prefix="docker.io/openshift/origin-"
+prefix="openshift/origin-"
 version="latest"
 push=false
 verbose=false
+options=""
+
+source_root=$(dirname "${BASH_SOURCE}")/..
 
 for args in "$@"
 do
@@ -15,6 +18,9 @@ do
       ;;
     --version=*)
       version="${args#*=}"
+      ;;
+    --no-cache)
+      options="${options} --no-cache"
       ;;
     --push)
       push=true
@@ -39,6 +45,9 @@ if [ "$help" = true ]; then
   echo "  --version=VERSION"
   echo "  The version used to tag the image"
   echo "  default: latest"
+  echo 
+  echo "  --no-cache"
+  echo "  If set will perform the build without a cache."
   echo
   echo "  --push"
   echo "  If set will call 'docker push' on the images"
@@ -58,10 +67,10 @@ if [ "$verbose" = true ]; then
 fi
 
 echo "Building image ${prefix}metrics-hawkular-metrics:${version}"
-docker build -t "${prefix}metrics-hawkular-metrics:${version}"       ../hawkular-metrics/
-docker build -t "${prefix}metrics-cassandra:${version}" ../cassandra/
-docker build -t "${prefix}metrics-heapster:${version}"        ../heapster/
-docker build -t "${prefix}metrics-deployer:${version}"    ../deployer/
+docker build ${options} -t "${prefix}metrics-hawkular-metrics:${version}"       ${source_root}/hawkular-metrics/
+docker build ${options} -t "${prefix}metrics-cassandra:${version}" 		${source_root}/cassandra/
+docker build ${options} -t "${prefix}metrics-heapster:${version}"        	${source_root}/heapster/
+docker build ${options} -t "${prefix}metrics-deployer:${version}"    		${source_root}/deployer/
 
 if [ "$push" = true ]; then
   echo "Pushing Docker Images"
