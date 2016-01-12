@@ -1,0 +1,69 @@
+= Hacking on Origin Metrics
+
+== Running the Tests
+
+The tests require that the `oc` command is available in the path and that the user who is currently logged in via the `oc login` command currently has admin privileges.
+
+Once these prerequisites are met, the following command will run the tests:
+
+----
+$ e2e-tests.sh
+----
+
+This will perform a couple of different steps:
+
+. Builds new docker images without using the cache
+
+. Creates a new test project in the OpenShift instance
+
+. Runs the various tests
+
+. Cleans up and removed the test project created
+
+The following table outlines the various options which can be used to change this default behaviour.
+
+[cols="2,4",options="header"]
+|===
+
+|Option |Description
+
+|--skipBuild
+|Skips building the docker images
+
+|--continue
+|Leaves the project running after the tests have finished. Useful for debugging purposes as to why a test is failing
+
+|--skipTests
+|Sets up the system but does not run any of the tests. Useful when testing one specific test
+
+|--debug
+|Outputs debugging information about what the tests is currently doing.
+
+|-x
+|Enables `set -x` mode. This will output to the console the commands being run. Makes the output very verbose but can be useful for debugging purposes.
+
+|===
+
+For example, if you don't want to build new docker images for the tests and want to have the test project still running at the end of the tests, the following command can be used
+
+----
+$ e2e-tests.sh --skipBuild --continue
+----
+
+=== Running a single test
+
+It is possible to run a single test without having to run the whole test suite.
+
+To do so, you will want to start the `e2e-tests.sh` command with the `--skipTests` option, and specify not to delete the project once finished.
+
+----
+$ e2e-tests.sh --skipBuild --skipTests --continue
+----
+
+You will then need to specify the test file you want to run and specify the test function to run with the `--test` option
+
+For example, to only run the `test.DefaultInstall` from the `test_default_deploy.sh` file
+
+----
+$ ./tests/test_default_deploy.sh --test=test.DefaultInstall --debug
+----

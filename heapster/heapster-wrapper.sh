@@ -56,14 +56,23 @@ fi
 if [ -n "$ENDPOINT_CHECK" ]; then
   echo "Endpoint Check in effect. Checking $ENDPOINT_CHECK";
 
+  START_TIME=$(date +%s)
+  
   CHECK_COMMAND='curl --insecure -L -s -o /dev/null -w "%{http_code}" $ENDPOINT_CHECK'
 
   while : ; do
+
+    if [[ $(($(date +%s) - $START_TIME)) -ge 120 ]]; then
+      echo "Endpoint check for '$ENDPOINT_CHECK' could not be established after 120 seconds. Aborting"
+      exit 1
+    fi
+
     STATUS_CODE=`eval $CHECK_COMMAND`
     CURL_STATUS=$?
 
-    if [[ $CURL_STATUS -eq 6 || $CURL_STATUS -eq 7 || $STATUS_CODE -eq 200 ]]; then
+    if [[ $CURL_STATUS -eq 6 || $CURL_STATUS -eq 7 || $CURL_STATUS -eq 35 || $STATUS_CODE -eq 200 ]]; then
       if [ $STATUS_CODE -eq 200 ]; then
+        echo "The endpoint check has successfully completed."
         break
       fi
     else 
@@ -71,7 +80,7 @@ if [ -n "$ENDPOINT_CHECK" ]; then
       exit 1
     fi
  
-    echo "'$ENDPOINT_CHECK' is not accessible. Retrying."
+    echo "'$ENDPOINT_CHECK' is not accessible [HTTP status code: $STATUS_CODE. Curl exit code $CURL_STATUS]. Retrying."
  
     # Wait a second and then try again
     sleep 1;
