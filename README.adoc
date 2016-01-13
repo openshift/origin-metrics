@@ -104,6 +104,8 @@ By default, the Hawkular Metrics service uses self signed certificates which can
 cause problems when the console accesses it in a web browser. Alternately, you
 can specify your own *_hawkular-metrics.pem_* secret to use a certificate which
 is trusted by the browser.
+
+When supplying your own certificate for the Hawkular Metrics service it *must* contain both the hostname specified for the route as well as the internally used `hawkular-metrics` hostname.
 ====
 
 For instance, to optionally provide your own certificates for Hawkular Metrics, you can point your secret to the certificate's *_.pem_* and certificate authority file:
@@ -167,7 +169,10 @@ The only requires template parameter is `HAWKULAR_METRICS_HOSTNAME`. This specif
 
 For the full list of deployer template options, please see the link:docs/deployer_configuration.adoc#deployer-template-parameters[deployer configuration] page.
 
-**Note**: the following options assumes that the kubernetes master will be available under `https://kubernetes.default.svc:443` if this is not the case please set the link:docs/deployer_configuration.adoc#deployer-template-parameters[MASTER_URL]. Failure to properly set this may result in strange i/o timeout errors in the deployer logs.
+[NOTE]
+====
+The following options assumes that the kubernetes master will be available under `https://kubernetes.default.svc:443` if this is not the case please set the link:docs/deployer_configuration.adoc#deployer-template-parameters[MASTER_URL]. Failure to properly set this may result in strange i/o timeout errors in the deployer logs.
+====
 
 If you are using non-persistent data, the following command will deploy the metric components without requiring a persistent volume to be created before hand:
 
