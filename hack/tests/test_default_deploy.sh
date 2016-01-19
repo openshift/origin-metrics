@@ -92,7 +92,7 @@ function checkDeployment {
           Debug "$deploy has one replica in the 'Running' State. $running/$replicas"
         elif [[ -z $state ]]; then
           Debug "$name has not yet started to be deploy. Waiting for it to start."
-        elif [[ $state == "" ]]; then
+        elif [[ $state == "" ]] || [[ $state == "false" ]]; then
           Debug "$name is currently not ready. Waiting for it to enter the 'ready' state."
         else
           Fail "$name is in an unexpected state: \"$state\". Terminating tests."
@@ -471,13 +471,9 @@ function test.HawkularMetricsFailedStart {
   checkTerminated
 }
 
-function test.HawkularMetricsCustomCertificate {
-  undeployAll
-  
-  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate" 
-  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
-
+function testBasicDeploy {
   oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+
   checkDeployer
   checkTerminated
   checkDeployment "Cassandra" 1
@@ -502,7 +498,25 @@ function test.HawkularMetricsCustomCertificate {
   expected="openshift/origin-metrics-heapster:latest"
   if [[ $heapsterImage != $expected ]]; then
     Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
-  fi 
+  fi
+}
+
+function test.HawkularMetricsCustomCertificate {
+  undeployAll
+  
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate" 
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
+
+  testBasicDeploy
+}
+
+function test.HawkularMetricsCustomCertificateIntermediateCA {
+  undeployAll
+
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate, when using an intermediary CA."
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/intermediary_ca/hawkular-metrics.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/intermediary_ca/ca-chain.pem &> /dev/null
+
+  testBasicDeploy
 }
 
 function test.CassandraCustomCertificate {
