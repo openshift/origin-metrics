@@ -1,0 +1,34 @@
+From 080333103ceb6181a5a094be44414a26ebed94c4 Mon Sep 17 00:00:00 2001
+From: Marcin Wielgus <mwielgus@google.com>
+Date: Fri, 6 Nov 2015 14:15:08 +0100
+Subject: [PATCH] Fix nil pointer reference panic in kube_nodes
+
+---
+ sources/kube_nodes.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/sources/kube_nodes.go b/sources/kube_nodes.go
+index f05e77e..2cb963e 100644
+--- a/sources/kube_nodes.go
++++ b/sources/kube_nodes.go
+@@ -84,11 +84,13 @@ func (self *kubeNodeMetrics) updateStats(host nodes.Host, info nodes.Info, start
+ 		hostCopy := containers[hostIndex]
+ 		hostContainer = &hostCopy
+ 		containers = append(containers[:hostIndex], containers[hostIndex+1:]...)
++		// This is temporary workaround for #399. To make unit consistent with cadvisor normalize to a conversion factor of 1024.
++		hostContainer.Spec.Cpu.Limit = info.CpuCapacity * 1024 / 1000
++		hostContainer.Spec.Memory.Limit = info.MemCapacity
++		return hostContainer, containers, nil
++	} else {
++		return nil, []api.Container{}, fmt.Errorf("Host container not found")
+ 	}
+-	// This is temporary workaround for #399. To make unit consistent with cadvisor normalize to a conversion factor of 1024.
+-	hostContainer.Spec.Cpu.Limit = info.CpuCapacity * 1024 / 1000
+-	hostContainer.Spec.Memory.Limit = info.MemCapacity
+-	return hostContainer, containers, nil
+ }
+ 
+ // Returns the host containers, non-Kubernetes containers, and an error (if any).
+-- 
+2.4.3
+
