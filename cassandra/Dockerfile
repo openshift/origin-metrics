@@ -70,4 +70,4 @@ RUN groupadd -r cassandra -g 312 && \
 
 USER 313
 
-CMD ["/opt/apache-cassandra/bin/cassandra-docker.sh", "--seed_provider_classname=org.hawkular.openshift.cassandra.OpenshiftSeedProvider" ,"--cluster_name=hawkular-metrics"]
+CMD ["/opt/apache-cassandra/bin/cassandra-docker.sh"]

@@ -99,6 +99,7 @@ test.setup
 #Run the tests
 if [ "$skipTests" = false ]; then
   $SOURCE_ROOT/hack/tests/test_default_deploy.sh $@
+  $SOURCE_ROOT/hack/tests/test_standalone_docker.sh $@
 fi
 
 if [ "$continue" = true ]; then
