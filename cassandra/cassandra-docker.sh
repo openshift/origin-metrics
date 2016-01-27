@@ -167,25 +167,25 @@ fi
 if [ -n "$INTERNODE_ENCRYPTION" ]; then
    sed -i 's#${INTERNODE_ENCRYPTION}#'$INTERNODE_ENCRYPTION'#g' /opt/apache-cassandra/conf/cassandra.yaml
 else
-   sed -i 's#${INTERNODE_ENCRYPTION}#/none#g' /opt/apache-cassandra/conf/cassandra.yaml
+   sed -i 's#${INTERNODE_ENCRYPTION}#none#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 if [ -n "$ENABLE_CLIENT_ENCRYPTION" ]; then
    sed -i 's#${ENABLE_CLIENT_ENCRYPTION}#'$ENABLE_CLIENT_ENCRYPTION'#g' /opt/apache-cassandra/conf/cassandra.yaml
 else
-   sed -i 's#${ENABLE_CLIENT_ENCRYPTION}#/false#g' /opt/apache-cassandra/conf/cassandra.yaml
+   sed -i 's#${ENABLE_CLIENT_ENCRYPTION}#false#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 if [ -n "$REQUIRE_NODE_AUTH" ]; then
    sed -i 's#${REQUIRE_NODE_AUTH}#'$REQUIRE_NODE_AUTH'#g' /opt/apache-cassandra/conf/cassandra.yaml
 else
-   sed -i 's#${REQUIRE_NODE_AUTH}#/false#g' /opt/apache-cassandra/conf/cassandra.yaml
+   sed -i 's#${REQUIRE_NODE_AUTH}#false#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 if [ -n "$REQUIRE_CLIENT_AUTH" ]; then
    sed -i 's#${REQUIRE_CLIENT_AUTH}#'$REQUIRE_CLIENT_AUTH'#g' /opt/apache-cassandra/conf/cassandra.yaml
 else
-   sed -i 's#${REQUIRE_CLIENT_AUTH}#/false#g' /opt/apache-cassandra/conf/cassandra.yaml
+   sed -i 's#${REQUIRE_CLIENT_AUTH}#false#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 # handle setting up the keystore

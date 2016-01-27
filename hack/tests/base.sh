@@ -1,6 +1,7 @@
 #!/bin/bash/
 
 source $(dirname "${BASH_SOURCE}")/common.sh
+source $(dirname "${BASH_SOURCE}")/test-base.sh
 
 function cleanup {
         out=$?
