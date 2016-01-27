@@ -25,7 +25,9 @@ EXPOSE 8082
 
 ENV HEAPSTER_COMMIT=af4752e
 
-RUN yum install -y -q go git wget make && \
+COPY 0001-Fix-nil-pointer-reference-panic-in-kube_nodes.patch /tmp/
+
+RUN yum install -y -q go git wget make patch && \
     yum clean all && \
     export GOPATH=/tmp/gopath && \
     export PATH=$PATH:$GOPATH/bin && \
@@ -34,6 +36,7 @@ RUN yum install -y -q go git wget make && \
     go get -d k8s.io/heapster && \
     cd src/k8s.io/heapster && \
     git checkout $HEAPSTER_COMMIT && \
+    patch sources/kube_nodes.go < /tmp/0001-Fix-nil-pointer-reference-panic-in-kube_nodes.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \
