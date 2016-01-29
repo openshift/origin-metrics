@@ -165,13 +165,13 @@ Metric data expires based on the *METRICS_DURATION* template parameter. Normally
 
 To deploy the metric components, you will need to deploy the 'metrics' template.
 
-The only requires template parameter is `HAWKULAR_METRICS_HOSTNAME`. This specifies the hostname that hawkular metrics is going to be hosted under. This is used to generate the Hawkular Metrics certificate and is used for the host in the route configuration.
+The only required template parameter is `HAWKULAR_METRICS_HOSTNAME`. This parameter specifies the hostname that hawkular metrics is going to be hosted under. This is used to generate the Hawkular Metrics certificate and is used for the host in the route configuration.
 
 For the full list of deployer template options, please see the link:docs/deployer_configuration.adoc#deployer-template-parameters[deployer configuration] page.
 
 [NOTE]
 ====
-The following options assumes that the kubernetes master will be available under `https://kubernetes.default.svc:443` if this is not the case please set the link:docs/deployer_configuration.adoc#deployer-template-parameters[MASTER_URL]. Failure to properly set this may result in strange i/o timeout errors in the deployer logs.
+The following options assume that the kubernetes master will be available under `https://kubernetes.default.svc:443` if this is not the case please set the link:docs/deployer_configuration.adoc#deployer-template-parameters[MASTER_URL]. Failure to properly set this may result in strange i/o timeout errors in the deployer logs.
 ====
 
 If you are using non-persistent data, the following command will deploy the metric components without requiring a persistent volume to be created before hand:
