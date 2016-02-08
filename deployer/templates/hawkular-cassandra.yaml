@@ -41,17 +41,13 @@ objects:
   spec:
     selector:
       type: hawkular-cassandra
-    portalIp: None
+    portalIP: None
     ports:
     - name: cql-port
       port: 9042
-      targetPort: cql-port
     - name: thift-port
       port: 9160
-      targetPort: thift-port
     - name: tcp-port
       port: 7000
-      targetPort: tcp-port
     - name: ssl-port
       port: 7001
-      targetPort: ssl-port

@@ -11,8 +11,8 @@ function checkDeployment {
 
   while : 
   do
-    if [[ $(($(date +%s) - $CHECK_START)) -ge 120 ]]; then
-      Fail "$deploy took longer than the timeout of 120 seconds"
+    if [[ $(($(date +%s) - $CHECK_START)) -ge $timeout ]]; then
+      Fail "$deploy took longer than the timeout of $timeout seconds"
     fi
 
     names=`oc get pods | grep -i $deploy | awk '{print $1}'` || true
@@ -29,10 +29,10 @@ function checkDeployment {
           Debug "$deploy has one replica in the 'Running' State. $running/$replicas"
         elif [[ -z $state ]]; then
           Debug "$name has not yet started to be deploy. Waiting for it to start."
-        elif [[ $state == "" ]]; then
+        elif [[ $state == "" ]] || [[ $state == "false" ]]; then
           Debug "$name is currently not ready. Waiting for it to enter the 'ready' state."
         else
-          Fail "$name is in an unexpected state: \"$state\". Terminating tests."
+          Warn "$name is in an unexpected state: \"$state\"."
         fi
       done
 
@@ -64,8 +64,8 @@ function undeploy {
 
   while : 
   do
-    if [[ $(($(date +%s) - $undeployStart)) -ge 180 ]]; then
-      Fail "Undeploy took longer than the timeout of 180 seconds"
+    if [[ $(($(date +%s) - $undeployStart)) -ge $timeout ]]; then
+      Fail "Undeploy took longer than the timeout of $timeout seconds"
     fi
 
     deployment=`oc get $type $name` &> /dev/null || true

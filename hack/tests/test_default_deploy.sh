@@ -38,8 +38,8 @@ function checkDeployer {
 
   while : 
   do
-    if [[ $(($(date +%s) - $DEPLOYER_START)) -ge 120 ]]; then
-      Fail "Deployer Pod took longer than the timeout of 120 seconds"
+    if [[ $(($(date +%s) - $DEPLOYER_START)) -ge $timeout ]]; then
+      Fail "Deployer Pod took longer than the timeout of $timeout seconds"
     fi
 
     deployer_pod=`oc get pods | grep -i metrics-deployer`
@@ -61,62 +61,6 @@ function checkDeployer {
   done
 }
 
-# $1 the deployments name
-# $2 the number of replicas to check
-function checkDeployment {
-  deploy=$1
-  replicas=$2
-
-  echo
-  Info $SEPARATOR
-  Info "Checking the deployment of $deploy. Please wait."
-  CHECK_START=$(date +%s)
-
-  while : 
-  do
-    if [[ $(($(date +%s) - $CHECK_START)) -ge 120 ]]; then
-      Fail "$deploy took longer than the timeout of 120 seconds"
-    fi
-
-    names=`oc get pods | grep -i $deploy | awk '{print $1}'` || true
-
-    count=`echo "$names" | wc -l`
-    if [[ ! count -eq $replicas ]]; then
-      Debug "Expecting $replicas running pods but only found $count. Waiting for the other pod to start."
-    else
-      running=0;
-      for name in $names; do
-        state=`oc get -o template pod $name --template="{{range \\$status := .status.containerStatuses}}{{\\$status.ready}}{{end}}"`
-        if [[ $state == "true" ]]; then
-          running=$(($running+1))
-          Debug "$deploy has one replica in the 'Running' State. $running/$replicas"
-        elif [[ -z $state ]]; then
-          Debug "$name has not yet started to be deploy. Waiting for it to start."
-        elif [[ $state == "" ]] || [[ $state == "false" ]]; then
-          Debug "$name is currently not ready. Waiting for it to enter the 'ready' state."
-        else
-          Fail "$name is in an unexpected state: \"$state\". Terminating tests."
-        fi
-      done
-
-      if [[ running -eq $replicas ]]; then
-        Info "All replicas for $name are in the running state. Checking if they had any restarts"
-        restarts=`oc get pods | grep -i $name | awk '{print $4}'` || true
-        for restart in $restarts; do
-          if [[ ! $restart -eq 0 ]]; then
-            Fail "A replica for $name has a restart. Test failed"
-          fi
-        done
-        Info "All replicas for $name had zero restarts"
-        return
-      fi
-    fi
-
-    sleep 1
-  done
-
-}
-
 
 function checkMetrics {
   token=`oc whoami -t`
@@ -135,8 +79,8 @@ function checkMetrics {
   # Check if we get any metrics
   CHECK_TIME=$(date +%s)
   while : ; do
-     if [[ $(($(date +%s) - $CHECK_START)) -ge 90 ]]; then
-      Fail "Could not get any metrics after 90 seconds. Test failed."
+     if [[ $(($(date +%s) - $CHECK_START)) -ge $timeout ]]; then
+      Fail "Could not get any metrics after $timeout seconds. Test failed."
     fi
 
     status=`curl --insecure -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/metrics`
@@ -156,8 +100,8 @@ function checkMetrics {
   CHECK_TIME=$(date +%s)
   while : ; do
 
-     if [[ $(($(date +%s) - $CHECK_START)) -ge 90 ]]; then
-      Fail "Could not get any metrics after 90 seconds. Test failed."
+     if [[ $(($(date +%s) - $CHECK_START)) -ge $timeout ]]; then
+      Fail "Could not get any metrics after $timeout seconds. Test failed."
     fi
 
     data=`curl --insecure -s -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/gauges/data?tags=group_id:heapster/memory/usage\&buckets=1  | python -m json.tool | grep -i empty | awk '{print $2}'`
@@ -235,8 +179,8 @@ function undeployAll {
 
   while : 
   do
-    if [[ $(($(date +%s) - $UNDEPLOY_START)) -ge 180 ]]; then
-      Fail "Undeploy took longer than the timeout of 180 seconds"
+    if [[ $(($(date +%s) - $UNDEPLOY_START)) -ge $timeout ]]; then
+      Fail "Undeploy took longer than the timeout of $timeout seconds"
     fi
     
     all=`oc get all --selector=metrics-infra`
@@ -280,8 +224,8 @@ function checkTerminated {
 
   while :
   do
-    if [[ $(($(date +%s) - $CHECK_START)) -ge 120 ]]; then
-      Fail "Terminating pods took longer than the timeout of 120 seconds"
+    if [[ $(($(date +%s) - $CHECK_START)) -ge $timeout ]]; then
+      Fail "Terminating pods took longer than the timeout of $timeout seconds"
     fi
 
     terminatingPods=`oc get pods | grep -i terminating` || true
@@ -454,6 +398,7 @@ function test.HawkularMetricsFailedStart {
 
   START=$(date +%s)
   while : ; do
+   #Don't use the default timeout, the preset timeout for the failure needs to be this high
    if [[ $(($(date +%s) - $START)) -ge 300 ]]; then
       Fail "The metrics pod took longer than the timeout of 300 seconds"
     fi

@@ -58,7 +58,6 @@ objects:
             containerPort: 7001
           command:
           - "/opt/apache-cassandra/bin/cassandra-docker.sh"
-          - "--seed_provider_classname=org.hawkular.openshift.cassandra.OpenshiftSeedProvider"
           - "--cluster_name=hawkular-metrics"
           - "--data_volume=/cassandra_data"
           - "--internode_encryption=all"
