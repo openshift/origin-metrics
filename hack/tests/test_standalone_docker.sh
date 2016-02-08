@@ -22,8 +22,8 @@ function test.Cassandra {
   startTime=$(date +%s)
 
   while : ; do
-    if [[ $(($(date +%s) - $startTime)) -ge 90 ]]; then
-      Fail "The test cassandra pod did not enter a UN state in 90 seconds. Test failed."
+    if [[ $(($(date +%s) - $startTime)) -ge $timeout ]]; then
+      Fail "The test cassandra pod did not enter a UN state in $timeout seconds. Test failed."
     fi
 
     status=`oc exec test-cassandra nodetool status 2> /dev/null | tail -n+6 | awk '{print $1}' | head -n -1 || true` &> /dev/null

@@ -27,8 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 EXPOSE 9042 9160 7000 7001
 
 # The Cassandra version
-ENV CASSANDRA_VERSION="2.2.1" \
-    HAWKULAR_METRICS_VERSION="0.8.0.Final" \
+ENV CASSANDRA_VERSION="2.2.4" \
     CASSANDRA_HOME="/opt/apache-cassandra" \
     HOME="/home/cassandra" \
     MAX_HEAP_SIZE="512M" \
@@ -39,24 +38,28 @@ ENV CASSANDRA_VERSION="2.2.1" \
 # Become the root user to be able to install and setup Cassandra under /opt
 USER root
 
+#
+RUN yum install -y -q bind-utils && \
+    yum clean all
+
+COPY apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5 \
+     /tmp
+
 # Copy the Cassandra binary to the /opt directory
 RUN cd /opt; \
     curl -LO https://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
+    if [ "$(md5sum apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz | awk '{print $1}')" != "$(cat /tmp/apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5)" ]; then echo "The Cassandra binary does not match the expected md5sum"; exit 1; fi && \
     tar xzf apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
     rm apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
     ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
 
 # Copy our version of the cassandra configuration file over to the filesystem
-COPY cassandra.yaml /opt/apache-cassandra/conf/cassandra.yaml
-
-# Copy the jar containing the kubernetes away jar
-#COPY cassandra-seed-provider.jar /opt/apache-cassandra/lib/
-RUN cd $CASSANDRA_HOME/lib/ && \
-    curl -Lo cassandra-seed-provider.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=cassandra-seed-provider\&e=jar\&v=${HAWKULAR_METRICS_VERSION}
+COPY cassandra.yaml.template /opt/apache-cassandra/conf/cassandra.yaml.template
 
 # Copy across the scripts
 COPY cassandra-docker.sh \
      cassandra-docker-ready.sh \
+     gather-seeds.sh \
      /opt/apache-cassandra/bin/
 
 # Create a 'Cassandra' user to own the directory and set it to be readable & writable by any user
@@ -70,4 +73,4 @@ RUN groupadd -r cassandra -g 312 && \
 
 USER 313
 
-CMD ["/opt/apache-cassandra/bin/cassandra-docker.sh"]
+CMD /opt/apache-cassandra/bin/cassandra-docker.sh --seeds=${HOSTNAME}

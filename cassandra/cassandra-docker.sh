@@ -91,7 +91,7 @@ if [ -n "$HELP" ]; then
   echo
   echo "  --seed_provider_classname"
   echo "        the classname to use as the seed provider"
-  echo "        default: org.apache.cassandra.locator.SimpleSeedProdiver"
+  echo "        default: org.apache.cassandra.locator.SimpleSeedProvider"
   echo
   echo "  --internode_encryption=[all|none|dc|rack]"
   echo "        what type of internode encryption should be used"
@@ -130,15 +130,18 @@ if [ -n "$HELP" ]; then
   exit 0
 fi
 
+cp /opt/apache-cassandra/conf/cassandra.yaml.template /opt/apache-cassandra/conf/cassandra.yaml
+
 # set the hostname in the cassandra configuration file
 sed -i 's/${HOSTNAME}/'$HOSTNAME'/g' /opt/apache-cassandra/conf/cassandra.yaml
 
-# if the seed list is not set, set it to the hostname
-if [ -n "$SEEDS" ]; then
-  sed -i 's/${SEEDS}/'$SEEDS'/g' /opt/apache-cassandra/conf/cassandra.yaml
-else
-  sed -i 's/${SEEDS}/'$HOSTNAME'/g' /opt/apache-cassandra/conf/cassandra.yaml
+# if the seed list is not set, try and get it from the gather-seeds script
+if [ -z "$SEEDS" ]; then
+  source /opt/apache-cassandra/bin/gather-seeds.sh
 fi
+
+echo "Setting seeds to be ${SEEDS}"
+sed -i 's/${SEEDS}/'$SEEDS'/g' /opt/apache-cassandra/conf/cassandra.yaml
 
 # set the cluster name if set, default to "test_cluster" if not set
 if [ -n "$CLUSTER_NAME" ]; then
@@ -211,7 +214,7 @@ if [ -n "$TRUSTSTORE_PASSWORD" ]; then
 fi
 
 # create the cqlshrc file so that cqlsh can be used much more easily from the system
-mkdir $HOME/.cassandra
+mkdir -p $HOME/.cassandra
 cat >> $HOME/.cassandra/cqlshrc << DONE
 [connection]
 hostname= $HOSTNAME

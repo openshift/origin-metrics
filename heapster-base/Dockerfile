@@ -23,20 +23,17 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 EXPOSE 8082
 
-ENV HEAPSTER_COMMIT=af4752e
+ENV HEAPSTER_COMMIT=heapster-scalability
 
-COPY 0001-Fix-nil-pointer-reference-panic-in-kube_nodes.patch /tmp/
-
-RUN yum install -y -q go git wget make patch && \
+RUN yum install -y -q go git wget make && \
     yum clean all && \
     export GOPATH=/tmp/gopath && \
     export PATH=$PATH:$GOPATH/bin && \
-    mkdir -p $GOPATH && \
-    cd $GOPATH && \
-    go get -d k8s.io/heapster && \
-    cd src/k8s.io/heapster && \
+    mkdir -p $GOPATH/src/k8s.io && \
+    cd $GOPATH/src/k8s.io && \
+    git clone https://github.com/kubernetes/heapster && \
+    cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
-    patch sources/kube_nodes.go < /tmp/0001-Fix-nil-pointer-reference-panic-in-kube_nodes.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \

@@ -17,12 +17,15 @@ orange=`tput setaf 166`
 reset=`tput sgr0`
 
 debug=${debug:-false}
+timeout=${timeout:-180}
 for args in "$@"
 do
   case $args in
     --debug)
       debug=true
       ;;
+    --timeout=*)
+      timeout="${args#*=}"
   esac
 done
 
