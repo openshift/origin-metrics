@@ -43,7 +43,7 @@ RUN yum install -y -q bind-utils && \
     yum clean all
 
 COPY apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5 \
-     /tmp
+     /tmp/
 
 # Copy the Cassandra binary to the /opt directory
 RUN cd /opt; \
