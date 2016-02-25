@@ -89,11 +89,10 @@ objects:
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                - "/opt/hawkular/scripts/hawkular-metrics-poststart.py"
+          readinessProbe:
+            exec:
+              command:
+              - "/opt/hawkular/scripts/hawkular-metrics-readiness.py"
           livenessProbe:
             exec:
               command:

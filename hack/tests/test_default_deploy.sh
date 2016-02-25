@@ -328,8 +328,8 @@ function test.CassandraScale {
   checkDeployer
   checkTerminated
   checkDeployment "Cassandra" 2
-  checkDeployment "Hawkular-Metrics" 1
-  checkDeployment "Heapster" 1
+  checkDeployment "Hawkular-Metrics" 1 true
+  checkDeployment "Heapster" 1 true
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkCassandraState "hawkular-cassandra-1" 2
   checkMetrics
@@ -399,20 +399,23 @@ function test.HawkularMetricsFailedStart {
   START=$(date +%s)
   while : ; do
    #Don't use the default timeout, the preset timeout for the failure needs to be this high
-   if [[ $(($(date +%s) - $START)) -ge 300 ]]; then
-      Fail "The metrics pod took longer than the timeout of 300 seconds"
-    fi
+   if [[ $(($(date +%s) - $START)) -ge 360 ]]; then
+      Fail "The metrics pod took longer than the timeout of 360 seconds"
+   fi
+
+   restarts=`oc get pods | grep -i hawkular-metrics| awk '{print $4}'`
  
-   status=`oc get pods | grep -i hawkular-metrics| awk '{print $3}'`
-   ready=`oc get pods | grep -i hawkular-metrics| awk '{print $2}'`
-   if [[ $status == "Completed" ]] && [[ $ready == "0/1" ]]; then
-      Info "The deployer was deployed in $(($(date +%s) - $DEPLOYER_START)) seconds."
+   if [[ $restarts == "1" ]]; then
+      Info "The Hawkular Metrics pod could be restarted."
       break
-    fi
- 
+   fi
+
+   Debug "The Hawkular Metrics pod has not yet been restarted. Waiting. This can take a while"
    sleep 1
   done
 
+  #Delete all the deployed artifacts
+  oc delete all --selector=metrics-infra &> /dev/null  
   checkTerminated
 }
 

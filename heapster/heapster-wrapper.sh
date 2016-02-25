@@ -69,7 +69,7 @@ if [ -n "$ENDPOINT_CHECK" ]; then
     STATUS_CODE=`eval $CHECK_COMMAND`
     CURL_STATUS=$?
 
-     if [ $STATUS_CODE -eq 200 ]; then
+    if [ $STATUS_CODE -eq 200 ]; then
         echo "The endpoint check has successfully completed."
         break
     else 

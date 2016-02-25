@@ -23,7 +23,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 # Add the wrapper we use to start the process
 ADD heapster-wrapper.sh \
-    heapster-poststart.sh \
+    heapster-readiness.sh \
     /opt/
 
 ENTRYPOINT ["opt/heapster-wrapper.sh"]

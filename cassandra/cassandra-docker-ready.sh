@@ -21,16 +21,14 @@
 # relying on the normal tools which are not installed in docker images by default)
 HOSTIP=`cat /etc/hosts | grep $HOSTNAME | awk '{print $1}' | head -n 1`
 
-while : ;do
+# Get the status of this machine from the Cassandra nodetool
+STATUS=`nodetool status | grep $HOSTIP | awk '{print $1}'`
 
-  # Get the status of this machine from the Cassandra nodetool
-  STATUS=`nodetool status | grep $HOSTIP | awk '{print $1}'`
-
-  # Once the status is Up and Normal, then we are ready
-  if [ $STATUS = "UN" ]; then
-    exit 0
-  fi
-
-  sleep 1;
-
-done
+# Once the status is Up and Normal, then we are ready
+if [ $STATUS = "UN" ]; then
+  echo "Cassandra is in the up and normal state. It is now ready"
+  exit 0
+else
+  echo "Cassandra not in the up and normal state. Current state is $STATUS"
+  exit 1
+fi

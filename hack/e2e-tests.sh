@@ -68,10 +68,9 @@ function test.cleanup {
 }
 
 function cleanup {
+        trap test.cleanup SIGINT SIGTERM EXIT
         out=$?
-
-        test.cleanup
-
+        
         if [ $out -ne 0 ]; then
                 Error "Test failed"
         else
@@ -80,6 +79,16 @@ function cleanup {
         echo
 
         ENDTIME=$(date +%s)
+
+        if [ "$continue" = true ]; then
+          Info "The tests are completed. Press ctrl-c to end the tests and perform a clean-up."
+          while : 
+          do
+            sleep 10
+          done
+        fi
+
+        test.cleanup
 
         Info "Exiting. Origin-Metrics tests took took $(($ENDTIME - $STARTTIME)) seconds"
         exit $out
@@ -102,12 +111,4 @@ if [ "$skipTests" = false ]; then
   $SOURCE_ROOT/hack/tests/test_standalone_docker.sh $@
 fi
 
-if [ "$continue" = true ]; then
-  Info "The tests are completed. Press ctrl-c to end the tests and perform a clean-up."
-  while : 
-  do
-    sleep 10
-  done
-fi
-
-test.cleanup
+cleanup
