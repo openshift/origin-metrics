@@ -269,11 +269,11 @@ For more information please see the link:docs/hawkular_metrics.adoc[Hawkular Met
 
 The Heapster deployed as part of origin-metrics is configured to be only accessible via the API Proxy. Access will require either cluster-reader or cluster-admin privileges.
 
-For example, to reach the Heapster `validate` page, you would need to access it something like:
+For example, to reach the Heapster `metrics` endpoint, you would need to access it by doing something like:
 
 ----
 $ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXX" \
-       -X GET https://${KUBERNETES_MASTER}/api/v1/proxy/namespaces/openshift-infra/services/https:heapster:/validate
+       -X GET https://${KUBERNETES_MASTER}/api/v1/proxy/namespaces/openshift-infra/services/https:heapster:/api/v1/model/metrics
 ----
 
 For more information about Heapster and how to access its APIs, please refer the link:https://github.com/kubernetes/heapster/[Heapster] project.
