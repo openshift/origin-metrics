@@ -32,7 +32,7 @@ cassandra_nodes=${CASSANDRA_NODES:-1}
 # If we should use persistent storage or not
 use_persistent_storage=${USE_PERSISTENT_STORAGE:-true}
 # The size of each Cassandra Node
-cassandra_pv_size=${CASSANDRA_PV_SIZE-10Gi}
+cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
 
 # How long metrics should be stored in days
 metric_duration=${METRIC_DURATION:-7}
