@@ -86,11 +86,10 @@ objects:
             mountPath: "/hawkular-cert"
           - name: hawkular-metrics-account
             mountPath: "/hawkular-account"
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                - "/opt/heapster-poststart.sh"
+          readinessProbe:
+            exec:
+              command:
+              - "/opt/heapster-readiness.sh"
         volumes:
         - name: heapster-secrets
           secret:

@@ -23,8 +23,6 @@ import urllib2
 hawkularEndpointPort = os.environ.get("HAWKULAR_METRICS_ENDPOINT_PORT")
 statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/status"
 
-uptime = os.popen("ps -eo comm,etimes | grep -i standalone.sh | awk '{print $2}'").read()
-
 try:
   response = urllib2.urlopen(statusURL)
   statusCode = response.getcode();
@@ -35,15 +33,9 @@ try:
     # if the metrics service is started then we are good
     if (jsonResponse["MetricsService"] == "STARTED"):
       exit(0)
-    elif (jsonResponse["MetricsService"] == "FAILED"):
-      print "The MetricsService is in a FAILED state. Aborting"
-      exit(1)
 except Exception as e:
   print "Failed to access the status endpoint : %s." % e
-
-if int(uptime) < 120:
-  print "Hawkular metrics has only been running for " + uptime + " seconds not aborting yet."
-  exit(0)
-else:
-  print "Hawkular metrics has been running for " + uptime + " seconds. Aborting"
   exit(1)
+
+# conditions were not passed, exit with an error code
+exit(1)

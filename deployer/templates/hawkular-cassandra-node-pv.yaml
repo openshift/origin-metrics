@@ -38,7 +38,6 @@ objects:
   spec:
     accessModes:
     - ReadWriteOnce
-    - ReadWriteMany
     resources:
       requests:
         storage: "${PV_SIZE}"
@@ -100,11 +99,10 @@ objects:
             mountPath: "/cassandra_data"
           - name: hawkular-cassandra-secrets
             mountPath: "/secret"
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                - "/opt/apache-cassandra/bin/cassandra-docker-ready.sh"
+          readinessProbe:
+            exec:
+              command:
+              - "/opt/apache-cassandra/bin/cassandra-docker-ready.sh"
         volumes:
         - name: cassandra-data
           persistentVolumeClaim:

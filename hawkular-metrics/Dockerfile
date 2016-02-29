@@ -40,7 +40,7 @@ RUN cd $JBOSS_HOME/standalone/deployments/ && \
     curl -Lo hawkular-metrics-api-jaxrs.war https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-api-jaxrs-openshift\&e=war\&v=${HAWKULAR_METRICS_VERSION}
 
 # Copy the scripts
-COPY hawkular-metrics-poststart.py \
+COPY hawkular-metrics-readiness.py \
      hawkular-metrics-liveness.py \
      hawkular-metrics-wrapper.sh \
      $HAWKULAR_METRICS_SCRIPT_DIRECTORY

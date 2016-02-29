@@ -3,6 +3,7 @@
 function checkDeployment {
   deploy=$1
   replicas=$2
+  skipRestartCheck=${3:-false}
 
   echo
   Info $SEPARATOR
@@ -41,7 +42,11 @@ function checkDeployment {
         restarts=`oc get pods | grep -i $name | awk '{print $4}'` || true
         for restart in $restarts; do
           if [[ ! $restart -eq 0 ]]; then
-            Fail "A replica for $name has a restart. Test failed"
+            if [[ $skipRestartCheck == "true" ]]; then
+              Info "A replica for $name had $restart restarts. Expected, test not marked as a failure."
+            else
+              Fail "A replica for $name had $restart restart(s). Test failed"
+            fi
           fi
         done
         Info "All replicas for $name had zero restarts"
@@ -51,7 +56,6 @@ function checkDeployment {
 
     sleep 1
   done
-
 }
 
 function undeploy {
