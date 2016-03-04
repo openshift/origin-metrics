@@ -66,16 +66,22 @@ if [ "$verbose" = true ]; then
   set -x
 fi
 
+echo "Building image ${prefix}metrics-deployer:${version}"
+docker build ${options} -t "${prefix}metrics-deployer:${version}"    		${source_root}/deployer/
+echo
 echo "Building image ${prefix}metrics-hawkular-metrics:${version}"
 docker build ${options} -t "${prefix}metrics-hawkular-metrics:${version}"       ${source_root}/hawkular-metrics/
+echo
+echo "Building image ${prefix}metrics-cassandra:${version}"
 docker build ${options} -t "${prefix}metrics-cassandra:${version}" 		${source_root}/cassandra/
+echo
+echo "Building image ${prefix}metrics-heapster:${version}"
 docker build ${options} -t "${prefix}metrics-heapster:${version}"        	${source_root}/heapster/
-docker build ${options} -t "${prefix}metrics-deployer:${version}"    		${source_root}/deployer/
 
 if [ "$push" = true ]; then
   echo "Pushing Docker Images"
+  docker push "${prefix}metrics-deployer:${version}"
   docker push "${prefix}metrics-hawkular-metrics:${version}"
   docker push "${prefix}metrics-cassandra:${version}"
   docker push "${prefix}metrics-heapster:${version}"
-  docker push "${prefix}metrics-deployer:${version}"
 fi

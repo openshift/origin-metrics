@@ -23,9 +23,10 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 ENV BIN_DIR=/opt/deploy \
     PROCESSING_DIR=/etc/deploy/_output \
     KUBECONFIG=/etc/deploy/.kubeconfig \
-    WRITE_KUBECONFIG=1
+    WRITE_KUBECONFIG=1 \
+    SECRET_DIR=/secret
 
-RUN yum install -y java-1.8.0-openjdk openssl httpd-tools && yum clean all
+RUN yum install -y java-1.8.0-openjdk openssl httpd-tools bind-utils && yum clean all
 
 RUN mkdir -p ${HOME} ${PROCESSING_DIR} ${BIN_DIR} && chmod 777 ${HOME} && chmod 555 ${BIN_DIR}
 

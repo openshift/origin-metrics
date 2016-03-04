@@ -138,9 +138,9 @@ function checkRoute {
 }
 
 function checkImages {
-  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
-  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
-  heapsterImage=`oc get rc | grep -i Heapster| awk '{print $3}'`
+  hawkularMetricsImage=`oc get rc hawkular-metrics --template='{{with index .spec.template.spec.containers 0}}{{println .image}}{{end}}'`
+  cassandraImage=`oc get rc hawkular-cassandra-1 --template='{{with index .spec.template.spec.containers 0}}{{println .image}}{{end}}'`
+  heapsterImage=`oc get rc heapster --template='{{with index .spec.template.spec.containers 0}}{{println .image}}{{end}}'`
 
   expected="${image_prefix}metrics-hawkular-metrics:${image_version}"
   if [[ $hawkularMetricsImage != $expected ]]; then

@@ -60,6 +60,8 @@ objects:
           value: ${REDEPLOY}
         - name: HEAPSTER_STANDALONE
           value: "true"
+        - name: IGNORE_PREFLIGHT
+          value: ${IGNORE_PREFLIGHT}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -85,4 +87,8 @@ parameters:
 -
   description: "If set to true the deployer will try and delete all the existing components before trying to redeploy."
   name: REDEPLOY
+  value: "false"
+-
+  description: "If set to true preflight checks will still run on deploy, but deploy will proceed even if the checks fail."
+  name: IGNORE_PREFLIGHT
   value: "false"

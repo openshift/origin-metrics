@@ -15,8 +15,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+ 
+for script in scripts/*.sh; do source $script; done
 
-set -ex
+set -eux
+
+#
+# determine a bunch of variables from env or defaults
+#
+
+# what purpose this invocation should perform:
+# preflight, deploy, validate, upgrade, remove, debug
+deployer_mode=${MODE:-deploy}
 
 # The version of everything to deploy
 image_prefix=${IMAGE_PREFIX:-openshift/origin-}
@@ -27,6 +37,7 @@ master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 # Set to true to undeploy everything before deploying
 redeploy=${REDEPLOY:-false}
 mode=${MODE:-deploy}
+[ "$mode" = redeploy ] && redeploy=true
 
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
@@ -42,7 +53,7 @@ metric_duration=${METRIC_DURATION:-7}
 heapster_node_id=${HEAPSTER_NODE_ID:-nodename}
 
 # The project we are deployed in
-project=${PROJECT:-default}
+project=${PROJECT:-openshift-infra}
 
 # the master certificate and service account tokens
 master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
@@ -50,39 +61,15 @@ token_file=${TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}
 
 # directory to perform all the processing
 dir=${PROCESSING_DIR:-_output} #directory used to write files which generating certificates
+# location of deployer secret mount
+secret_dir=${SECRET_DIR:-_secret}
+# ensure directories exist in local use case
+rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
+mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
 hawkular_metrics_hostname=${HAWKULAR_METRICS_HOSTNAME:-hawkular-metrics.example.com}
 hawkular_metrics_alias=${HAWKULAR_METRICS_ALIAS:-hawkular-metrics}
 hawkular_cassandra_alias=${HAWKULAR_CASSANDRA_ALIAS:-hawkular-cassandra}
-
-# $1: name (eg [hawkular-metrics|hawkular-cassandra])
-# $2: hostnames to use
-# $3: environment variable containing base64 pem 
-function setupCertificate {
-  name=$1
-  hostnames=$2
-  envVar=$3
-
-  # Use existing or generate new Hawkular Metrics certificates
-  if [ -n "${!envVar}" ]; then
-      echo "${envVar}" | base64 -d > $dir/${name}.pem
-  elif [ -s /secret/${name}.pem ]; then
-      # use files from secret if present
-      cp /secret/${name}.pem $dir
-      cp /secret/${name}-ca.cert $dir
-  else #fallback to creating one
-      openshift admin ca create-server-cert  \
-        --key=$dir/${name}.key \
-        --cert=$dir/${name}.crt \
-        --hostnames=${hostnames} \
-        --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
-      cat $dir/${name}.key $dir/${name}.crt > $dir/${name}.pem
-      cp $dir/ca.crt $dir/${name}-ca.cert
-  fi
-
-}
-
-rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
 
 openshift admin ca create-signer-cert  \
   --key="${dir}/ca.key" \
@@ -91,7 +78,7 @@ openshift admin ca create-signer-cert  \
   --name="metrics-signer@$(date +%s)"
 
 # set up configuration for client
-if [ -n "${WRITE_KUBECONFIG}" ]; then
+if [ -n "${WRITE_KUBECONFIG:-}" ]; then
     # craft a kubeconfig, usually at $KUBECONFIG location
     oc config set-cluster master \
       --api-version='v1' \
@@ -106,44 +93,50 @@ if [ -n "${WRITE_KUBECONFIG}" ]; then
     oc config use-context current
 fi
 
-if [ "$redeploy" = true  ] || [ "$mode" = "redeploy" ]; then
-  
-  echo "Deleting any previous deployment"
-  oc delete all --selector="metrics-infra"
+# set up client config file; user can opt to use their own instead
+old_kc="$KUBECONFIG"
+KUBECONFIG="$dir/kube.conf"
+[ -z "${WRITE_KUBECONFIG:-}" ] && cp "$old_kc" $dir/kube.conf
+oc config set-cluster deployer-master \
+  --api-version='v1' \
+  --certificate-authority="${master_ca}" \
+  --server="${master_url}"
+oc config set-credentials deployer-account \
+  --token="$(cat ${token_file})"
+oc config set-context deployer-context \
+  --cluster=deployer-master \
+  --user=deployer-account \
+  --namespace="${project}"
+[ -n "${WRITE_KUBECONFIG:-}" ] && oc config use-context deployer-context
 
-  echo "Deleting any exisiting service account"
-  oc delete sa --selector="metrics-infra"
-
-  echo "Deleting the templates"
-  oc delete templates --selector="metrics-infra"
-
-  echo "Deleting the secrets"
-  oc delete secrets --selector="metrics-infra"
-
-  echo "Deleting any pvc"		
-  oc delete pvc --selector="metrics-infra"
-
-elif [ "$mode" = "refresh" ]; then
-
-  echo "Deleting any previous deployment"
-  oc delete rc --selector="metrics-infra"
-  oc delete svc --selector="metrics-infra"
-  oc delete pod --selector="metrics-infra" 
-
-  echo "Deleting any exisiting service account"
-  oc delete sa --selector="metrics-infra"
-
-  echo "Deleting the templates"
-  oc delete templates --selector="metrics-infra"
-
-  echo "Deleting the secrets"
-  oc delete secrets --selector="metrics-infra"
-
-fi
-
-if [ -z "${HEAPSTER_STANDALONE}" ]; then 
-  . ./run-hawkular.sh
-fi
-. ./run-heapster.sh
+case $deployer_mode in
+preflight)
+    validate_preflight
+    ;;
+deploy|redeploy|refresh)
+    validate_preflight || [ "${IGNORE_PREFLIGHT:-}" = true ]
+    handle_previous_deployment
+    create_signer_cert "${dir}"
+    [ -z "${HEAPSTER_STANDALONE:-}" ] && deploy_hawkular
+    deploy_heapster
+    validate_deployment
+    ;;
+validate)
+    validate_deployment
+    ;;
+upgrade)
+    ;;
+remove)
+    handle_previous_deployment
+    ;;
+debug)
+    echo "sleeping forever; shell in and debug at will."
+    while true; do sleep 10; done
+    ;;
+*)
+    echo "Invalid mode: ${deployer_mode}"
+    exit 255
+    ;;
+esac
 
 echo 'Success!'
