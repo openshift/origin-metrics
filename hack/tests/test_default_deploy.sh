@@ -4,13 +4,15 @@ TEST_DIR=$(dirname "${BASH_SOURCE}")
 
 function tests.setup {
   #initial setup required for all test scenarios
-  oc create -f $SOURCE_ROOT/metrics-deployer-setup.yaml &> /dev/null
+  oc create -f $SOURCE_ROOT/metrics-deployer-setup.yaml &> /dev/null || true
   oadm policy add-role-to-user edit system:serviceaccount:${TEST_PROJECT}:metrics-deployer
   oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:${TEST_PROJECT}:heapster
 }
 
 function tests.teardown {
+  oc delete -f $SOURCE_ROOT/metrics-deployer-setup.yaml &> /dev/null || true
   #clean up required after the tests have run.
+  oadm policy remove-role-from-user edit system:serviceaccount:${TEST_PROJECT}:metrics-deployer
   oadm policy remove-cluster-role-from-user cluster-reader system:serviceaccount:${TEST_PROJECT}:heapster
 }
 
@@ -26,7 +28,7 @@ function checkDeployer {
   while read -r pod; do
    name=`echo $pod | awk '{print $1}'`
    state=`echo $pod | awk '{print $3}'`
-   if [[ $state == "Pending" ]]; then
+   if [[ $state == "ContainerCreating" ]] || [[ $state == "Pending" ]]; then
      podName=$name
      break
    fi
@@ -111,7 +113,7 @@ function checkMetrics {
       break
     fi
 
-    Debug "Tried to access metric data for project $TEST_PROJECT but got response of $data. Waiting for metrics to populate"
+    Debug "Tried to access container metric data for project $TEST_PROJECT but the empty parameter was $data. Waiting for metrics to populate"
     sleep 1
   done
 }
@@ -135,11 +137,30 @@ function checkRoute {
   fi
 }
 
+function checkImages {
+  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
+  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
+  heapsterImage=`oc get rc | grep -i Heapster| awk '{print $3}'`
+
+  expected="${image_prefix}metrics-hawkular-metrics:${image_version}"
+  if [[ $hawkularMetricsImage != $expected ]]; then
+    Fail "Expected the image version to be '$expected' was instead '$hawkularMetricsImage'"
+  fi
+  expected="${image_prefix}metrics-cassandra:${image_version}"
+  if [[ $cassandraImage != $expected ]]; then
+    Fail "Expected the image version to be '$expected' was instead '$cassandraImage'"
+  fi
+  expected="${image_prefix}metrics-heapster:${image_version}"
+  if [[ $heapsterImage != $expected ]]; then
+    Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
+  fi
+}
+
 function test.DefaultInstall {
   undeployAll
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
 
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated 
   checkDeployment "Cassandra" 1
@@ -148,24 +169,7 @@ function test.DefaultInstall {
   checkCassandraState "hawkular-cassandra-1" 1
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
-
-  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
-  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
-  heapsterImage=`oc get rc | grep -i Heapster| awk '{print $3}'`
-
-  expected="openshift/origin-metrics-hawkular-metrics:latest"
-  if [[ $hawkularMetricsImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$hawkularMetricsImage'"
-  fi
-  expected="openshift/origin-metrics-cassandra:latest"
-  if [[ $cassandraImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$cassandraImage'"
-  fi
-  expected="openshift/origin-metrics-heapster:latest"
-  if [[ $heapsterImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
-  fi
-
+  checkImages
 }
 
 function undeployAll {
@@ -250,7 +254,7 @@ function test.Redeploy {
 
   redeployTime=$(date +%s)
   Info "About to redeploy the components"
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true | oc create -f - &> /dev/null
   checkDeployer
   checkTerminating
   checkTerminated
@@ -260,42 +264,6 @@ function test.Redeploy {
   checkCassandraState "hawkular-cassandra-1" 1
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
-}
-
-function test.Image {
-  undeployAll
-  Info "Checking the IMAGE_PREFIX and IMAGE_VERSION deployment parameters"
-  Debug "Creating a new empty secret to be used"
-  oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  Debug "Testing a deployment with the test tagged docker images"
-  oc process -f $SOURCE_ROOT/metrics.yaml -v IMAGE_PREFIX=testing/,IMAGE_VERSION=test,HAWKULAR_METRICS_HOSTNAME=hm.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
-
-  checkDeployer
-  checkTerminated 
-  checkDeployment "Cassandra" 1
-  checkDeployment "Hawkular-Metrics" 1
-  checkDeployment "Heapster" 1
-  checkCassandraState "hawkular-cassandra-1" 1
-  checkRoute "hawkular-metrics" "hm.example.com"
-  checkMetrics
-
-  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
-  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
-  heapsterImage=`oc get rc | grep -i Heapster| awk '{print $3}'`
-
-  expected="testing/metrics-hawkular-metrics:test"
-  if [[ $hawkularMetricsImage != "testing/metrics-hawkular-metrics:test" ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$hawkularMetricsImage'"
-  fi 
-  expected="testing/metrics-cassandra:test"
-  if [[ $cassandraImage != "testing/metrics-cassandra:test" ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$cassandraImage'"
-  fi
-  expected="testing/metrics-heapster:test"
-  if [[ $heapsterImage != "testing/metrics-heapster:test" ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
-  fi
- 
 }
 
 function checkCassandraState {
@@ -311,7 +279,7 @@ function checkCassandraState {
 
   for status in $statuses; do
     if [[ $status != "UN" ]]; then
-      Fail "The status of the Cassandra nodes is not UN (up and normal) but awas ${status}"
+      Fail "The status of the Cassandra nodes is not UN (up and normal) but was ${status}"
     fi
 
   done
@@ -323,7 +291,7 @@ function test.CassandraScale {
   Info "Checking if we can start multiple Cassandra Nodes at start and then scale up or down."
   Debug "Creating a new empty secret to be used"
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,CASSANDRA_NODES=2 | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,CASSANDRA_NODES=2 | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -336,7 +304,7 @@ function test.CassandraScale {
 
   #manually add in a new node using the template
   Info "About to add a new Cassandra node using the hawkular-cassandra-node-emptydir template"
-  oc process hawkular-cassandra-node-emptydir -v "NODE=3" | oc create -f - &> /dev/null
+  oc process hawkular-cassandra-node-emptydir -v "IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},NODE=3" | oc create -f - &> /dev/null
   checkDeployment "Cassandra" 3
   checkCassandraState "hawkular-cassandra-1" 3
   checkMetrics
@@ -355,7 +323,7 @@ function test.HawkularMetricsScale {
   Info "Checking if we can start multiple Hawkular Metrics Nodes"
   Debug "Creating a new empty secret to be used"
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -385,7 +353,7 @@ function test.HawkularMetricsFailedStart {
   Info "Checking that Hawkular Metrics can be stopped if started in an invalid state"
   Debug "Creating a new empty secret to be used"
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
   
   checkDeployer
   checkTerminated
@@ -394,7 +362,7 @@ function test.HawkularMetricsFailedStart {
   oc delete all --selector=metrics-infra &> /dev/null 
  
   #Deploying just Hawkular Metrics without Cassandra, this should be a failure condition
-  oc process hawkular-metrics | oc create -f - &> /dev/null
+  oc process hawkular-metrics -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}| oc create -f - &> /dev/null
 
   START=$(date +%s)
   while : ; do
@@ -420,7 +388,7 @@ function test.HawkularMetricsFailedStart {
 }
 
 function testBasicDeploy {
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -430,23 +398,7 @@ function testBasicDeploy {
   checkCassandraState "hawkular-cassandra-1" 1
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
-
-  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
-  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
-  heapsterImage=`oc get rc | grep -i Heapster| awk '{print $3}'`
-
-  expected="openshift/origin-metrics-hawkular-metrics:latest"
-  if [[ $hawkularMetricsImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$hawkularMetricsImage'"
-  fi
-  expected="openshift/origin-metrics-cassandra:latest"
-  if [[ $cassandraImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$cassandraImage'"
-  fi
-  expected="openshift/origin-metrics-heapster:latest"
-  if [[ $heapsterImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
-  fi
+  checkImages
 }
 
 function test.HawkularMetricsCustomCertificate {
@@ -473,7 +425,7 @@ function test.CassandraCustomCertificate {
   Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate"
   oc secrets new metrics-deployer hawkular-cassandra.pem=$SOURCE_ROOT/hack/keys/cassandra.pem hawkular-cassandra-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
  
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
   checkDeployment "Cassandra" 1
@@ -482,23 +434,7 @@ function test.CassandraCustomCertificate {
   checkCassandraState "hawkular-cassandra-1" 1
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
-
-  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
-  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
-  heapsterImage=`oc get rc | grep -i Heapster| awk '{print $3}'`
-
-  expected="openshift/origin-metrics-hawkular-metrics:latest"
-  if [[ $hawkularMetricsImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$hawkularMetricsImage'"
-  fi
-  expected="openshift/origin-metrics-cassandra:latest"
-  if [[ $cassandraImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$cassandraImage'"
-  fi
-  expected="openshift/origin-metrics-heapster:latest"
-  if [[ $heapsterImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
-  fi
+  checkImages
 }
 
 function test.CustomCertificates {
@@ -508,7 +444,7 @@ function test.CustomCertificates {
   oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca \
                                   hawkular-cassandra.pem=$SOURCE_ROOT/hack/keys/cassandra.pem hawkular-cassandra-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
 
-  oc process -f $SOURCE_ROOT/metrics.yaml -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f -
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f -
   checkDeployer
   checkTerminated
   checkDeployment "Cassandra" 1
@@ -517,23 +453,7 @@ function test.CustomCertificates {
   checkCassandraState "hawkular-cassandra-1" 1
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
-
-  hawkularMetricsImage=`oc get rc | grep -i Hawkular-Metrics | awk '{print $3}'`
-  cassandraImage=`oc get rc | grep -i Cassandra | awk '{print $3}'`
-  heapsterImage=`oc get rc | grep -i Heapster | awk '{print $3}'`
-
-  expected="openshift/origin-metrics-hawkular-metrics:latest"
-  if [[ $hawkularMetricsImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$hawkularMetricsImage'"
-  fi
-  expected="openshift/origin-metrics-cassandra:latest"
-  if [[ $cassandraImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$cassandraImage'"
-  fi
-  expected="openshift/origin-metrics-heapster:latest"
-  if [[ $heapsterImage != $expected ]]; then
-    Fail "Expected the image version to be '$expected' was instead '$heapsterImage'"
-  fi
+  checkImages
 }
 
 

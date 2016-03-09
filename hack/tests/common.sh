@@ -18,6 +18,9 @@ reset=`tput sgr0`
 
 debug=${debug:-false}
 timeout=${timeout:-180}
+template=${template:-$SOURCE_ROOT/metrics.yaml}
+image_prefix=${image_prefix:-openshift/origin-}
+image_version=${image_version:-latest}
 for args in "$@"
 do
   case $args in
@@ -26,6 +29,16 @@ do
       ;;
     --timeout=*)
       timeout="${args#*=}"
+      ;;
+    --template=*)
+      template="${args#*=}"
+      ;;
+    --image_prefix=*)
+      image_prefix="${args#*=}"
+      ;;
+    --image_version=*)
+      image_version="${args#*=}"
+      ;;
   esac
 done
 
