@@ -60,21 +60,25 @@ function tests.run {
   Info $SEPARATOR
   Info
 
-  tests_setup
-
-  functions=$(typeset -f | awk '/ \(\) $/ && !/^main / {print $1}')
-
-  if [[ -n ${test-} ]] && [ `type -t $test`"" == 'function' ]; then
-    runTest $test
+  if [[ -n ${test-} ]]; then
+    if [ `type -t $test`"" == 'function' ]; then
+      tests_setup
+      runTest $test
+      tests_teardown
+    else
+      Info "No tests named $test within the current test script. Skipping"
+    fi
   else
+    tests_setup
+
+    functions=$(typeset -f | awk '/ \(\) $/ && !/^main / {print $1}')
     for functionName in $functions; do
       if [[ $functionName == test.* ]]; then
         runTest $functionName
       fi
     done
+    tests_teardown
   fi
- 
-  tests_teardown
 }
 
 function runTest {
