@@ -64,21 +64,31 @@ function tests.run {
 
   functions=$(typeset -f | awk '/ \(\) $/ && !/^main / {print $1}')
 
-  for functionName in $functions; do
-    if [[ $functionName == test.* ]]; then
-      Info 
-      Info "Starting Test Function $functionName"
-      Info $SEPARATOR
-      STARTTIME=$(date +%s)
-      $functionName
-      ENDTIME=$(date +%s)
-      Info
-      Success "Test $functionName took $(($ENDTIME - $STARTTIME)) seconds"
-      Info 
-    fi
-  done
+  if [[ -n ${test-} ]] && [ `type -t $test`"" == 'function' ]; then
+    runTest $test
+  else
+    for functionName in $functions; do
+      if [[ $functionName == test.* ]]; then
+        runTest $functionName
+      fi
+    done
+  fi
  
   tests_teardown
+}
+
+function runTest {
+  functionName=$1
+  
+  Info
+  Info "Starting Test Function $functionName"
+  Info $SEPARATOR
+  STARTTIME=$(date +%s)
+  $functionName
+  ENDTIME=$(date +%s)
+  Info
+  Success "Test $functionName took $(($ENDTIME - $STARTTIME)) seconds"
+  Info
 }
 
 for args in "$@"
@@ -89,9 +99,8 @@ do
       ;;
   esac
 done
-if [[ -z ${test-} ]]; then
- tests.run
-else
- export TEST_PROJECT=`oc project --short` 
- $test
+
+if [[ -z ${TEST_PROJECT-} ]]; then
+  export TEST_PROJECT=`oc project --short`
 fi
+tests.run

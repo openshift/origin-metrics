@@ -6,6 +6,7 @@ source $SOURCE_ROOT/hack/tests/common.sh
 continue=false
 build=true
 skipTests=false
+
 for args in "$@"
 do
   case $args in
@@ -50,14 +51,6 @@ function test.build {
   Info "finished building images"
 }
 
-function test.testBuild {
-  Info
-  Info "Building new test images"
-  sh $SOURCE_ROOT/hack/build-images.sh --prefix=testing/ --version=test
-  Info "finished building images"
-}
-
-
 function test.cleanup {
   Info
   Info "Deleting test project $TEST_PROJECT"
@@ -100,7 +93,6 @@ trap cleanup SIGINT SIGTERM EXIT
 #Build the components
 if [ "$build" = true ]; then
   test.build
-  test.testBuild
 fi
 
 test.setup
