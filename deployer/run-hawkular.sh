@@ -195,11 +195,13 @@ oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_host
 if [ "${use_persistent_storage}" = true ]; then
   echo "Setting up Cassandra with Persistent Storage"
   # Deploy the main 'master' Cassandra node
-  oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f -
+  # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+  oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f -  || true
   # Deploy any subsequent Cassandra nodes
   for i in $(seq 2 $cassandra_nodes);
   do
-    oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f -
+    # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+    oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f - || true
   done
 else 
   echo "Setting up Cassandra with Non Persistent Storage"

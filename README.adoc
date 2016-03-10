@@ -200,6 +200,15 @@ $ oc process -f metrics.yaml -v \
      HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true \
      | oc create -n openshift-infra -f -
 ----
+
+The `REDEPLOY` option used to also delete all the persistent volume claims (pvc) and as such all presisted data would be lost when using this option. With the more recent versions
+`REDEPLOY` will not delete the pvc.
+
+To manually delete the pvc you can run the following command:
+
+----
+$ oc delete pvc --selector="metrics-infra"
+----
 ====
 
 == Verifying the Components after Installation

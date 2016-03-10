@@ -114,9 +114,6 @@ if [ "$redeploy" = true  ]; then
 
   echo "Deleting the secrets"
   oc delete secrets --selector="metrics-infra"
-
-  echo "Deleting any pvc"
-  oc delete pvc --selector="metrics-infra"
 fi
 
 if [ -z "${HEAPSTER_STANDALONE}" ]; then 
