@@ -26,6 +26,7 @@ master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 
 # Set to true to undeploy everything before deploying
 redeploy=${REDEPLOY:-false}
+refresh=${REFRESH:-false}
 
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
@@ -103,6 +104,7 @@ if [ -n "${WRITE_KUBECONFIG}" ]; then
 fi
 
 if [ "$redeploy" = true  ]; then
+  
   echo "Deleting any previous deployment"
   oc delete all --selector="metrics-infra"
 
@@ -114,6 +116,26 @@ if [ "$redeploy" = true  ]; then
 
   echo "Deleting the secrets"
   oc delete secrets --selector="metrics-infra"
+
+  echo "Deleting any pvc"		
+  oc delete pvc --selector="metrics-infra"
+
+elif [ "$refresh" = true ]; then
+
+  echo "Deleting any previous deployment"
+  oc delete rc --selector="metrics-infra"
+  oc delete svc --selector="metrics-infra"
+  oc delete pod --selector="metrics-infra" 
+
+  echo "Deleting any exisiting service account"
+  oc delete sa --selector="metrics-infra"
+
+  echo "Deleting the templates"
+  oc delete templates --selector="metrics-infra"
+
+  echo "Deleting the secrets"
+  oc delete secrets --selector="metrics-infra"
+
 fi
 
 if [ -z "${HEAPSTER_STANDALONE}" ]; then 

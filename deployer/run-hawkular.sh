@@ -190,7 +190,7 @@ oc create -f templates/support.yaml
 echo "Deploying Hawkular Metrics & Cassandra Components"
 oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url" | oc create -f -
 oc process hawkular-cassandra-services | oc create -f -
-oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f -
+oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f - || true
 
 if [ "${use_persistent_storage}" = true ]; then
   echo "Setting up Cassandra with Persistent Storage"

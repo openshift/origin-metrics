@@ -56,6 +56,8 @@ objects:
           value: ${MASTER_URL}
         - name: REDEPLOY
           value: ${REDEPLOY}
+        - name: REFRESH
+          value: ${REFRESH}
         - name: USE_PERSISTENT_STORAGE
           value: ${USE_PERSISTENT_STORAGE}
         - name: HAWKULAR_METRICS_HOSTNAME
@@ -93,8 +95,12 @@ parameters:
   name: HAWKULAR_METRICS_HOSTNAME
   required: true
 -
-  description: "If set to true the deployer will try and delete all the existing components before trying to redeploy."
+  description: "If set to true the deployer will delete and redeloy all the existing metrics components. All persisted and non-persisted data will be lost."
   name: REDEPLOY
+  value: "false"
+-
+  description: "If set to true the deployer will delete and redeploy all exisiting metrics components expect the persistent volume claims and route. Persisted data will remain available but all non-persisted data will be lost."
+  name: REFRESH
   value: "false"
 -
   description: "Set to true for persistent storage, set to false to use non persistent storage"
