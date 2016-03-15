@@ -192,13 +192,31 @@ $ oc process -f metrics.yaml -v \
 
 [NOTE]
 ====
-If you ever wish to undeploy and then redeploy all the metric components, you can do so with the `REDEPLOY` template parameter.
+If you ever wish to undeploy and then redeploy all the metric components, you can do so by setting the `MODE` template parameter to 'redeploy'. Note that this will also remove any persistent volume claims and any persisted data will be lost.
+Any non persisted data will be lost as well. This is equivalent to deleting all the components and then restarting everything overagain.
 
 For example:
 ----
 $ oc process -f metrics.yaml -v \
-     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true \
+     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=redeploy \
      | oc create -n openshift-infra -f -
+----
+
+The `refresh` value for `MODE` performs the same steps as 'redeploy' but the persistent volume claims and route will not be deleted. Any non-persisted data will be lost with this operation. This option is useful if you wish
+to redeploy your components with updated deployer secrets or if you wish to deploy another newer version.
+
+For example:
+----
+$ oc process -f metrics.yaml -v \
+     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=refresh \
+     | oc create -n openshift-infra -f -
+----
+
+To manually delete the pvc and route, you can run the following command:
+
+----
+$ oc delete pvc --selector="metrics-infra"
+$ oc delete route --selector="metrics-infra"
 ----
 ====
 
