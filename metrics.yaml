@@ -68,6 +68,8 @@ objects:
           value: ${CASSANDRA_PV_SIZE}
         - name: METRIC_DURATION
           value: ${METRIC_DURATION}
+        - name: HEAPSTER_NODE_ID
+          value: ${HEAPSTER_NODE_ID}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -118,3 +120,7 @@ parameters:
   description: "How many days metrics should be stored for."
   name: METRIC_DURATION
   value: "7"
+-
+  description: "The identifier used when generating metric ids in Hawkular"
+  name: HEAPSTER_NODE_ID
+  value: "nodename"
