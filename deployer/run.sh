@@ -26,7 +26,7 @@ master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 
 # Set to true to undeploy everything before deploying
 redeploy=${REDEPLOY:-false}
-refresh=${REFRESH:-false}
+mode=${MODE:-deploy}
 
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
@@ -103,7 +103,7 @@ if [ -n "${WRITE_KUBECONFIG}" ]; then
     oc config use-context current
 fi
 
-if [ "$redeploy" = true  ]; then
+if [ "$redeploy" = true  ] || [ "$mode" = "redeploy" ]; then
   
   echo "Deleting any previous deployment"
   oc delete all --selector="metrics-infra"
@@ -120,7 +120,7 @@ if [ "$redeploy" = true  ]; then
   echo "Deleting any pvc"		
   oc delete pvc --selector="metrics-infra"
 
-elif [ "$refresh" = true ]; then
+elif [ "$mode" = "refresh" ]; then
 
   echo "Deleting any previous deployment"
   oc delete rc --selector="metrics-infra"

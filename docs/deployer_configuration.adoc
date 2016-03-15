@@ -88,10 +88,13 @@ Default: *"https://kubernetes.default.svc:443"*
 Default: *"false"*
 |
 
-|*_REFRESH_*
-|If set to true the deployer will delete and redeploy all exisiting metrics components expect the persistent volume claims and route. Persisted data will remain available but all non-persisted data will be lost.
+|*_MODE_*
+|Can be used to set the deployment options.
+`deploy` is to be used to perform the initial install
+`refresh` will delete and redeploy all exisiting metrics components except the persistent volume claims and route. Persisted data will remain available but all non-persisted data will be lost.
+`redeploy` will delete and redeploy all existing metric components. All persisted and non-persisted data will be lost.
 
-Default: *"false"*
+Default: *"deploy"*
 |
 
 
