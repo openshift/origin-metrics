@@ -17,19 +17,44 @@ There are three main components to the metrics gathering:
 
 link:https://github.com/kubernetes/heapster[Heapster] is the component which gathers the various metrics from the OpenShift cluster. It connects to each node in an OpenShift cluster and reads the kubelet's `/stats` endpoint to retrieve metrics.
 
-It retrieves cpu and memory metrics for every container running in the cluster, across all namespaces. It also retrieves metrics for the node itself, the kubelet, and the docker daemon.
+```
+ +----------+
+ | Heapster |
+ +-----+----+
+ |     |   read /stats
+ |     +---------------------> kubelet1
+ |     |
+ |     |   read /stats
+ |     +---------------------> kubelet2
+ |
+ |              ...
+ |
+ |
+ |
+ |       write /hawkular/metrics/
+ +------------------------------>  Hawkular
+                                    ^    +
+                                    |    |
+ 	Hawkular Console +----------|    |  (optional write)
+                                         |
+                                         v
 
-Heapster does not store metrics itself and requires sending the metrics to another component for storage. For this setup, the component which deals with historically saved metrics is Hawkular Metrics.
+                                       cassandra
+```
+
+Heapster retrieves metrics (i.e. cpu, memory, ...) for every container running in the cluster, across all namespaces. 
+
+It also retrieves metrics for the node itself, the kubelet, and the docker daemon.
+
+Heapster does not store metrics itself.
 
 ==== Hawkular Metrics
+
 link:https://github.com/hawkular/hawkular-metrics/[Hawkular Metrics] is the metric storage engine from the link:http://www.hawkular.org/[Hawkular] project. It provides means of creating, accessing and managing historically stored metrics via an easy to use json based REST interface.
 
-Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface. Hawkular Metrics then stores the metrics into a Cassandra database.
+Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface. 
 
-==== Cassandra
-
-link:http://cassandra.apache.org/[Cassandra] is the database used to store the gathered metrics.
-
+Hawkular Metrics then stores the metrics into a link:http://cassandra.apache.org/[Cassandra] database.
 
 == Building the Docker Containers
 
