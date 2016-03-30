@@ -19,6 +19,9 @@ parameters:
     set version "v1.1"
   name: IMAGE_VERSION
   value: latest
+- description: The identifier used when calcuating node level metric ids
+  name: NODE_ID
+  value: nodename
 objects:
 - apiVersion: v1
   kind: ServiceAccount
@@ -74,7 +77,7 @@ objects:
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
           - "--wrapper.endpoint_check=https://hawkular-metrics:443/hawkular/metrics/status"
           - "--source=kubernetes:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
-          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
+          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&labelNodeId=${NODE_ID}&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
           - "--tls_cert=/secrets/heapster.cert"
           - "--tls_key=/secrets/heapster.key"
           - "--tls_client_ca=/secrets/heapster.client-ca"

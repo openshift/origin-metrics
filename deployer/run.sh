@@ -38,6 +38,9 @@ cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
 # How long metrics should be stored in days
 metric_duration=${METRIC_DURATION:-7}
 
+#
+heapster_node_id=${HEAPSTER_NODE_ID:-nodename}
+
 # The project we are deployed in
 project=${PROJECT:-default}
 
