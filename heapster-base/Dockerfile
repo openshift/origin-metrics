@@ -23,10 +23,19 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 EXPOSE 8082
 
-ENV HEAPSTER_COMMIT=heapster-scalability
+#Commit for v1.0.1
+ENV HEAPSTER_COMMIT=56aa3cd
 
 RUN yum install -y -q go git wget make && \
     yum clean all && \
+    cd /tmp && \
+    ## TODO: remove this section once centos7 has access to go 1.5+
+    wget https://storage.googleapis.com/golang/go1.5.3.linux-amd64.tar.gz && \
+    tar xvf go1.5.3.linux-amd64.tar.gz && \
+    export GOROOT=/tmp/go && \
+    export PATH=$GOROOT/bin:$PATH && \
+    ## END TODO
+    go version && \
     export GOPATH=/tmp/gopath && \
     export PATH=$PATH:$GOPATH/bin && \
     mkdir -p $GOPATH/src/k8s.io && \
