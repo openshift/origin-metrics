@@ -27,7 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.13.0-SNAPSHOT" \
+    HAWKULAR_METRICS_VERSION="0.14.0.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/"
 
