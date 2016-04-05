@@ -23,8 +23,8 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 EXPOSE 8082
 
-#Commit for v1.0.1
-ENV HEAPSTER_COMMIT=56aa3cd
+#Commit for version unreleased v1.1.0-beta1 (SNAPSHOT)
+ENV HEAPSTER_COMMIT=de510e4
 
 RUN yum install -y -q go git wget make && \
     yum clean all && \
