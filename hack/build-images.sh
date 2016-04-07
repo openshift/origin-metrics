@@ -1,41 +1,45 @@
 #!/bin/bash
 
-set -e
+set -o errexit
+set -o nounset
+set -o pipefail
+
+STARTTIME=$(date +%s)
+source_root=$(dirname "${0}")/..
 
 prefix="openshift/origin-"
 version="latest"
-push=false
 verbose=false
 options=""
-
-source_root=$(dirname "${BASH_SOURCE}")/..
+help=false
 
 for args in "$@"
 do
   case $args in
-    --prefix=*)
-      prefix="${args#*=}"
-      ;;
-    --version=*)
-      version="${args#*=}"
-      ;;
-    --no-cache)
-      options="${options} --no-cache"
-      ;;
-    --push)
-      push=true
-    ;;
-    --verbose)
-      verbose=true
-    ;;
-    --help)
-      help=true
-    ;;
+      --prefix=*)
+        prefix="${args#*=}"
+        ;;
+      --version=*)
+        version="${args#*=}"
+        ;;
+      --no-cache)
+        options="${options} --no-cache"
+        ;;
+      --verbose)
+        verbose=true
+        ;;
+     --help)
+        help=true
+        ;;
   esac
 done
 
+# allow ENV to take precedent over switches
+prefix="${PREFIX:-$prefix}"
+version="${OS_TAG:-$version}" 
+
 if [ "$help" = true ]; then
-  echo "Builds the docker images for metrics and optionally pushes them to a registry"
+  echo "Builds the docker images for metrics"
   echo
   echo "Options: "
   echo "  --prefix=PREFIX"
@@ -49,16 +53,12 @@ if [ "$help" = true ]; then
   echo "  --no-cache"
   echo "  If set will perform the build without a cache."
   echo
-  echo "  --push"
-  echo "  If set will call 'docker push' on the images"
-  echo
   echo "  --verbose"
   echo "  Enables printing of the commands as they run."
   echo
   echo "  --help"
   echo "  Prints this help message"
   echo
-
   exit 0
 fi
 
@@ -66,16 +66,24 @@ if [ "$verbose" = true ]; then
   set -x
 fi
 
-echo "Building image ${prefix}metrics-hawkular-metrics:${version}"
-docker build ${options} -t "${prefix}metrics-hawkular-metrics:${version}"       ${source_root}/hawkular-metrics/
-docker build ${options} -t "${prefix}metrics-cassandra:${version}" 		${source_root}/cassandra/
-docker build ${options} -t "${prefix}metrics-heapster:${version}"        	${source_root}/heapster/
-docker build ${options} -t "${prefix}metrics-deployer:${version}"    		${source_root}/deployer/
+for component in deployer heapster-base heapster hawkular-metrics ; do
+  BUILD_STARTTIME=$(date +%s)
+  comp_path=$source_root/$component/
+  docker_tag=${prefix}metrics-${component}:${version}
+  echo
+  echo
+  echo "--- Building component '$comp_path' with docker tag '$docker_tag' ---"
+  docker build ${options} -t $docker_tag       $comp_path
+  BUILD_ENDTIME=$(date +%s); echo "--- $docker_tag took $(($BUILD_ENDTIME - $BUILD_STARTTIME)) seconds ---"
+  echo
+  echo
+done
 
-if [ "$push" = true ]; then
-  echo "Pushing Docker Images"
-  docker push "${prefix}metrics-hawkular-metrics:${version}"
-  docker push "${prefix}metrics-cassandra:${version}"
-  docker push "${prefix}metrics-heapster:${version}"
-  docker push "${prefix}metrics-deployer:${version}"
-fi
+echo
+echo
+echo "++ Active images"
+docker images | grep ${prefix}metrics | grep ${version} | sort
+echo
+
+
+ret=$?; ENDTIME=$(date +%s); echo "$0 took $(($ENDTIME - $STARTTIME)) seconds"; exit "$ret"

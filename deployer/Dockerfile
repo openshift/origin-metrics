@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-FROM openshift/origin:latest
+FROM openshift/origin:v1.1.6
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
