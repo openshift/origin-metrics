@@ -58,8 +58,8 @@ objects:
           value: ${MODE}
         - name: REDEPLOY
           value: ${REDEPLOY}
-        - name: MODE
-          value: ${MODE}
+        - name: IGNORE_PREFLIGHT
+          value: ${IGNORE_PREFLIGHT}
         - name: USE_PERSISTENT_STORAGE
           value: ${USE_PERSISTENT_STORAGE}
         - name: HAWKULAR_METRICS_HOSTNAME
@@ -105,6 +105,10 @@ parameters:
 -
   description: "(Deprecated) Turns 'deploy' mode into 'redeploy' mode, deleting and redeploying everything (losing all data in the process)"
   name: REDEPLOY
+  value: "false"
+-
+  description: "If preflight validation is blocking deployment and you're sure you don't care about it, this will ignore the results and proceed to deploy."
+  name: IGNORE_PREFLIGHT
   value: "false"
 -
   description: "Set to true for persistent storage, set to false to use non persistent storage"
