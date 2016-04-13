@@ -30,10 +30,6 @@ do
     -x)
       set -x
       ;;
-     *)
-      echo "unknown argument $args"
-      exit 1
-      ;;
   esac
 done
 
