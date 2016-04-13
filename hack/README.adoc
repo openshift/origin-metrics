@@ -2,7 +2,15 @@
 
 == Running the Tests
 
-The tests require that the `oc` command is available in the path and that the user who is currently logged in via the `oc login` command currently has admin privileges.
+The tests require that:
+
+. the `oc` command is available in the path
+
+. the user who is currently logged in via the `oc login` command currently has admin privileges
+
+. the cluster has a running router
+
+. there must be no existing route for hawkular-metrics.example.com in any project
 
 Once these prerequisites are met, the following command will run the tests:
 
@@ -29,6 +37,9 @@ The following table outlines the various options which can be used to change thi
 
 |--skipBuild
 |Skips building the docker images
+
+|--cacheBuild
+|Use the Docker cache when building the docker images
 
 |--continue
 |Leaves the project running after the tests have finished. Useful for debugging purposes as to why a test is failing

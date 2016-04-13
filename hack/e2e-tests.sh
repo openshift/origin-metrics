@@ -6,6 +6,7 @@ source $SOURCE_ROOT/hack/tests/common.sh
 continue=false
 build=true
 skipTests=false
+buildOpts=--no-cache
 
 for args in "$@"
 do
@@ -13,15 +14,22 @@ do
     --skipBuild)
       build=false
       ;;
+    --cacheBuild)
+      buildOpts=""
+      ;;
     --skipTests)
       skipTests=true
       ;;
     --continue)
       continue=true
       ;;
+    --selector=*)
+      NODE_SELECTOR="${args#*=}"
+
+      ;;
     -x)
-     set -x
-     ;;
+      set -x
+      ;;
   esac
 done
 
@@ -40,14 +48,15 @@ export TEST_PROJECT=test-$(date +%s)
 function test.setup {
   Info 
   Info "Creating test project $TEST_PROJECT"
-  oc new-project $TEST_PROJECT > /dev/null
+  oadm new-project $TEST_PROJECT --node-selector="${NODE_SELECTOR:-}" > /dev/null
+  oc project $TEST_PROJECT > /dev/null
   Info
 }
 
 function test.build {
   Info
   Info "Building new images"
-  sh $SOURCE_ROOT/hack/build-images.sh --no-cache
+  sh $SOURCE_ROOT/hack/build-images.sh $buildOpts
   Info "finished building images"
 }
 

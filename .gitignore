@@ -1,0 +1,4 @@
+deployer/_output
+deployer/_secret
+*.sw?
+*~

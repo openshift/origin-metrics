@@ -104,7 +104,7 @@ do
   esac
 done
 
-if [[ -z ${TEST_PROJECT-} ]]; then
+if [[ -z ${TEST_PROJECT:-} ]]; then
   export TEST_PROJECT=`oc project --short`
 fi
 tests.run
