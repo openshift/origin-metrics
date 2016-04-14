@@ -35,7 +35,7 @@ link:https://github.com/kubernetes/heapster[Heapster] is the component which gat
  +------------------------------>  Hawkular
                                     ^    +
                                     |    |
- 	Hawkular Console +----------|    |  (optional write)
+ 	Hawkular Console +----------|    |
                                          |
                                          v
 
@@ -164,7 +164,7 @@ The Heapster deployer template does not have an required parameters and will fal
 You should only run the following command if you are sure that you only want the Heapster component to be deployed:
 
 ----
-$ oc process -f heapster-standalone.yaml | oc create -n openshift-infra -f -
+$ oc process -f metrics-heapster.yaml | oc create -n openshift-infra -f -
 ----	
 
 === Deploying all of the Metrics Components
