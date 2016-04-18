@@ -14,11 +14,14 @@ parameters:
 - description: Specify prefix for metrics components; e.g. for "openshift/origin-metrics-deployer:v1.1",
     set prefix "openshift/origin-"
   name: IMAGE_PREFIX
-  value: hawkular/
+  value: openshift/origin-
 - description: Specify version for metrics components; e.g. for "openshift/origin-metrics-deployer:v1.1",
     set version "v1.1"
   name: IMAGE_VERSION
   value: latest
+- description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
+  name: METRIC_RESOLUTION
+  value: "10s"
 objects:
 - apiVersion: v1
   kind: ServiceAccount
@@ -73,6 +76,7 @@ objects:
           - "--tls_key=/secrets/heapster.key"
           - "--tls_client_ca=/secrets/heapster.client-ca"
           - "--allowed_users=%allowed_users%"
+          - "--metric_resolution=${METRIC_RESOLUTION}"
           volumeMounts:
           - name: heapster-secrets
             mountPath: "/secrets"

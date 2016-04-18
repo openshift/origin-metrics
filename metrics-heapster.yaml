@@ -62,6 +62,8 @@ objects:
           value: "true"
         - name: IGNORE_PREFLIGHT
           value: ${IGNORE_PREFLIGHT}
+        - name: METRIC_RESOLUTION
+          value: ${METRIC_RESOLUTION}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -92,3 +94,7 @@ parameters:
   description: "If set to true preflight checks will still run on deploy, but deploy will proceed even if the checks fail."
   name: IGNORE_PREFLIGHT
   value: "false"
+-
+  description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
+  name: METRIC_RESOLUTION
+  value: "10s"

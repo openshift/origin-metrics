@@ -89,8 +89,8 @@ EOF
   
   echo "Deploying the Heapster component"
   if [ -n "${HEAPSTER_STANDALONE:-}" ]; then
-    oc process heapster-standalone -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,MASTER_URL=$master_url" | oc create -f -
+    oc process heapster-standalone -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,MASTER_URL=$master_url,METRIC_RESOLUTION=$metric_resolution" | oc create -f -
   else
-    oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,MASTER_URL=$master_url,NODE_ID=$heapster_node_id" | oc create -f -
+    oc process hawkular-heapster -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,MASTER_URL=$master_url,NODE_ID=$heapster_node_id,METRIC_RESOLUTION=$metric_resolution" | oc create -f -
   fi
 }

@@ -72,6 +72,8 @@ objects:
           value: ${METRIC_DURATION}
         - name: HEAPSTER_NODE_ID
           value: ${HEAPSTER_NODE_ID}
+        - name: METRIC_RESOLUTION
+          value: ${METRIC_RESOLUTION}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -130,3 +132,7 @@ parameters:
   description: "The identifier used when generating metric ids in Hawkular"
   name: HEAPSTER_NODE_ID
   value: "nodename"
+-
+  description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
+  name: METRIC_RESOLUTION
+  value: "10s"
