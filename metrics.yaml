@@ -54,12 +54,8 @@ objects:
           value: ${IMAGE_VERSION}
         - name: MASTER_URL
           value: ${MASTER_URL}
-        - name: MODE
-          value: ${MODE}
         - name: REDEPLOY
           value: ${REDEPLOY}
-        - name: IGNORE_PREFLIGHT
-          value: ${IGNORE_PREFLIGHT}
         - name: USE_PERSISTENT_STORAGE
           value: ${USE_PERSISTENT_STORAGE}
         - name: HAWKULAR_METRICS_HOSTNAME
@@ -70,10 +66,6 @@ objects:
           value: ${CASSANDRA_PV_SIZE}
         - name: METRIC_DURATION
           value: ${METRIC_DURATION}
-        - name: HEAPSTER_NODE_ID
-          value: ${HEAPSTER_NODE_ID}
-        - name: METRIC_RESOLUTION
-          value: ${METRIC_RESOLUTION}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -87,11 +79,11 @@ parameters:
 -
   description: 'Specify prefix for metrics components; e.g. for "openshift/origin-metrics-deployer:latest", set prefix "openshift/origin-"'
   name: IMAGE_PREFIX
-  value: "openshift/origin-"
+  value: "registry.access.redhat.com/openshift3/"
 -
   description: 'Specify version for metrics components; e.g. for "openshift/origin-metrics-deployer:latest", set version "latest"'
   name: IMAGE_VERSION
-  value: "latest"
+  value: "3.1.1"
 -
   description: "Internal URL for the master, for authentication retrieval"
   name: MASTER_URL
@@ -101,16 +93,8 @@ parameters:
   name: HAWKULAR_METRICS_HOSTNAME
   required: true
 -
-  description: "Can be set to: 'preflight' to perform validation before a deployment; 'deploy' to perform an initial deployment; 'refresh' to delete and redeploy all components but to keep persisted data and routes; 'redeploy' to delete and redeploy everything (losing all data in the process); 'validate' to re-run validations after a deployment"
-  name: MODE
-  value: "deploy"
--
-  description: "(Deprecated) Turns 'deploy' mode into 'redeploy' mode, deleting and redeploying everything (losing all data in the process)"
+  description: "If set to true the deployer will try and delete all the existing components before trying to redeploy."
   name: REDEPLOY
-  value: "false"
--
-  description: "If preflight validation is blocking deployment and you're sure you don't care about it, this will ignore the results and proceed to deploy."
-  name: IGNORE_PREFLIGHT
   value: "false"
 -
   description: "Set to true for persistent storage, set to false to use non persistent storage"
@@ -128,11 +112,3 @@ parameters:
   description: "How many days metrics should be stored for."
   name: METRIC_DURATION
   value: "7"
--
-  description: "The identifier used when generating metric ids in Hawkular"
-  name: HEAPSTER_NODE_ID
-  value: "nodename"
--
-  description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
-  name: METRIC_RESOLUTION
-  value: "10s"
