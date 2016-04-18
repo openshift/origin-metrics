@@ -36,8 +36,12 @@ master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 
 # Set to true to undeploy everything before deploying
 redeploy=${REDEPLOY:-false}
-mode=${MODE:-deploy}
-[ "$mode" = redeploy ] && redeploy=true
+if [ "$redeploy" == true ]; then
+  mode=redeploy
+else
+  mode=${MODE:-deploy}
+  [ "$mode" = redeploy ] && redeploy=true
+fi
 
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
