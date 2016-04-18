@@ -122,4 +122,10 @@ Default: *"10Gi"*
 Default: *"7"*
 |
 
+|*_METRIC_RESOLUTION_*
+|How often metrics should be gathered. Defaults value of '10s' for 10 seconds
+
+Default: *"10s"*
+|
+
 |===

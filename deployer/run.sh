@@ -52,6 +52,9 @@ metric_duration=${METRIC_DURATION:-7}
 #
 heapster_node_id=${HEAPSTER_NODE_ID:-nodename}
 
+#
+metric_resolution=${METRIC_RESOLUTION:-10s}
+
 # The project we are deployed in
 project=${PROJECT:-openshift-infra}
 

@@ -39,6 +39,15 @@ function tests_setup {
 
 function tests_teardown {
   if functionExists tests.teardown; then
+    if [ "$continue" = true ]; then
+      trap tests.teardown SIGINT SIGTERM EXIT
+      Info "The tests are completed. Press ctrl-c to end the tests and perform a clean-up.."
+      while : 
+        do
+          sleep 10
+        done
+    fi
+
       teardownStart=$(date +%s)
       Info "Performing test shutdown"
       Info $SEPARATOR
@@ -95,11 +104,15 @@ function runTest {
   Info
 }
 
+continue=false
 for args in "$@"
 do
   case $args in
     --test=*)
       test="${args#*=}"
+      ;;
+    --continue)
+      continue=true
       ;;
   esac
 done
