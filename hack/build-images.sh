@@ -44,7 +44,7 @@ if [ "$help" = true ]; then
   echo "Options: "
   echo "  --prefix=PREFIX"
   echo "  The prefix to use for the image names."
-  echo "  default: docker.io/openshift/origin-"
+  echo "  default: openshift/origin-"
   echo
   echo "  --version=VERSION"
   echo "  The version used to tag the image"
@@ -66,7 +66,7 @@ if [ "$verbose" = true ]; then
   set -x
 fi
 
-for component in deployer heapster-base heapster hawkular-metrics ; do
+for component in deployer heapster-base heapster hawkular-metrics cassandra; do
   BUILD_STARTTIME=$(date +%s)
   comp_path=$source_root/$component/
   docker_tag=${prefix}metrics-${component}:${version}
