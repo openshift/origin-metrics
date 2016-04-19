@@ -374,7 +374,7 @@ function test_deployed_services() {
   [ "$rc" = 0 ] || return $rc # at least one endpoint set not right, no need for further tests
 
   # finally, since endpoints came up solid, make sure the cassandra nodes service resolves.
-  if ! output=$(dig hawkular-cassandra-nodes.$project.svc.cluster.local ${SKYNDS_SERVER:-} +short 2>&1) || [ -z "${output:-}" ]; then
+  [ -z "${HEAPSTER_STANDALONE:-}" ] &&  if ! output=$(dig hawkular-cassandra-nodes.$project.svc.cluster.local ${SKYNDS_SERVER:-} +short 2>&1) || [ -z "${output:-}" ]; then
     echo "Could not resolve 'hawkular-cassandra-nodes' service."
     echo "This is essential for metrics operation. Please check that cluster DNS is working in pods."
     rc=1

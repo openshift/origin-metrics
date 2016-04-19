@@ -110,6 +110,7 @@ test.setup
 if [ "$skipTests" = false ]; then
   $SOURCE_ROOT/hack/tests/test_default_deploy.sh $@
   $SOURCE_ROOT/hack/tests/test_standalone_docker.sh $@
+  $SOURCE_ROOT/hack/tests/test_heapster.sh $@
 fi
 
 cleanup

@@ -19,6 +19,7 @@ reset=`tput sgr0`
 debug=${debug:-false}
 timeout=${timeout:-180}
 template=${template:-$SOURCE_ROOT/metrics.yaml}
+heapster_template=${heapster_tempalte:-$SOURCE_ROOT/metrics-heapster.yaml}
 image_prefix=${image_prefix:-openshift/origin-}
 image_version=${image_version:-latest}
 for args in "$@"
@@ -32,6 +33,9 @@ do
       ;;
     --template=*)
       template="${args#*=}"
+      ;;
+    --heapster_template=*)
+      heapster_template="${args#*=}"
       ;;
     --image_prefix=*)
       image_prefix="${args#*=}"
