@@ -66,7 +66,7 @@ if [ "$verbose" = true ]; then
   set -x
 fi
 
-for component in deployer heapster-base heapster hawkular-metrics cassandra; do
+for component in deployer heapster hawkular-metrics cassandra; do
   BUILD_STARTTIME=$(date +%s)
   comp_path=$source_root/$component/
   docker_tag=${prefix}metrics-${component}:${version}
