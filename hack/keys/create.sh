@@ -37,6 +37,10 @@ cp ${SIGNER_CERT} signer.ca
 oadm ca create-server-cert --cert=hawkular.crt --key=hawkular.key --hostnames=hawkular-metrics,hawkular-metrics.example.com --signer-cert=${SIGNER_CERT} --signer-key=${SIGNER_KEY} --signer-serial=${SIGNER_SERIAL}
 cat hawkular.crt hawkular.key > hawkular.pem
 
+#create the Hawkular certificate and key from the OpenShift instance with a wildcard
+oadm ca create-server-cert --cert=hawkular-wc.crt --key=hawkular-wc.key --hostnames=hawkular-metrics,*.example.com --signer-cert=${SIGNER_CERT} --signer-key=${SIGNER_KEY} --signer-serial=${SIGNER_SERIAL}
+cat hawkular-wc.crt hawkular-wc.key > hawkular-wc.pem
+
 #create the Cassandra certificate and key from the OpenShift instance
 oadm ca create-server-cert --cert=cassandra.crt --key=cassandra.key --hostnames=hawkular-cassandra --signer-cert=${SIGNER_CERT} --signer-key=${SIGNER_KEY} --signer-serial=${SIGNER_SERIAL}
 cat cassandra.crt cassandra.key > cassandra.pem

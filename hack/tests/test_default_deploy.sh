@@ -410,6 +410,15 @@ function test.HawkularMetricsCustomCertificate {
   testBasicDeploy
 }
 
+function test.hawkularMetricsWildcardCertificate {
+  undeployAll
+
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate that contains a wildcard"
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular-wc.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
+
+  testBasicDeploy
+}
+
 function test.HawkularMetricsCustomCertificateIntermediateCA {
   undeployAll
 

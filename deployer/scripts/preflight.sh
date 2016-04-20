@@ -29,7 +29,7 @@ function validate_master_accessible() {
 
 function cert_should_have_names() {
   local file="$1"; shift
-  local output name cn san missing
+  local output name cn san sans found count
 
   if ! output=$(openssl x509 -in "$file" -noout -text 2>&1); then
     echo "Could not extract certificate from $file. The error was:"
@@ -37,15 +37,24 @@ function cert_should_have_names() {
     return 1
   fi
   if san=$(echo -e "$output" | grep -A 1 "Subject Alternative Name:"); then
-    missing=false
+    found=0
+    sans=$(process_san $san)
+    count=${#@}
     for name in $@; do
-      [[ "$san" != *DNS:$name* ]] && missing=true
+       for san in $sans; do
+         check=$(check_san $san $name)
+         echo CHECK $check
+         if [[ "$check" == "true" ]]; then
+          ((found++))
+         fi
+       done
     done
-    if [[ $missing = true ]]; then
-      echo "The supplied $file certificate is required to contain the following name(s) in the Subject Alternative Name field:"
+    echo $found $count
+    if [[ $found != $count ]]; then
+      echo "The supplied $file certificate is required to match the following name(s) in the Subject Alternative Name field:"
       echo $@
       echo "Instead the certificate has:"
-      echo -e "$san"
+      echo -e "$sans"
       echo "Please supply a correct certificate or omit it to allow the deployer to generate it."
       return 1
     fi
@@ -65,6 +74,42 @@ function cert_should_have_names() {
   fi
   return 0
 }
+
+function process_san() {
+  local host
+  local san=$*
+  local sans=()
+  for value in $san; do
+    if [[ $value == "DNS:"* ]]; then
+      host=${value:4}
+      if [[ ${host: -1} == "," ]]; then
+        host=${host:0:${#host} -1}
+      fi
+      sans=("${sans[@]-}" "$host")
+    fi
+  done
+  echo ${sans[@]}
+}
+
+function check_san() {
+  local san=$1
+  local hostname=$2
+  #we need to handle the wildcard situation
+  if [[ ${san:0:2} == "*." ]]; then
+    san=${san:2}
+    if [[ $hostname =~ ^.*".${san}"$ ]] || [[ $hostname =~ ^"${san}"$   ]]; then
+      echo true
+      return
+    fi
+  else
+    if [[ $hostname == ${san} ]]; then
+      echo true
+      return
+    fi
+  fi
+  echo false
+}
+
 
 function validate_deployer_secret() {
   local failure=false
