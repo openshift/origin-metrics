@@ -7,7 +7,7 @@ set -o pipefail
 STARTTIME=$(date +%s)
 source_root=$(dirname "${0}")/..
 
-prefix="openshift/origin-"
+prefix="docker.io/openshift/origin-"
 version="latest"
 verbose=false
 options=""
