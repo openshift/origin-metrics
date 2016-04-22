@@ -164,6 +164,11 @@ function validate_preflight() {
       echo ========================
       echo -e "$fail"
     done
+    echo
+    echo "Deployment has been aborted prior to starting, as these failures often indicate fatal problems."
+    echo "Please evaluate any error messages above and determine how they can be addressed."
+    echo "To ignore this validation failure and continue, specify IGNORE_PREFLIGHT=true."
+    echo
     echo "PREFLIGHT CHECK FAILED"
     exit 255
   fi
