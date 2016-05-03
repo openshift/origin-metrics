@@ -33,7 +33,8 @@ function handle_previous_deployment() {
     oc delete rc,svc,pod,sa,templates,secrets --selector="metrics-infra"
   elif [ "$redeploy" = true ] || [ "$mode" = remove ]; then
     echo "Deleting any previous deployment"
-    oc delete all,sa,templates,secrets,pvc --selector="metrics-infra"
+    oc delete --grace-period=0 all,sa,templates,secrets --selector="metrics-infra"
+    oc delete pvc --selector="metrics-infra"
   fi
 }
 
