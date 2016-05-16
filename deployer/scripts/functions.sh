@@ -30,11 +30,28 @@ function setup_certificate {
 function handle_previous_deployment() {
   if [ "$mode" = "refresh" ]; then
     echo "Deleting any previous deployment (leaving route and PVCs)"
-    oc delete rc,svc,pod,sa,templates,secrets --selector="metrics-infra"
+    # We don't want to delete ourselves, but we do want to remove old deployers
+    # Remove our label so that we are not deleted.
+    echo "POD_NAME ${POD_NAME:-}"
+    [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra-
+
+    oc delete rc,svc,pod,sa,templates,secrets --selector="metrics-infra" --ignore-not-found=true
+
+    # Add back our label so that the next time the deployer is run this will be deleted
+    [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra=deployer
+
   elif [ "$redeploy" = true ] || [ "$mode" = remove ]; then
     echo "Deleting any previous deployment"
-    oc delete --grace-period=0 all,sa,templates,secrets --selector="metrics-infra"
-    oc delete pvc --selector="metrics-infra"
+    # We don't want to delete ourselves, but we do want to remove old deployers
+    # Remove our label so that we are not immediately deleted.
+    echo "POD_NAME ${POD_NAME:-}"
+    [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra-
+
+    oc delete --grace-period=0 all,sa,templates,secrets --selector="metrics-infra" --ignore-not-found=true
+    oc delete pvc --selector="metrics-infra" --ignore-not-found=true
+
+    # Add back our label so that the next time the deployer is run this will be deleted
+    [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra=deployer
   fi
 }
 
