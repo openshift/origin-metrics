@@ -26,15 +26,12 @@ EXPOSE 8082
 #Commit for version v1.1.0-beta2
 ENV HEAPSTER_COMMIT=v1.1.0-beta2
 
-RUN yum install -y -q go git wget make && \
+#Patch to remove a test which requires a newer version of go not available in Centos7 yet
+COPY golang1.4-compat.patch /tmp/
+
+RUN yum install -y -q go git wget make patch && \
     yum clean all && \
     cd /tmp && \
-    ## TODO: remove this section once centos7 has access to go 1.5+
-    wget https://storage.googleapis.com/golang/go1.5.3.linux-amd64.tar.gz && \
-    tar xvf go1.5.3.linux-amd64.tar.gz && \
-    export GOROOT=/tmp/go && \
-    export PATH=$GOROOT/bin:$PATH && \
-    ## END TODO
     go version && \
     export GOPATH=/tmp/gopath && \
     export PATH=$PATH:$GOPATH/bin && \
@@ -43,6 +40,7 @@ RUN yum install -y -q go git wget make && \
     git clone https://github.com/kubernetes/heapster && \
     cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
+    patch -p1 < /tmp/golang1.4-compat.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \
