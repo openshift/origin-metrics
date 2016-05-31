@@ -428,6 +428,25 @@ function test.HawkularMetricsCustomCertificateIntermediateCA {
   testBasicDeploy
 }
 
+function test.HawkularMetricsInvalidCertificateSkipPreflight {
+  undeployAll
+
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate that contains a wildcard"
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular-wc.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
+
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=mymetrics.hawkular.org,USE_PERSISTENT_STORAGE=false,IGNORE_PREFLIGHT=true | oc create -f - &> /dev/null
+
+  checkDeployer
+  checkTerminated
+  checkDeployment "Cassandra" 1
+  checkDeployment "Hawkular-Metrics" 1
+  checkDeployment "Heapster" 1
+  checkCassandraState "hawkular-cassandra-1" 1
+  checkRoute "hawkular-metrics" "mymetrics.hawkular.org"
+  checkMetrics
+  checkImages
+}
+
 function test.CassandraCustomCertificate {
   undeployAll
 
