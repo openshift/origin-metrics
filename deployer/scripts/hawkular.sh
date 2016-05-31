@@ -187,12 +187,26 @@ EOF
   oc create -f templates/hawkular-cassandra-node-pv.yaml
   oc create -f templates/hawkular-cassandra-node-emptydir.yaml
   oc create -f templates/support.yaml
-  
+
   echo "Deploying Hawkular Metrics & Cassandra Components"
   oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url" | oc create -f -
   oc process hawkular-cassandra-services | oc create -f -
-  oc process hawkular-support -v "HAWKULAR_METRICS_HOSTNAME=$hawkular_metrics_hostname" | oc create -f - || true
-  
+  oc process hawkular-support | oc create -f -
+
+  echo "Creating the Hawkular Metrics Route"
+  # We need to create the route after the service has been created so that its labels get applied to the route itself
+  route_params="--hostname=$hawkular_metrics_hostname --service=hawkular-metrics --dest-ca-cert=$dir/hawkular-metrics-ca.cert"
+  if [ -s ${secret_dir}/hawkular-metrics.pem ]; then
+    `openssl rsa -in  ${secret_dir}/hawkular-metrics.pem > $dir/custom-certificate.key`
+    # We want to get all the certificates in the pem which is a bit tricky. The more simple 'openssl x509 ...' command will not work since it only returns the first certificate
+    `openssl crl2pkcs7 -nocrl -certfile ${secret_dir}/hawkular-metrics.pem | openssl pkcs7 -print_certs | grep -v "^subject=*\|^issuer=*\|^$" > $dir/custom-certificate.crt`
+     route_params="${route_params} --cert=$dir/custom-certificate.crt --key=$dir/custom-certificate.key"
+     if [ -s ${secret_dir}/hawkular-metrics-ca.cert ]; then
+       route_params="${route_params} --ca-cert=${secret_dir}/hawkular-metrics-ca.cert"
+     fi
+  fi
+  oc create route reencrypt hawkular-metrics ${route_params}
+ 
   if [ "${use_persistent_storage}" = true ]; then
     echo "Setting up Cassandra with Persistent Storage"
     # Deploy the main 'master' Cassandra node

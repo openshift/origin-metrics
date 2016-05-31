@@ -404,8 +404,17 @@ function testBasicDeploy {
 function test.HawkularMetricsCustomCertificate {
   undeployAll
   
-  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate" 
-  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
+  Info "Checking that everything can be properly started with a custom Hawkular Metrics certificate" 
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular/hawkular.pem &> /dev/null
+
+  testBasicDeploy
+}
+
+function test.HawkularMetricsCustomCertificateWithCA {
+  undeployAll
+
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate with a custom CA certificate"
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular/hawkular-noca.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
 
   testBasicDeploy
 }
@@ -414,16 +423,16 @@ function test.hawkularMetricsWildcardCertificate {
   undeployAll
 
   Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate that contains a wildcard"
-  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular-wc.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkularWildCard/hawkularWildCard.pem &> /dev/null
 
   testBasicDeploy
 }
 
-function test.HawkularMetricsCustomCertificateIntermediateCA {
+function test.hawkularMetricsWildcardCertificateWithCA {
   undeployAll
 
-  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate, when using an intermediary CA."
-  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/intermediary_ca/hawkular-metrics.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/intermediary_ca/ca-chain.pem &> /dev/null
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate that contains a wildcard"
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkularWildCard/hawkularWildCard.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
 
   testBasicDeploy
 }
@@ -432,11 +441,12 @@ function test.HawkularMetricsInvalidCertificateSkipPreflight {
   undeployAll
 
   Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate that contains a wildcard"
-  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular-wc.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkularWildCard/hawkularWildCard.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
 
   oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=mymetrics.hawkular.org,USE_PERSISTENT_STORAGE=false,IGNORE_PREFLIGHT=true | oc create -f - &> /dev/null
 
-  checkDeployer
+  # The deployer will throw an error with post-deployment checks (since the certificate is invalid for the hostname)
+  #  checkDeployer
   checkTerminated
   checkDeployment "Cassandra" 1
   checkDeployment "Hawkular-Metrics" 1
@@ -447,42 +457,13 @@ function test.HawkularMetricsInvalidCertificateSkipPreflight {
   checkImages
 }
 
-function test.CassandraCustomCertificate {
+function test.HawkularMetricsCustomCertificateIntermediateCA {
   undeployAll
 
-  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate"
-  oc secrets new metrics-deployer hawkular-cassandra.pem=$SOURCE_ROOT/hack/keys/cassandra.pem hawkular-cassandra-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
- 
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
-  checkDeployer
-  checkTerminated
-  checkDeployment "Cassandra" 1
-  checkDeployment "Hawkular-Metrics" 1
-  checkDeployment "Heapster" 1
-  checkCassandraState "hawkular-cassandra-1" 1
-  checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
-  checkMetrics
-  checkImages
+  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate, when using an intermediary CA."
+  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/intermediary_ca/hawkular-metrics.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/intermediary_ca/ca-chain.pem &> /dev/null
+
+  testBasicDeploy
 }
-
-function test.CustomCertificates {
-  undeployAll
-
-  Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate"
-  oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkular.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca \
-                                  hawkular-cassandra.pem=$SOURCE_ROOT/hack/keys/cassandra.pem hawkular-cassandra-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
-
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f -
-  checkDeployer
-  checkTerminated
-  checkDeployment "Cassandra" 1
-  checkDeployment "Hawkular-Metrics" 1
-  checkDeployment "Heapster" 1
-  checkCassandraState "hawkular-cassandra-1" 1
-  checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
-  checkMetrics
-  checkImages
-}
-
 
 source $TEST_DIR/base.sh
