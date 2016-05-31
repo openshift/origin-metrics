@@ -54,6 +54,6 @@ COPY standalone.xml $JBOSS_HOME/standalone/configuration/standalone.xml
 # Change the permissions so that the user running the image can start up Hawkular Metrics
 USER root
 RUN chmod -R 777 /opt
-USER jboss
+USER 1000
 
 CMD $HAWKULAR_METRICS_SCRIPT_DIRECTORY/hawkular-metrics-wrapper.sh -b 0.0.0.0 -bmanagement 0.0.0.0 -Dhawkular-metrics.cassandra-nodes=hawkular-cassandra
