@@ -10,23 +10,13 @@ The following table contains more advanced configuration options, detailing all 
 |Secret Name |Description
 
 |*_hawkular-metrics.pem_*
-|The *_pem_* file to use for the Hawkular Metrics certificate. This 
-certificate *must* contain the `hawkular-metrics` hostname as well as the 
-publically available hostname used by the route. This file is
-auto-generated if unspecified.
+|The *_pem_* file to use for the Hawkular Metrics certificate used for the re-encrypting route. This 
+certificate *must* contain the hostname used by the route (eg HAWKULAR_METRICS_HOSTNAME). The default router's certificate will be used
+for the route if this option is unspecified.
 
 |*_hawkular-metrics-ca.cert_*
-|The certificate for the CA used to sign the *_hawkular-metrics.pem_*. This 
-option is ignored if the *_hawkular-metrics.pem_* option is not specified.
-
-|*_hawkular-cassandra.pem_*
-|The *_.pem_* file to use for the Cassandra certificate. This certificate 
-*must* contain the `hawkular-cassandra` hostname. This file is 
-auto-generated if unspecified.
-
-|*_hawkular-cassandra-ca.cert_*
-|The certificate for the CA used to sign the *_hawkular-cassandra.pem_*. This
-option is ignored if the *_hawkular-cassandra.pem_* option is not specified.
+|The certificate for the CA used to sign the *_hawkular-metrics.pem_*. This is optional if the *_hawkular-metrics.pem_*
+does not contian the CA certificate itself
 
 |*_heapster.cert_*
 |The certificate for Heapster to use. This is auto-generated if unspecified.

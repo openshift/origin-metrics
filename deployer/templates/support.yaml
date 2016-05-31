@@ -7,10 +7,6 @@ metadata:
   name: hawkular-support
   labels:
     metrics-infra: support
-parameters:
-- description: ''
-  name: HAWKULAR_METRICS_HOSTNAME
-  required: true
 objects:
 - apiVersion: v1
   kind: ServiceAccount
@@ -28,16 +24,3 @@ objects:
       metrics-infra: support
   secrets:
   - name: hawkular-cassandra-secrets
-- apiVersion: v1
-  kind: Route
-  metadata:
-    name: hawkular-metrics
-    labels:
-      metrics-infra: support
-  spec:
-    host: "${HAWKULAR_METRICS_HOSTNAME}"
-    to:
-      kind: Service
-      name: hawkular-metrics
-    tls:
-      termination: passthrough

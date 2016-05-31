@@ -8,23 +8,14 @@ function setup_certificate {
   local hostnames="${2:-}"
   local envVar="${3:-}"
 
-  # Use existing or generate new Hawkular Metrics certificates
-  if [ -n "${envVar:-}" ]; then
-      echo "${envVar}" | base64 -d > $dir/${name}.pem
-  elif [ -s ${secret_dir}/${name}.pem ]; then
-      # use files from secret if present
-      cp ${secret_dir}/${name}.pem $dir
-      cp ${secret_dir}/${name}-ca.cert $dir
-  else #fallback to creating one
-      openshift admin ca create-server-cert  \
-        --key=$dir/${name}.key \
-        --cert=$dir/${name}.crt \
-        --hostnames=${hostnames} \
-        --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
-      cat $dir/${name}.key $dir/${name}.crt > $dir/${name}.pem
-      cp $dir/ca.crt $dir/${name}-ca.cert
-  fi
-
+  # Generate certificates used for internal connections
+   openshift admin ca create-server-cert  \
+     --key=$dir/${name}.key \
+     --cert=$dir/${name}.crt \
+     --hostnames=${hostnames} \
+     --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
+   cat $dir/${name}.key $dir/${name}.crt > $dir/${name}.pem
+   cp $dir/ca.crt $dir/${name}-ca.cert
 }
 
 function handle_previous_deployment() {
@@ -64,5 +55,40 @@ function create_signer_cert() {
     --cert="${dir}/ca.crt" \
     --serial="${dir}/ca.serial.txt" \
     --name="metrics-signer@$(date +%s)"
+}
+
+function process_san() {
+  local host
+  local san=$*
+  local sans=()
+  for value in $san; do
+    if [[ $value == "DNS:"* ]]; then
+      host=${value:4}
+      if [[ ${host: -1} == "," ]]; then
+        host=${host:0:${#host} -1}
+      fi
+      sans=("${sans[@]-}" "$host")
+    fi
+  done
+  echo ${sans[@]}
+}
+
+function check_san() {
+  local san=$1
+  local hostname=$2
+  #we need to handle the wildcard situation
+  if [[ ${san:0:2} == "*." ]]; then
+    san=${san:2}
+    if [[ $hostname =~ ^.*".${san}"$ ]] || [[ $hostname =~ ^"${san}"$   ]]; then
+      echo true
+      return
+    fi
+  else
+    if [[ $hostname == ${san} ]]; then
+      echo true
+      return
+    fi
+  fi
+  echo false
 }
 

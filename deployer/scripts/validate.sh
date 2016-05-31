@@ -392,23 +392,40 @@ function bail_on_tls() {
 function test_reencrypt_route() {
   local name="$1"
   local rc=0 secret_cert
+  local found=0
   # check external cert has right hostname
   local cert=$(oc get route/hawkular-metrics --template='{{.spec.tls.certificate}}' 2>&1) || { bail_on_tls certificate "$cert"; return 1; }
-  if [ "$cert" = "" ]; then
+  if [ "$cert" = "" ] || [ "$cert" = "<no value>" ]; then
     : # TODO if the cert is empty, the fallback is the router cert, which is more complicated to examine
   elif ! output=$(echo -e "$cert" | openssl x509 -noout -text 2>&1); then
     echo ---
     echo "The hawkular-metrics route certificate is not valid; there was an error while processing it:"
     echo -e "$output"
     rc=1
-  elif ! $(echo -e "$output" | grep -q "\(Subject: CN=$name\$\|DNS:$name\(,\|\$\)\)"); then
+  else
+    found=0
+    san=$(echo -e "$output" | grep -A 1 "Subject Alternative Name:")
+    sans=$(process_san $san)
+    for name in $@; do
+       for san in $sans; do
+         check=$(check_san $san $name)
+         if [[ "$check" == "true" ]]; then
+          ((found++))
+         fi
+       done
+    done
     echo ---
-    echo "The hawkular-metrics route certificate does not include the host '$name', so browsers will consider it invalid."
-    rc=1
+    if [[ $found != 1 ]]; then
+      echo "The hawkular-metrics route certificate does not include the host '$name', so browsers will consider it invalid."
+      echo $@
+      echo "Instead the route certificate contains:"
+      echo -e "$sans"
+      return 1
+    fi
   fi
   # validate server key
   local key=$(oc get route/hawkular-metrics --template='{{.spec.tls.key}}' 2>&1) || { bail_on_tls key "$key"; return 1; }
-  if [ "$key" != "" ] && ! output=$(echo -e "$key" | openssl pkey -noout 2>&1); then
+  if [ "$key" != "<no value>" ] && ! output=$(echo -e "$key" | openssl pkey -noout 2>&1); then
     echo ---
     echo "The hawkular-metrics route key is not valid; there was an error while processing it:"
     echo -e "$output"

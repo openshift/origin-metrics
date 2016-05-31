@@ -75,42 +75,6 @@ function cert_should_have_names() {
   return 0
 }
 
-function process_san() {
-  local host
-  local san=$*
-  local sans=()
-  for value in $san; do
-    if [[ $value == "DNS:"* ]]; then
-      host=${value:4}
-      if [[ ${host: -1} == "," ]]; then
-        host=${host:0:${#host} -1}
-      fi
-      sans=("${sans[@]-}" "$host")
-    fi
-  done
-  echo ${sans[@]}
-}
-
-function check_san() {
-  local san=$1
-  local hostname=$2
-  #we need to handle the wildcard situation
-  if [[ ${san:0:2} == "*." ]]; then
-    san=${san:2}
-    if [[ $hostname =~ ^.*".${san}"$ ]] || [[ $hostname =~ ^"${san}"$   ]]; then
-      echo true
-      return
-    fi
-  else
-    if [[ $hostname == ${san} ]]; then
-      echo true
-      return
-    fi
-  fi
-  echo false
-}
-
-
 function validate_deployer_secret() {
   local failure=false
   local file
@@ -119,15 +83,12 @@ function validate_deployer_secret() {
   for file in *; do
     case $file in
       hawkular-metrics.pem)
-        cert_should_have_names "$file" "$hawkular_metrics_hostname" "$hawkular_metrics_alias" || failure=true
+        cert_should_have_names "$file" "$hawkular_metrics_hostname" || failure=true
        ;;
-      hawkular-cassandra.pem)
-        cert_should_have_names "$file" hawkular-cassandra || failure=true
-        ;;
       heapster.cert)
         cert_should_have_names "$file" heapster || failure=true
         ;;
-      hawkular-metrics-ca.cert|hawkular-cassandra-ca.cert|heapster.key|heapster_client_ca.cert|heapster_allowed_users)
+      hawkular-metrics-ca.cert|heapster.key|heapster_client_ca.cert|heapster_allowed_users)
         # is there a need to validate these?
         ;;
       nothing|none|null|foo|'*')
