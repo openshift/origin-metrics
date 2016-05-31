@@ -121,7 +121,9 @@ preflight)
     validate_preflight
     ;;
 deploy|redeploy|refresh)
-    validate_preflight || [ "${IGNORE_PREFLIGHT:-}" = true ]
+    if [ "${IGNORE_PREFLIGHT:-}" != true ]; then
+        validate_preflight
+    fi
     handle_previous_deployment
     create_signer_cert "${dir}"
     [ -z "${HEAPSTER_STANDALONE:-}" ] && deploy_hawkular
