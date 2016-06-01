@@ -216,8 +216,7 @@ function checkTerminating {
     if [[ -n $terminatingPods ]]; then
       break
     fi
-
-    Debug "Waiting for all pods to start terminating $terminatingPods"
+    Debug "Waiting for all pods to start terminating ${terminatingPods}."
     sleep 1
 
   done
@@ -253,8 +252,39 @@ function test.Redeploy {
   Info "Checking Redeployment"
 
   redeployTime=$(date +%s)
-  Info "About to redeploy the components"
+  Info "About to redeploy the components with REDEPLOY=true"
   oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true | oc create -f - &> /dev/null
+  checkDeployer
+  checkTerminated
+  checkDeployment "Cassandra" 1
+  checkDeployment "Hawkular-Metrics" 1
+  checkDeployment "Heapster" 1
+  checkCassandraState "hawkular-cassandra-1" 1
+  checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
+  checkMetrics
+
+  Info "About to redeploy the components with MODE=redeploy"
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=redeploy | oc create -f - &> /dev/null
+  checkDeployer
+  checkTerminated
+  checkDeployment "Cassandra" 1
+  checkDeployment "Hawkular-Metrics" 1
+  checkDeployment "Heapster" 1
+  checkCassandraState "hawkular-cassandra-1" 1
+  checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
+  checkMetrics
+
+}
+
+function test.Refresh {
+  undeployAll
+  Info "Deploying the Default setup so that we can check if a refresh works"
+  test.DefaultInstall
+
+  Info "Checking Refresh"
+
+  Info "About to redeploy the components"
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=refresh | oc create -f - &> /dev/null
   checkDeployer
   checkTerminating
   checkTerminated
@@ -264,6 +294,24 @@ function test.Redeploy {
   checkCassandraState "hawkular-cassandra-1" 1
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
+
+}
+
+function test.Remove {
+  undeployAll
+  Info "Deploying the Default setup so that we can check that MODE=remove functionality"
+  test.DefaultInstall
+
+  Info "Checking remove mode"
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=remove | oc create -f - &> /dev/null
+  checkDeployer
+  checkTerminating
+  checkTerminated
+
+  echo GET ALL $(oc get all --selector=metrics-infra)
+  if [[ $(oc get all,sa,templates,secrets --selector=metrics-infra) != "" ]]; then
+    Fail "There are still some components running even after running the remove mode"
+  fi
 }
 
 function checkCassandraState {
