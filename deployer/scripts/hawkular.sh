@@ -205,7 +205,7 @@ EOF
        route_params="${route_params} --ca-cert=${secret_dir}/hawkular-metrics-ca.cert"
      fi
   fi
-  oc create route reencrypt hawkular-metrics ${route_params}
+  oc create route reencrypt hawkular-metrics ${route_params} || true
  
   if [ "${use_persistent_storage}" = true ]; then
     echo "Setting up Cassandra with Persistent Storage"

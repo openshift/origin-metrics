@@ -148,4 +148,9 @@ debug)
     ;;
 esac
 
+#If the deployer mode is remove and we have not run into any errors, then remove the deployer pod as well
+if [[ $deployer_mode == "remove" ]]; then
+  oc delete pod --selector=metrics-infra
+fi
+
 echo 'Success!'
