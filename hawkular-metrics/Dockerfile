@@ -26,8 +26,9 @@ FROM jboss/wildfly:10.0.0.Final
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
+# Version 0.17.0-20160602.155443-1 has a fix for https://github.com/openshift/origin-metrics/issues/134
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.15.0.Final" \
+    HAWKULAR_METRICS_VERSION="0.17.0-20160602.155443-1" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/"
 
