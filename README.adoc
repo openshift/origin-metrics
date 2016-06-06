@@ -2,7 +2,7 @@
 
 [NOTE]
 ====
-This document and its corresponding contianers are meant to run on version v1.0.8 or later of link:https://github.com/openshift/origin[OpenShift Origin]
+This document and its corresponding containers are meant to run on version v1.0.8 or later of link:https://github.com/openshift/origin[OpenShift Origin]
 ====
 
 The following document will describe how to build, configure and install the metric components for OpenShift.
