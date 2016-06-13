@@ -147,7 +147,7 @@ function test_deployed_pvcs() {
     local template='{{range .items}}{{println .metadata.name " " .status.phase}}{{end}}'
     # check that the PVCs exist and are bound; if not, retry briefly before failing
     local i line output unbound=()
-    for i in 1 2 3 4 5; do
+    for ((i=0; i<=60; i++)); do
       if ! output=$(check_exists persistentvolumeclaim --selector=metrics-infra=hawkular-cassandra --template="$template"); then
         echo -e "$output"
         echo "The metrics deployment requires a PVC for each Cassandra pod and will not run."
