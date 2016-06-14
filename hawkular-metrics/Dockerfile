@@ -52,6 +52,9 @@ COPY welcome-content $JBOSS_HOME/welcome-content/
 # Overwrite the default Standalone.xml file with one that activates the HTTPS endpoint
 COPY standalone.xml $JBOSS_HOME/standalone/configuration/standalone.xml
 
+# Overwrite the default logging.properties file
+COPY logging.properties $JBOSS_HOME/standalone/configuration/logging.properties
+
 # Change the permissions so that the user running the image can start up Hawkular Metrics
 USER root
 RUN chmod -R 777 /opt
