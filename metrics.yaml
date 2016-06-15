@@ -34,9 +34,11 @@ objects:
   metadata:
     generateName: metrics-deployer-
   spec:
+    securityContext: {}
     containers:
     - image: ${IMAGE_PREFIX}metrics-deployer:${IMAGE_VERSION}
       name: deployer
+      securityContext: {}
       volumeMounts:
       - name: secret
         mountPath: /secret
