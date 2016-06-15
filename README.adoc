@@ -178,7 +178,7 @@ Running with non-persistent storage means that any stored metrics will be delete
 ====
 When using persistent storage you will need to make sure that your storage size is appropriate for your needs. The Cassandra database can and will use up all the available space allocated to the Persistent Volume which will cause serious errors.
 
-Metric data expires based on the *METRICS_DURATION* template parameter. Normally this means that older data is being removed at about the same pace as newer data arrives. You will still need to monitor your data usage to make sure that changes to your cluster have not caused your usage to increase beyond what your persistent volume will be able to handle.
+Metric data expires based on the *METRIC_DURATION* template parameter. Normally this means that older data is being removed at about the same pace as newer data arrives. You will still need to monitor your data usage to make sure that changes to your cluster have not caused your usage to increase beyond what your persistent volume will be able to handle.
 ====
 
 
