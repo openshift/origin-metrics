@@ -34,14 +34,12 @@ DEBUG_FAILURES=${DEBUG_FAILURES:-false}
 USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 
-# includes util.sh and text.sh
-source "${OS_ROOT}/hack/cmd_util.sh"
-source "${OS_ROOT}/hack/lib/test/junit.sh"
-source "${OS_ROOT}/hack/common.sh"
-source "${OS_ROOT}/hack/lib/log.sh"
+# include all the origin test libs we need
+for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
+           "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
+do source "$lib"; done
 os::log::install_errexit
 
-source "${OS_ROOT}/hack/lib/util/environment.sh"
 os::util::environment::setup_time_vars
 
 cd "${OS_ROOT}"
