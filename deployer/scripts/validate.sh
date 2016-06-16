@@ -229,6 +229,7 @@ function test_deployed_rcs() {
 
 # Test the related pods exist and are running. If they're not running and ready,
 # look at events to see if we can figure out why.
+declare -A retry_schedule_failed=()
 function test_deployed_pods() {
   local events_output pods_output line repc
   # first get all pods related to metrics
@@ -243,9 +244,7 @@ function test_deployed_pods() {
   # now we get available events so that we can refer to them when looking at pods.
   # there is no way to scope our oc get to just events we care about, so get them all.
   # the template only prints out events that are related to a pod.
-  local events_template='{{range .items}}{{if and (eq .involvedObject.kind "Pod") (or (eq .reason "Failed") (eq .reason "FailedScheduling")) }}{{.involvedObject.name}} {{.reason}} {{.metadata.name}}
-{{end}}{{end}}
-'
+  local events_template='{{range .items}}{{if eq .involvedObject.kind "Pod"}}{{println .involvedObject.name .reason .metadata.name}}{{end}}{{end}}'
   if ! events_output=$(oc get events --sort-by=.metadata.resourceVersion --template="$events_template"); then
     echo "Error while getting project events:"
     echo -e "$pods_output"
@@ -258,8 +257,13 @@ function test_deployed_pods() {
     local pod_name="${line[0]}"
     local reason="${line[1]}"
     local event_name="${line[2]}"
-    [ "$reason" = Failed ] && failed_event["$pod_name"]="$event_name"
-    [ "$reason" = FailedScheduling ] && failed_schedule["$pod_name"]="$event_name"
+    case "$reason" in
+      Failed) failed_event["$pod_name"]="$event_name" ;;
+      Started) unset failed_event["$pod_name"] ;; # got fixed
+      FailedScheduling) failed_schedule["$pod_name"]="$event_name" ;;
+      Scheduled) unset failed_schedule["$pod_name"] ;; # got fixed
+      # note: FailedSync generally just means we're waiting on a pull to finish
+  esac
   done <<< "$events_output"
   #
   # now process the pods with events as background
@@ -277,18 +281,26 @@ function test_deployed_pods() {
         [ "$ready" = True ] && continue # doing fine; else:
         echo "Pod $name from ReplicationController $label is running but not marked ready."
         echo "This is most often due to either startup latency or crashing for lack of other services."
-        echo "It should resolve over time; if not, check the pod logs to see what is going wrong."
+        echo "It should resolve over time; if not, check the pod logs and events to see what is going wrong."
         echo "  * * * * "
         pending=true
         ;;
       Pending)
         # find out why it's pending
         if test "${failed_schedule[$name]+set}"; then
-          broken=true
-          echo "ERROR: Pod $name from ReplicationController $label could not be scheduled (placed on a node)."
-          echo "This is most often due to a faulty nodeSelector or lack of node availability."
-          echo "There was an event for this pod with the following message:"
-          oc get event/"${failed_schedule[$name]}" --template='{{println .message}}' 2>&1
+          if test "${retry_schedule_failed[$name]+set}"; then
+            broken=true # this is the second failure, don't wait any longer
+            echo "ERROR: Pod $name from ReplicationController $label could not be scheduled (placed on a node)."
+            echo "This is often due to a faulty nodeSelector or lack of node availability."
+            echo "There was an event for this pod with the following message:"
+            oc get event/"${failed_schedule[$name]}" --template='{{println .message}}' 2>&1
+          else
+            retry_schedule_failed[$name]=1
+            pending=true
+            echo "Pod $name from ReplicationController $label failed once to be scheduled (placed on a node)."
+            echo "This is often due to a faulty nodeSelector or lack of node availability, but can be temporary."
+            echo "Validation will wait briefly and try once more."
+          fi
           echo "  * * * * "
         elif test "${failed_event[$name]+set}"; then
           broken=true
