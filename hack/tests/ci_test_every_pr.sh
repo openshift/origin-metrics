@@ -38,7 +38,7 @@ TEST_PERF=${TEST_PERF:-false}
 for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
            "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
 do source "$lib"; done
-os::log::install_errexit
+os::log::stacktrace::install
 
 os::util::environment::setup_time_vars
 
