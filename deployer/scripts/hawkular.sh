@@ -205,6 +205,7 @@ EOF
        route_params="${route_params} --ca-cert=${secret_dir}/hawkular-metrics-ca.cert"
      fi
   fi
+  # this may return an error code if the route already exists, this is to be expect with a refresh and is why we have the || true here
   oc create route reencrypt hawkular-metrics ${route_params} || true
  
   if [ "${use_persistent_storage}" = true ]; then

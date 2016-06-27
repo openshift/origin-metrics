@@ -27,6 +27,20 @@ function validate_master_accessible() {
   return 1
 }
 
+function validate_hostname() {
+  #The route will only accept RFC 952 based hostnames
+  if [[ $hawkular_metrics_hostname =~ ^[a-zA-Z][a-zA-Z0-9.-]?+[a-zA-Z0-9]$ ]]; then
+    echo "The HAWKULAR_METRICS_HOSTNAME value is deemed acceptable."
+    return 0  
+  else 
+    echo "The HAWKULAR_METRICS_HOSTNAME value must be a valid hostname (RFC 952)"
+    echo "The value which was specified is invalid:"
+    echo "  $hawkular_metrics_hostname"
+    echo "Hostnames must start with a letter, may only contain letters, numbers, '.' and '-'."
+    return 1
+  fi
+}
+
 function cert_should_have_names() {
   local file="$1"; shift
   local output name cn san sans found count
@@ -112,7 +126,7 @@ function validate_preflight() {
   
   local success=()
   local failure=()
-  for func in validate_master_accessible validate_deployer_secret; do
+  for func in validate_master_accessible validate_hostname validate_deployer_secret; do
     func_output="$($func 2>&1)" && \
       success+=("$func: $func_output") || \
       failure+=("$func: "$'\n'"$func_output")
