@@ -24,8 +24,13 @@ HOSTIP=`cat /etc/hosts | grep $HOSTNAME | awk '{print $1}' | head -n 1`
 # Get the status of this machine from the Cassandra nodetool
 STATUS=`nodetool status | grep $HOSTIP | awk '{print $1}'`
 
+if [ ${STATUS:-""} = "" ]; then
+  echo "Could not get the Cassandra status. This may mean that the Cassandra instance is not up yet. Will try again"
+  exit 1
+fi
+
 # Once the status is Up and Normal, then we are ready
-if [ $STATUS = "UN" ]; then
+if [ ${STATUS} = "UN" ]; then
   echo "Cassandra is in the up and normal state. It is now ready"
   exit 0
 else
