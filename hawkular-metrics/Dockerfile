@@ -36,9 +36,14 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
 EXPOSE 8080 8444
 
 # Get and copy the hawkular metrics war to the deployment directory
-#COPY hawkular-metrics-api-rest-openshift.war $JBOSS_HOME/standalone/deployments/hawkular-metrics-api-jaxrs.war
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
     curl -Lo hawkular-metrics-api-jaxrs.war https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-api-jaxrs-openshift\&e=war\&v=${HAWKULAR_METRICS_VERSION}
+
+# Enable http2/spdy
+# TODO: remove when we are running on JDK9 which will already have this support added
+ENV ALPN_VERSION="8.1.7.v20160121" 
+RUN curl -Lo $JBOSS_HOME/bin/alpn-boot-$ALPN_VERSION.jar http://central.maven.org/maven2/org/mortbay/jetty/alpn/alpn-boot/$ALPN_VERSION/alpn-boot-$ALPN_VERSION.jar && \
+    echo 'JAVA_OPTS="$JAVA_OPTS' " -Xbootclasspath/p:$JBOSS_HOME/bin/alpn-boot-$ALPN_VERSION.jar" '"' >> $JBOSS_HOME/bin/standalone.conf
 
 # Copy the scripts
 COPY hawkular-metrics-readiness.py \

@@ -346,7 +346,7 @@
             </security-domains>
         </subsystem>
         <subsystem xmlns="urn:jboss:domain:transactions:3.0">
-            <core-environment>
+            <core-environment node-identifier="hawkular">
                 <process-id>
                     <uuid/>
                 </process-id>
