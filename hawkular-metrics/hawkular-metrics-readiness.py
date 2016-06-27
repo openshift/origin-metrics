@@ -33,9 +33,16 @@ try:
     # if the metrics service is started then we are good
     if (jsonResponse["MetricsService"] == "STARTED"):
       exit(0)
+    else:
+      print "The MetricService is not yet in the STARTED state [" + jsonResponse["MetricsService"] + "]. We need to wait until its in the STARTED state."
+      exit(1)
+  else:
+    print "Could not connect to the Hawkular Metrics' status endpoint (" + statusCode + "). This may be due to Hawkular Metrics not being ready yet. Will try again"
+    exit(1)
 except Exception as e:
-  print "Failed to access the status endpoint : %s." % e
+  print "Failed to access the status endpoint : %s. This may be due to Hawkular Metrics not being ready yet. Will try again." % e
   exit(1)
 
 # conditions were not passed, exit with an error code
+print "Could not verify a connection to the Hawkular Metrics' status endpoint"
 exit(1)
