@@ -11,10 +11,12 @@ STARTTIME=$(date +%s)
 SEPARATOR="================================================================================"
 
 
-red=`tput setaf 1`
-green=`tput setaf 2`
-orange=`tput setaf 166`
-reset=`tput sgr0`
+[ ! -t 1 -o ! "$TERM" ] && TERM=dumb
+export TERM
+red=`tput setaf 1 || true`
+green=`tput setaf 2 || true`
+orange=`tput setaf 166 || true`
+reset=`tput sgr0 || true`
 
 debug=${debug:-false}
 timeout=${timeout:-180}
