@@ -47,6 +47,9 @@ The following table outlines the various options which can be used to change thi
 |--skipTests
 |Sets up the system but does not run any of the tests. Useful when testing one specific test
 
+|--test name
+|Executes only the tests named `name`.
+
 |--debug
 |Outputs debugging information about what the tests is currently doing.
 

@@ -3,36 +3,34 @@ SOURCE_ROOT=$(dirname "${BASH_SOURCE}")/..
 
 source $SOURCE_ROOT/hack/tests/common.sh
 
-continue=false
+parse_args() {
+  local tmp long
+  long=cacheBuild,continue,selector:,skipBuild,skipTests,test:
+  tmp=$(getopt --options x --long "$long" --name "$(basename "$0")" -- "$@") \
+    || return 1
+  eval set -- "$tmp"
+  while :; do
+    case "$1" in
+      --cacheBuild) buildOpts=; shift;;
+      --continue) continue=true; shift;;
+      --selector) NODE_SELECTOR=$2; shift 2;;
+      --skipBuild) build=false; shift;;
+      --skipTests) skipTests=true; shift;;
+      --test) test=$2; shift 2;;
+      -x) set_x=-x; set -x; shift;;
+      --) shift; break;;
+    esac
+  done
+}
+
+continue=
 build=true
 skipTests=false
 buildOpts=--no-cache
+test=
+set_x=
 
-for args in "$@"
-do
-  case $args in
-    --skipBuild)
-      build=false
-      ;;
-    --cacheBuild)
-      buildOpts=""
-      ;;
-    --skipTests)
-      skipTests=true
-      ;;
-    --continue)
-      continue=true
-      ;;
-    --selector=*)
-      NODE_SELECTOR="${args#*=}"
-
-      ;;
-    -x)
-      set -x
-      ;;
-  esac
-done
-
+parse_args "$@" || exit
 
 Info $SEPARATOR
 Info "Starting Origin-Metric end-to-end test"
@@ -109,7 +107,8 @@ test.setup
 
 #Run the tests
 if [ "$skipTests" = false ]; then
-  $SOURCE_ROOT/hack/tests/test_default_deploy.sh $@
-  $SOURCE_ROOT/hack/tests/test_standalone_docker.sh $@
-  $SOURCE_ROOT/hack/tests/test_heapster.sh $@
+  for x in default_deploy standalone_docker heapster; do
+    "$SOURCE_ROOT/hack/tests/test_$x.sh" \
+      $set_x ${test:+--test "$test"} ${continue:+--continue}
+  done
 fi

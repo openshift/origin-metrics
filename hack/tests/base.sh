@@ -104,18 +104,39 @@ function runTest {
   Info
 }
 
+parse_args() {
+  local tmp long
+  long=continue,debug,heapster_template:,image_prefix:,image_version:,template:
+  long=$long,test:,timeout:
+  tmp=$(getopt --options x --long "$long" --name "$(basename "$0")" -- "$@") \
+    || return 1
+  eval set -- "$tmp"
+  while :; do
+    case "$1" in
+      --continue) continue=true; shift;;
+      --debug) debug=true; shift;;
+      --heapster_template) heapster_template=$2; shift 2;;
+      --image_prefix) image_prefix=$2; shift 2;;
+      --image_version) image_version=$2; shift 2;;
+      --template) template=$2; shift 2;;
+      --test) test=$2; shift 2;;
+      --timeout) timeout=$2; shift 2;;
+      -x) set -x; shift;;
+      --) shift; break;;
+    esac
+  done
+}
+
 continue=false
-for args in "$@"
-do
-  case $args in
-    --test=*)
-      test="${args#*=}"
-      ;;
-    --continue)
-      continue=true
-      ;;
-  esac
-done
+debug=false
+timeout=180
+template=$SOURCE_ROOT/metrics.yaml
+heapster_template=$SOURCE_ROOT/metrics-heapster.yaml
+image_prefix=openshift/origin-
+image_version=latest
+test=
+
+parse_args "$@" || exit
 
 if [[ -z ${TEST_PROJECT:-} ]]; then
   export TEST_PROJECT=`oc project --short`
