@@ -35,7 +35,7 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 
 # include all the origin test libs we need
-for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
+for lib in "${OS_ROOT}"/hack/util.sh \
            "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
 do source "$lib"; done
 os::log::stacktrace::install
@@ -50,11 +50,11 @@ os::test::junit::declare_suite_start 'origin-metrics'
 
 function cleanup()
 {
+   out=$?
    echo ">>>>>>>>>>>> ENV VARIABLES <<<<<<<<<<<<<<<<<<"
    env | sort
    echo ">>>>>>>>>>>> END ENV VARIABLES <<<<<<<<<<<<<<"
 
-    out=$?
     echo
     if [ $out -ne 0 ]; then echo "[FAIL] !!!!! Test Failed !!!!"
     else
@@ -94,6 +94,7 @@ start_os_server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
+install_router
 install_registry
 wait_for_registry
 
@@ -103,7 +104,7 @@ os::cmd::expect_success 'oadm policy add-cluster-role-to-user cluster-admin metr
 os::cmd::expect_success 'oadm policy add-cluster-role-to-user cluster-admin metrics-admin'
 os::cmd::expect_success 'oc login -u metrics-admin -p g1b315H'
 
-"${ORIGIN_METRICS_DIR}/hack/e2e-tests.sh -x --test=test.DefaultInstall"
+"${ORIGIN_METRICS_DIR}/hack/e2e-tests.sh" -x --test=test.DefaultInstall
 
 ### finished tests ###
 

@@ -63,15 +63,16 @@ function test.build {
 function test.cleanup {
   Info
   Info "Deleting test project $TEST_PROJECT"
-  oc delete project $TEST_PROJECT > /dev/null
+  oc delete project $TEST_PROJECT > /dev/null || exit
   Info
   Info "The tests took $(($(date +%s) - $TEST_STARTTIME)) seconds"
   Info
 }
 
 function cleanup {
-        trap test.cleanup SIGINT SIGTERM EXIT
         out=$?
+        set +e
+        trap test.cleanup SIGINT SIGTERM
         
         if [ $out -ne 0 ]; then
                 Error "Test failed"
@@ -90,7 +91,7 @@ function cleanup {
           done
         fi
 
-        test.cleanup
+        test.cleanup || exit
 
         Info "Exiting. Origin-Metrics tests took took $(($ENDTIME - $STARTTIME)) seconds"
         exit $out
@@ -112,5 +113,3 @@ if [ "$skipTests" = false ]; then
   $SOURCE_ROOT/hack/tests/test_standalone_docker.sh $@
   $SOURCE_ROOT/hack/tests/test_heapster.sh $@
 fi
-
-cleanup
