@@ -52,6 +52,8 @@ cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
 
 # How long metrics should be stored in days
 metric_duration=${METRIC_DURATION:-7}
+# If user accounts should be able to write metrics
+user_write_access=${USER_WRITE_ACCESS:-false}
 
 #
 heapster_node_id=${HEAPSTER_NODE_ID:-nodename}

@@ -76,6 +76,8 @@ objects:
           value: ${CASSANDRA_PV_SIZE}
         - name: METRIC_DURATION
           value: ${METRIC_DURATION}
+        - name: USER_WRITE_ACCESS
+          value: ${USER_WRITE_ACCESS}
         - name: HEAPSTER_NODE_ID
           value: ${HEAPSTER_NODE_ID}
         - name: METRIC_RESOLUTION
@@ -134,6 +136,10 @@ parameters:
   description: "How many days metrics should be stored for."
   name: METRIC_DURATION
   value: "7"
+-
+  description: "If a user accounts should be allowed to write metrics."
+  name: USER_WRITE_ACCESS
+  value: "false"
 -
   description: "The identifier used when generating metric ids in Hawkular"
   name: HEAPSTER_NODE_ID
