@@ -26,7 +26,8 @@ statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/sta
 uptime = os.popen("ps -eo comm,etimes | grep -i standalone.sh | awk '{print $2}'").read()
 
 try:
-  response = urllib2.urlopen(statusURL)
+  # need to set a timeout, the default is to never timeout.
+  response = urllib2.urlopen(statusURL, timeout=5)
   statusCode = response.getcode();
   # if the status is 200, then continue
   if (statusCode == 200):
