@@ -199,7 +199,7 @@ $ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
        -X GET https://hawkular-metrics.example.com/hawkular/metrics/counters/data?tags=descriptor_name:cpu/usage,pod_name:myPod\&stacked=true\&buckets=3\&start=`date -d -10minutes +%s%3N`  | python -m json.tool
 ----
 
-## Calcuating Percentage CPU Usage
+## Calculating Percentage CPU Usage
 
 From the link:https://github.com/kubernetes/heapster/blob/master/docs/storage-schema.md#metrics[Heapster schema], what the `cpu/usage` stores is the amount of time in nanoseconds that a core of the CPU has been in use since the container has started.
 
