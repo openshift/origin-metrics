@@ -47,6 +47,8 @@ fi
 cassandra_nodes=${CASSANDRA_NODES:-1}
 # If we should use persistent storage or not
 use_persistent_storage=${USE_PERSISTENT_STORAGE:-true}
+# If we should dynamically provision storage
+dynamically_provision_storage=${DYNAMICALLY_PROVISION_STORAGE:-false}
 # The size of each Cassandra Node
 cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
 

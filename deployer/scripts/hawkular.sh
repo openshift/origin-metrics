@@ -185,6 +185,7 @@ EOF
   oc create -f templates/hawkular-metrics.yaml
   oc create -f templates/hawkular-cassandra.yaml
   oc create -f templates/hawkular-cassandra-node-pv.yaml
+  oc create -f templates/hawkular-cassandra-node-dynamic-pv.yaml
   oc create -f templates/hawkular-cassandra-node-emptydir.yaml
   oc create -f templates/support.yaml
 
@@ -209,16 +210,29 @@ EOF
   oc create route reencrypt hawkular-metrics ${route_params} || true
  
   if [ "${use_persistent_storage}" = true ]; then
-    echo "Setting up Cassandra with Persistent Storage"
-    # Deploy the main 'master' Cassandra node
-    # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-    oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f - || true
-    # Deploy any subsequent Cassandra nodes
-    for i in $(seq 2 $cassandra_nodes);
-    do
+    if [ "${dynamically_provision_storage}" = true ]; then
+      echo "Setting up Cassandra with Dynamically Provisioned Storage"
+      # Deploy the main 'master' Cassandra node
       # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-      oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f - || true
-    done
+      oc process hawkular-cassandra-node-dynamic-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f - || true
+      # Deploy any subsequent Cassandra nodes
+      for i in $(seq 2 $cassandra_nodes);
+      do
+        # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+        oc process hawkular-cassandra-node-dynamic-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f - || true
+      done
+    else
+      echo "Setting up Cassandra with Persistent Storage"
+      # Deploy the main 'master' Cassandra node
+      # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+      oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,PV_SIZE=$cassandra_pv_size,MASTER=true" | oc create -f - || true
+      # Deploy any subsequent Cassandra nodes
+      for i in $(seq 2 $cassandra_nodes);
+      do
+        # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+        oc process hawkular-cassandra-node-pv -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,PV_SIZE=$cassandra_pv_size,NODE=$i" | oc create -f - || true
+      done
+    fi
   else 
     echo "Setting up Cassandra with Non Persistent Storage"
     oc process hawkular-cassandra-node-emptydir -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,NODE=1,MASTER=true" | oc create -f -  
