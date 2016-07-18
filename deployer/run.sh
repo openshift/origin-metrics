@@ -35,7 +35,7 @@ image_version=${IMAGE_VERSION:-latest}
 master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 
 # Set to true to undeploy everything before deploying
-redeploy=${REDEPLOY:-false}
+redeploy=$(parse_bool "${REDEPLOY:-false}" REDEPLOY)
 if [ "$redeploy" == true ]; then
   mode=redeploy
 else
@@ -43,10 +43,13 @@ else
   [ "$mode" = redeploy ] && redeploy=true
 fi
 
+ignore_preflight=$(parse_bool "${IGNORE_PREFLIGHT:-false}" IGNORE_PREFLIGHT)
+
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
 # If we should use persistent storage or not
-use_persistent_storage=${USE_PERSISTENT_STORAGE:-true}
+use_persistent_storage=$(parse_bool \
+    "${USE_PERSISTENT_STORAGE:-true}" USE_PERSISTENT_STORAGE)
 # The size of each Cassandra Node
 cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
 
@@ -121,7 +124,7 @@ preflight)
     validate_preflight
     ;;
 deploy|redeploy|refresh)
-    if [ "${IGNORE_PREFLIGHT:-}" != true ]; then
+    if [ "$ignore_preflight" != true ]; then
         validate_preflight
     fi
     handle_previous_deployment
