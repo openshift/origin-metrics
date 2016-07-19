@@ -304,6 +304,14 @@ If you wish to access and manage metrics directly, you can do so via the Hawkula
 
 For more information please see the link:docs/hawkular_metrics.adoc[Hawkular Metrics] page.
 
+== Accessing the Hawkular Metrics Python Client
+
+The Hawkular Metrics pod has been configured so that the Hawkular Python client is installed and given admin priviledges by default. This will allow you to check and query metrics directly from within the Hawkular Metric pods.
+
+The command to run the client is `client` and can be run from the terminal within the OpenShift console or via the `oc exec` command.
+
+Please see the link:https://github.com/hawkular/hawkular-client-python[Hawkular Metrics python client project] for more information.
+
 == Accessing Heapster Directly
 
 The Heapster deployed as part of origin-metrics is configured to be only accessible via the API Proxy. Access will require either cluster-reader or cluster-admin privileges.
