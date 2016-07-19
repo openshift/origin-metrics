@@ -89,6 +89,8 @@ objects:
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
+          - name: hawkular-metrics-client-secrets
+            mountPath: "/client-secrets"
           readinessProbe:
             exec:
               command:
@@ -101,3 +103,6 @@ objects:
         - name: hawkular-metrics-secrets
           secret:
             secretName: hawkular-metrics-secrets
+        - name: hawkular-metrics-client-secrets
+          secret:
+            secretName: hawkular-metrics-account
