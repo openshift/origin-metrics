@@ -71,8 +71,8 @@ function test.cleanup {
 
 function cleanup {
         out=$?
-        set +e
-        trap test.cleanup SIGINT SIGTERM
+
+        trap test.cleanup SIGINT SIGTERM EXIT
         
         if [ $out -ne 0 ]; then
                 Error "Test failed"
