@@ -65,7 +65,7 @@ function deploy_hawkular() {
   
   hawkular_metrics_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
   htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password 
-  
+
   echo
   echo "Creating the Hawkular Metrics Secrets configuration json file"
   cat > $dir/hawkular-metrics-secrets.json <<EOF
@@ -89,7 +89,7 @@ function deploy_hawkular() {
         }
       }
 EOF
-  
+
   echo
   echo "Creating the Hawkular Metrics Certificate Secrets configuration json file"
   cat > $dir/hawkular-metrics-certificate.json <<EOF
@@ -109,7 +109,7 @@ EOF
         }
       }
 EOF
-  
+
   echo
   echo "Creating the Hawkular Metrics User Account Secrets"
   cat > $dir/hawkular-metrics-account.json <<EOF
