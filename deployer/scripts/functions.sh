@@ -1,5 +1,14 @@
 #!/bin/bash
 
+function parse_bool {
+  local v=${1,,}
+  if [ "$v" != true -a "$v" != false ]; then
+    printf >&2 'Invalid boolean value for %s: %s\n' "$2" "$1"
+    return 1
+  fi
+  echo "$v"
+}
+
 # $1: name (eg [hawkular-metrics|hawkular-cassandra])
 # $2: hostnames to use
 # $3: environment variable containing base64 pem 
