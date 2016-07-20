@@ -41,14 +41,14 @@ The following table outlines the various options which can be used to change thi
 |--cacheBuild
 |Use the Docker cache when building the docker images
 
+|--selector s
+|Use the node selector `s` when creating the projects the tests run on
+
 |--continue
 |Leaves the project running after the tests have finished. Useful for debugging purposes as to why a test is failing
 
 |--skipTests
 |Sets up the system but does not run any of the tests. Useful when testing one specific test
-
-|--test name
-|Executes only the tests named `name`.
 
 |--debug
 |Outputs debugging information about what the tests is currently doing.
@@ -63,6 +63,38 @@ For example, if you don't want to build new docker images for the tests and want
 ----
 $ e2e-tests.sh --skipBuild --continue
 ----
+
+The `debug`, `continue`, `x`, and the following flags are also passed to each
+test:
+
+[cols="2,4",options="header"]
+|===
+
+|Option |Description
+
+|--heapster_template t
+|Use the file `t` as the template to deploy heapster.  Default:
+`metrics-heapster.yaml`.
+
+|--image_prefix p
+|Add the prefix `p` to the name of the images (see `docs/build.adoc`).
+Default: `openshift/origin-`.
+
+|--image_version v
+|Use the image version `v` (see `docs/build.adoc`).  Default: `latest`.
+
+|--template t
+|Use the file `t` as the template to deploy the metrics components.  Default:
+`metrics.yaml`.
+
+|--test name
+|Executes only the tests named `name`.
+
+|--timeout t
+|Maximum number of seconds an operation can take during the tests before it is
+considered failed.  Default: `180`.
+
+|===
 
 === Running a single test
 
