@@ -6,7 +6,7 @@ This will allow you to build all the docker images, as well as optionally push t
 
 The script takes the following parameters
 
-. *--prefix* : This is applied to the begining of your image names and can be used to specify the docker registry, user account and any other prefix desired.
+. *--prefix* : This is applied to the beginning of your image names and can be used to specify the docker registry, user account and any other prefix desired.
 
 . *--version* : The version tag to apply to the build images.
 

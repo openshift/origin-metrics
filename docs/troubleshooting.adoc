@@ -8,13 +8,13 @@ OpenShift should under normal situations start a DNS server which is used by com
 
 You can run the following command to see if the OpenShift DNS server is running and can resolve the `kubernetes.default.svc.cluster.local` hostname. 
 
-You will need to replace `$OPENSHIFT_MASTER` with the hostname or ip address of where your OpenShift master is running. The following example assumes the default dns domain of `cluster.local` is being used.
+You will need to replace `$OPENSHIFT_MASTER` with the hostname or IP address of where your OpenShift master is running. The following example assumes the default DNS domain of `cluster.local` is being used.
 
 ----
 dig @$OPENSHIFT_MASTER +short kubernetes.default.svc.cluster.local
 ----
 
-If the command returns an ip address, then OpenShift's DNS server should have started properly.
+If the command returns an IP address, then OpenShift's DNS server should have started properly.
 
 If not, then it means you will need to check the OpenShift logs for the cause of the error.
 
@@ -34,7 +34,7 @@ image::images/could-not-connect-to-metrics-service.png["could not connect to met
 
 This error means that the browser could not connect to the Hawkular Metrics service. Usually this means that either the browser cannot resolve the hostname for the Hawkular Metrics route or it does not trust the certificate for the Hawkular Metrics service.
 
-To check if this is an issue with the dns resolution. Open a browser tab to the value specified as `metricsPublicURL` in the *_master-config.yaml_* configuration file.
+To check if this is an issue with the DNS resolution. Open a browser tab to the value specified as `metricsPublicURL` in the *_master-config.yaml_* configuration file.
 
 [NOTE]
 ====
