@@ -4,7 +4,7 @@
 
 The Cassandra database should stores its data to persistent storage in order to prevent data loss.
 
-For each Cassandra node you deploy, you will need a persistent volume with sufficient data available. You do not need to directly manage peristent volume claims as the deployer and templates will take care of that for you.
+For each Cassandra node you deploy, you will need a persistent volume with sufficient data available. You do not need to directly manage persistent volume claims as the deployer and templates will take care of that for you.
 
 Please see the link:https://docs.openshift.org/latest/architecture/additional_concepts/storage.html[OpenShift documentation] for how to setup and configure persistent volumes.
 

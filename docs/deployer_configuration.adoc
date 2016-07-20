@@ -81,7 +81,7 @@ Default: *"false"*
 |*_MODE_*
 |Can be used to set the deployment options.
 `deploy` is to be used to perform the initial install
-`refresh` will delete and redeploy all exisiting metrics components except the persistent volume claims and route. Persisted data will remain available but all non-persisted data will be lost.
+`refresh` will delete and redeploy all existing metrics components except the persistent volume claims and route. Persisted data will remain available but all non-persisted data will be lost.
 `redeploy` will delete and redeploy all existing metric components. All persisted and non-persisted data will be lost.
 
 Default: *"deploy"*

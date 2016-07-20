@@ -253,7 +253,7 @@ millicore_percentage = core_percentage * 1000
 
 *Calculating Percentage Usage Based on Limit*
 
-It is possible to set the limit on a contianer for both the cpu and memory usage. For limiting based on CPU, you specify the maximum millicores that a container is allowed to use.
+It is possible to set the limit on a container for both the cpu and memory usage. For limiting based on CPU, you specify the maximum millicores that a container is allowed to use.
 
 For example, the following will startup the ruby-hello-world container and limits its usage CPU usage to 300 millicores:
 
