@@ -24,7 +24,8 @@ hawkularEndpointPort = os.environ.get("HAWKULAR_METRICS_ENDPOINT_PORT")
 statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/status"
 
 try:
-  response = urllib2.urlopen(statusURL)
+  # need to set a timeout, the default is to never timeout.
+  response = urllib2.urlopen(statusURL, timeout=5)
   statusCode = response.getcode();
   # if the status is 200, then continue
   if (statusCode == 200):
