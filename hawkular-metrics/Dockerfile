@@ -66,14 +66,12 @@ COPY logging.properties $JBOSS_HOME/standalone/configuration/logging.properties
 
 # Install Hawkular-Metrics Python client, only available on EPEL
 USER root
-RUN yum -y install epel-release
-RUN yum -y install python-pip; yum clean all
-RUN pip install 'hawkular-client==0.4.4'
-#RUN pip install hawkular-client
-USER 1000
+RUN yum -y install epel-release \
+    && yum -y install python-pip \
+    && yum clean all \
+    && pip install --no-cache-dir 'hawkular-client==0.4.4'
 
 # Change the permissions so that the user running the image can start up Hawkular Metrics
-USER root
 RUN chmod -R 777 /opt
 USER 1000
 
