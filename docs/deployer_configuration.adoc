@@ -112,6 +112,14 @@ Default: *"10Gi"*
 Default: *"7"*
 |
 
+|*_USER_WRITE_ACCESS_*
+|If user accounts should be able to write metrics. Defaults to 'false' so that only Heapster can write metrics and not individual users. It is recommended to disable user write access, if enabled any user will be able to write metrics to the system which can
+affect performance and use Cassandra disk usage to unpredictably increase.
+
+Default: *"false"*
+|
+
+
 |*_METRIC_RESOLUTION_*
 |How often metrics should be gathered. Defaults value of '10s' for 10 seconds
 
