@@ -33,6 +33,10 @@ image_prefix=${IMAGE_PREFIX:-openshift/origin-}
 image_version=${IMAGE_VERSION:-latest}
 
 master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
+# If the master url ends in a '/' then remove it.
+if [[ "${master_url: -1}" == "/" ]]; then
+  master_url=${master_url: : -1}
+fi
 
 # Set to true to undeploy everything before deploying
 redeploy=$(parse_bool "${REDEPLOY:-false}" REDEPLOY)
