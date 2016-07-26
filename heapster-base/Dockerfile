@@ -23,16 +23,22 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 EXPOSE 8082
 
-#Commit for version v1.1.0-beta2
-ENV HEAPSTER_COMMIT=v1.1.0-beta2
+#Commit for version v1.1.0
+ENV HEAPSTER_COMMIT=v1.1.0
 
-#Patch to remove a test which requires a newer version of go not available in Centos7 yet
-COPY golang1.4-compat.patch /tmp/
+#Remove once golang 1.6 is available in centos
+RUN yum install -y -q wget && \
+    mkdir -p /opt/golang && \
+    cd /opt/golang && \
+    wget https://storage.googleapis.com/golang/go1.6.3.linux-amd64.tar.gz && \
+    tar xf go1.6.3.linux-amd64.tar.gz
+ENV PATH=/opt/golang/go/bin/:$PATH
+ENV GOROOT=/opt/golang/go
+#
 
 RUN yum install -y -q go git wget make patch && \
     yum clean all && \
     cd /tmp && \
-    go version && \
     export GOPATH=/tmp/gopath && \
     export PATH=$PATH:$GOPATH/bin && \
     mkdir -p $GOPATH/src/k8s.io && \
@@ -40,7 +46,6 @@ RUN yum install -y -q go git wget make patch && \
     git clone https://github.com/kubernetes/heapster && \
     cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
-    patch -p1 < /tmp/golang1.4-compat.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \
