@@ -3,36 +3,42 @@ SOURCE_ROOT=$(dirname "${BASH_SOURCE}")/..
 
 source $SOURCE_ROOT/hack/tests/common.sh
 
-continue=false
+parse_args() {
+  local tmp long
+  long=cacheBuild,continue,selector:,skipBuild,skipTests
+  # flags forwarded to the tests
+  long=$long,debug,heapster_template:,image_prefix:,image_version:,template:
+  long=$long,test:,timeout:
+  tmp=$(getopt --options x --long "$long" --name "$(basename "$0")" -- "$@") \
+    || return 1
+  eval set -- "$tmp"
+  while :; do
+    case "$1" in
+      --cacheBuild) buildOpts=; shift;;
+      --selector) NODE_SELECTOR=$2; shift 2;;
+      --skipBuild) build=false; shift;;
+      --skipTests) skipTests=true; shift;;
+      --continue) continue=true; test_args+=("$1"); shift;;
+      -x) set_x=true; test_args+=("$1"); shift;;
+      --debug) test_args+=("$1"); shift;;
+      --heapster_template|--image_prefix|--image_version|--template|--test)
+        test_args+=("$1" "$2"); shift 2;;
+      --timeout)
+        test_args+=("$1" "$2"); shift 2;;
+      --) shift; break;;
+    esac
+  done
+}
+
+continue=
 build=true
 skipTests=false
 buildOpts=--no-cache
+set_x=
+test_args=()
 
-for args in "$@"
-do
-  case $args in
-    --skipBuild)
-      build=false
-      ;;
-    --cacheBuild)
-      buildOpts=""
-      ;;
-    --skipTests)
-      skipTests=true
-      ;;
-    --continue)
-      continue=true
-      ;;
-    --selector=*)
-      NODE_SELECTOR="${args#*=}"
-
-      ;;
-    -x)
-      set -x
-      ;;
-  esac
-done
-
+parse_args "$@" || exit
+[ "$set_x" ] && set -x
 
 Info $SEPARATOR
 Info "Starting Origin-Metric end-to-end test"
@@ -109,7 +115,7 @@ test.setup
 
 #Run the tests
 if [ "$skipTests" = false ]; then
-  $SOURCE_ROOT/hack/tests/test_default_deploy.sh $@
-  $SOURCE_ROOT/hack/tests/test_standalone_docker.sh $@
-  $SOURCE_ROOT/hack/tests/test_heapster.sh $@
+  for x in default_deploy standalone_docker heapster; do
+    "$SOURCE_ROOT/hack/tests/test_$x.sh" "${test_args[@]}"
+  done
 fi
