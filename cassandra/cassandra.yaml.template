@@ -251,6 +251,14 @@ commitlog_sync_period_in_ms: 10000
 # is reasonable.
 commitlog_segment_size_in_mb: 32
 
+# Compression to apply to the commit log. If omitted, the commit log
+# will be written uncompressed.  LZ4, Snappy, and Deflate compressors
+# are supported.
+commitlog_compression:
+   - class_name: LZ4Compressor
+#     parameters:
+#      
+
 # any class that implements the SeedProvider interface and has a
 # constructor that takes a Map<String, String> of parameters will do.
 seed_provider:
