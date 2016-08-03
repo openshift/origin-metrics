@@ -92,7 +92,7 @@ Default: `openshift/origin-`.
 
 |--timeout t
 |Maximum number of seconds an operation can take during the tests before it is
-considered failed.  Default: `180`.
+considered failed.  Default: `240`.
 
 |===
 
