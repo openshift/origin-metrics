@@ -42,7 +42,7 @@ try:
 except Exception as e:
   print "Failed to access the status endpoint : %s." % e
 
-if int(uptime) < 120:
+if int(uptime) < 180:
   print "Hawkular metrics has only been running for " + uptime + " seconds not aborting yet."
   exit(0)
 else:

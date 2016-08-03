@@ -61,8 +61,8 @@ if [ -n "$ENDPOINT_CHECK" ]; then
   CHECK_COMMAND='curl --insecure --max-time 10 --connect-timeout 10 -L -s -o /dev/null -w "%{http_code}" $ENDPOINT_CHECK'
 
   while : ; do
-    if [[ $(($(date +%s) - $START_TIME)) -ge 120 ]]; then
-      echo "Endpoint check for '$ENDPOINT_CHECK' could not be established after 120 seconds. Aborting"
+    if [[ $(($(date +%s) - $START_TIME)) -ge 180 ]]; then
+      echo "Endpoint check for '$ENDPOINT_CHECK' could not be established after 180 seconds. Aborting"
       exit 1
     fi
 
