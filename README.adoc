@@ -330,10 +330,7 @@ For more information about Heapster and how to access its APIs, please refer the
 If you wish to undeploy and remove everything deployed by the deployer, the follow commands can be used:
 
 ----
-$ oc delete all --selector=metrics-infra -n openshift-infra
-$ oc delete secrets --selector=metrics-infra -n openshift-infra
-$ oc delete sa --selector=metrics-infra -n openshift-infra
-$ oc delete templates --selector=metrics-infra -n openshift-infra
+$ oc delete all,secrets,sa,templates --selector=metrics-infra -n openshift-infra
 ----
 
 [NOTE]	
@@ -344,8 +341,7 @@ The persistent volume claim will not be deleted by the above command. If you wis
 If you wish to remove the deployer's components themselves
 
 ----
-$ oc delete sa metrics-deployer -n openshift-infra 
-$ oc delete secret metrics-deployer -n openshift-infra
+$ oc delete sa,secret metrics-deployer -n openshift-infra 
 ----
 
 == Known Issues
