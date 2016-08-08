@@ -338,7 +338,7 @@ $ oc delete templates --selector=metrics-infra -n openshift-infra
 
 [NOTE]	
 ====
-The persistent volume claim will not be deleted by the above command. If you wish to permanently delete the data in persistent storage you can run `oc delete pvc --selector=metrics-infa`
+The persistent volume claim will not be deleted by the above command. If you wish to permanently delete the data in persistent storage you can run `oc delete pvc --selector=metrics-infra`
 ====
 
 If you wish to remove the deployer's components themselves
