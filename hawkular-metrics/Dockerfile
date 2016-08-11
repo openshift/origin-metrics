@@ -26,13 +26,12 @@ FROM jboss/wildfly:10.0.0.Final
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
-# Version 0.17.0-20160602.155443-1 has a fix for https://github.com/openshift/origin-metrics/issues/134
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
     HAWKULAR_METRICS_VERSION="0.18.0.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
-    HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/"
-
-ENV PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY
+    HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
+    PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
+    JAVA_OPTS_APPEND="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump"
 
 # The http and https ports
 EXPOSE 8080 8444
@@ -54,6 +53,9 @@ COPY hawkular-metrics-readiness.py \
      hawkular-client-initialization.py \
      client \
      $HAWKULAR_METRICS_SCRIPT_DIRECTORY
+
+COPY standalone.conf \
+     $JBOSS_HOME/bin/
 
 # Overwrite the welcome-content to display a more appropriate status page
 COPY welcome-content $JBOSS_HOME/welcome-content/
