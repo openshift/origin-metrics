@@ -36,6 +36,10 @@ ENV PATH=/opt/golang/go/bin/:$PATH
 ENV GOROOT=/opt/golang/go
 #
 
+#Removes some verbose logs
+COPY heapster-verbose.patch /tmp/
+#
+
 RUN yum install -y -q go git wget make patch && \
     yum clean all && \
     cd /tmp && \
@@ -46,6 +50,7 @@ RUN yum install -y -q go git wget make patch && \
     git clone https://github.com/kubernetes/heapster && \
     cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
+    patch -p1 < /tmp/heapster-verbose.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \

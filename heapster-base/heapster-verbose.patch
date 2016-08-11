@@ -1,0 +1,35 @@
+diff --git a/metrics/processors/node_aggregator.go b/metrics/processors/node_aggregator.go
+index acc0b4f..be001a7 100644
+--- a/metrics/processors/node_aggregator.go
++++ b/metrics/processors/node_aggregator.go
+@@ -41,7 +41,7 @@ func (this *NodeAggregator) Process(batch *core.DataBatch) (*core.DataBatch, err
+ 				nodeKey := core.NodeKey(nodeName)
+ 				node, found := batch.MetricSets[nodeKey]
+ 				if !found {
+-					glog.Warningf("Failed to find node: %s", nodeKey)
++					glog.V(1).Info("No metric for node %s, cannot perform node level aggregation.")
+ 				} else if err := aggregate(metricSet, node, this.MetricsToAggregate); err != nil {
+ 					return nil, err
+ 				}
+diff --git a/metrics/sources/manager.go b/metrics/sources/manager.go
+index 30d2db8..0333a84 100644
+--- a/metrics/sources/manager.go
++++ b/metrics/sources/manager.go
+@@ -76,7 +76,7 @@ func (this *sourceManager) Name() string {
+ }
+ 
+ func (this *sourceManager) ScrapeMetrics(start, end time.Time) *DataBatch {
+-	glog.Infof("Scraping metrics start: %s, end: %s", start, end)
++	glog.V(1).Infof("Scraping metrics start: %s, end: %s", start, end)
+ 	sources := this.metricsSourceProvider.GetMetricsSources()
+ 
+ 	responseChannel := make(chan *DataBatch)
+@@ -149,7 +149,7 @@ responseloop:
+ 		}
+ 	}
+ 
+-	glog.Infof("ScrapeMetrics: time: %s size: %d", time.Since(startTime), len(response.MetricSets))
++	glog.V(1).Infof("ScrapeMetrics: time: %s size: %d", time.Since(startTime), len(response.MetricSets))
+ 	for i, value := range latencies {
+ 		glog.V(1).Infof("   scrape  bucket %d: %d", i, value)
+ 	}
