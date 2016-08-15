@@ -25,6 +25,10 @@ parameters:
 - description: If users accounts should be able to write metrics
   name: USER_WRITE_ACCESS
   value: "false"
+- description: >
+    Minimum amount of memory the pod will require to be scheduled on a node.
+  name: MEMORY_REQUEST
+  value: "64M"
 objects:
 - apiVersion: v1
   kind: Service
@@ -103,6 +107,9 @@ objects:
             exec:
               command:
               - "/opt/hawkular/scripts/hawkular-metrics-liveness.py"
+          resources:
+            requests:
+              memory: ${MEMORY_REQUEST}
         volumes:
         - name: hawkular-metrics-secrets
           secret:

@@ -190,7 +190,7 @@ EOF
   oc create -f templates/support.yaml
 
   echo "Deploying Hawkular Metrics & Cassandra Components"
-  oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url,USER_WRITE_ACCESS=$user_write_access" | oc create -f -
+  oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url,USER_WRITE_ACCESS=$user_write_access,MEMORY_REQUEST=${hawkular_metrics_memory_request}" | oc create -f -
   oc process hawkular-cassandra-services | oc create -f -
   oc process hawkular-support | oc create -f -
 

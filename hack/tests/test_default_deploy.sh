@@ -515,7 +515,7 @@ function test.HawkularMetricsCustomCertificateIntermediateCA {
 }
 
 function test.ResourceRequests {
-  local deadline events messages pod pod_events tmpl x
+  local deadline events messages name_tmpl pod pod_events events_tmpl x
   undeployAll
   Info "Checking Cassandra and Hawkular Metrics resource requests."
   oc secrets new metrics-deployer nothing=/dev/null > /dev/null
@@ -527,31 +527,37 @@ function test.ResourceRequests {
     -v CASSANDRA_MEMORY_REQUEST=1E \
     -v HAWKULAR_METRICS_MEMORY_REQUEST=1E \
     | oc create -f - > /dev/null
-  tmpl='.reason .involvedObject.kind .involvedObject.name .metadata.name'
-  tmpl="{{range .items}}{{println $tmpl}}{{end}}"
   deadline=$(($(date +%s) + $timeout))
   while :; do
     [ "$(date +%s)" -ge "$deadline" ] \
       && Fail "Deployment took longer than the timeout of $timeout seconds"
-    pod=$(oc get pods -l metrics-infra=hawkular-cassandra \
-      --template '{{range .items}}{{.metadata.name}}{{end}}')
-    [ "$pod" ] && break
-    Debug 'Waiting for the Cassandra pod'
+    [ "$(oc get pods -l "metrics-infra=hawkular-cassandra" -o name)" ] \
+      && [ "$(oc get pods -l "metrics-infra=hawkular-metrics" -o name)" ] \
+      && break
+    Debug 'Waiting for the Cassandra and Hawkular-Metrics pods'
     sleep 1
+    continue
   done
-  events=$(oc get events --template "$tmpl")
-  pod_events=$(echo "$events" \
-    | awk -v "p=$pod" '$1=="FailedScheduling" && $2=="Pod" && $3==p{print $4}')
-  Debug 'Events found:'
-  echo "$events" | while read x; do Debug "$x"; done
-  [ "$pod_events" ] || Fail "No FailedScheduling events found for pod $pod"
-  messages=$(echo "$pod_events" \
-    | xargs -n 1 oc get event --template '{{.message}}')
-  Debug "Messages found:"
-  echo "$messages" | while read x; do Debug "$x"; done
-  echo "$messages" \
-    | grep -q 'Node didn'\''t have enough resource: Memory' \
-    || Fail 'Events were not caused by memory resource request'
+  name_tmpl='{{range .items}}{{println .metadata.name}}{{end}}'
+  events_tmpl=$(printf '{{range .items}}{{println %s}}{{end}}' \
+    '.reason .involvedObject.kind .involvedObject.name .metadata.name')
+  for pod in cassandra metrics; do
+    pod=$(oc get pods -l "metrics-infra=hawkular-$pod" --template "$name_tmpl")
+    events=$(oc get events --template "$events_tmpl")
+    pod_events=$(echo "$events" \
+      | awk --assign "p=$pod" \
+        '$1 == "FailedScheduling" && $2 == "Pod" && $3 == p {print $4}')
+    Debug 'Events found:'
+    echo "$events" | while read x; do Debug "$x"; done
+    [ "$pod_events" ] || Fail "No FailedScheduling events found for pod $pod"
+    messages=$(echo "$pod_events" \
+      | xargs -n 1 oc get event --template '{{.message}}')
+    Debug "Messages found:"
+    echo "$messages" | while read x; do Debug "$x"; done
+    echo "$messages" \
+      | grep -q 'Node didn'\''t have enough resource: Memory' \
+      || Fail 'Scheduling failure was not caused by memory resource request'
+  done
 }
 
 source $TEST_DIR/base.sh

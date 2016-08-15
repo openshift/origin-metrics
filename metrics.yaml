@@ -86,6 +86,8 @@ objects:
           value: ${METRIC_RESOLUTION}
         - name: CASSANDRA_MEMORY_REQUEST
           value: ${CASSANDRA_MEMORY_REQUEST}
+        - name: HAWKULAR_METRICS_MEMORY_REQUEST
+          value: ${HAWKULAR_METRICS_MEMORY_REQUEST}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -162,3 +164,9 @@ parameters:
     a node.
   name: CASSANDRA_MEMORY_REQUEST
   value: "512M"
+-
+  description: >
+    Minimum amount of memory the Hawkular Metrics pod will require to be
+    scheduled on a node.
+  name: HAWKULAR_METRICS_MEMORY_REQUEST
+  value: "64M"
