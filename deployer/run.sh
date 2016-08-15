@@ -71,6 +71,8 @@ heapster_node_id=${HEAPSTER_NODE_ID:-nodename}
 #
 metric_resolution=${METRIC_RESOLUTION:-10s}
 
+cassandra_memory_request=${CASSANDRA_MEMORY_REQUEST:-512M}
+
 # The project we are deployed in
 project=${PROJECT:-openshift-infra}
 

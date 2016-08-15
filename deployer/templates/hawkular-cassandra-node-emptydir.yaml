@@ -22,6 +22,10 @@ parameters:
 - description: The node number for the Cassandra cluster.
   name: NODE
   required: true
+- description: >
+    Minimum amount of memory the pod will require to be scheduled on a node.
+  name: MEMORY_REQUEST
+  value: "512M"
 objects:
 - apiVersion: v1
   kind: ReplicationController
@@ -85,6 +89,9 @@ objects:
             exec:
               command:
               - "/opt/apache-cassandra/bin/cassandra-docker-ready.sh"
+          resources:
+            requests:
+              memory: "${MEMORY_REQUEST}"
         volumes:
         - name: cassandra-data
           emptyDir: {}

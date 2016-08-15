@@ -28,6 +28,10 @@ parameters:
 - description: The size of storage requested.
   name: PV_SIZE
   value: 10Gi
+- description: >
+    Minimum amount of memory the pod will require to be scheduled on a node.
+  name: MEMORY_REQUEST
+  value: "512M"
 objects:
 - kind: PersistentVolumeClaim
   apiVersion: v1
@@ -103,6 +107,9 @@ objects:
             exec:
               command:
               - "/opt/apache-cassandra/bin/cassandra-docker-ready.sh"
+          resources:
+            requests:
+              memory: "${MEMORY_REQUEST}"
         volumes:
         - name: cassandra-data
           persistentVolumeClaim:

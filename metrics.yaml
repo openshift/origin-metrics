@@ -84,6 +84,8 @@ objects:
           value: ${HEAPSTER_NODE_ID}
         - name: METRIC_RESOLUTION
           value: ${METRIC_RESOLUTION}
+        - name: CASSANDRA_MEMORY_REQUEST
+          value: ${CASSANDRA_MEMORY_REQUEST}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -154,3 +156,9 @@ parameters:
   description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
   name: METRIC_RESOLUTION
   value: "10s"
+-
+  description: >
+    Minimum amount of memory the Cassandra pod will require to be scheduled on
+    a node.
+  name: CASSANDRA_MEMORY_REQUEST
+  value: "512M"
