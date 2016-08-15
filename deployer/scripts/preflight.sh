@@ -57,13 +57,11 @@ function cert_should_have_names() {
     for name in $@; do
        for san in $sans; do
          check=$(check_san $san $name)
-         echo CHECK $check
          if [[ "$check" == "true" ]]; then
           ((found++))
          fi
        done
     done
-    echo $found $count
     if [[ $found != $count ]]; then
       echo "The supplied $file certificate is required to match the following name(s) in the Subject Alternative Name field:"
       echo $@
@@ -116,7 +114,10 @@ function validate_deployer_secret() {
     esac
   done
   popd >& /dev/null
-  [ "$failure" = false ] && return 0
+  if [ "$failure" = false ]; then
+    echo "ok"
+    return 0
+  fi
   return 1
 }
 
