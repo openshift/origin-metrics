@@ -46,7 +46,7 @@ function validate_nodes_accessible() {
       local name="${node[0]}"
       local ip="${node[1]:-}"
       local ready="${node[2]:-}"
-      if [ "${ready:-}" != "Ready" ]; then
+      if [[ "${ready:-}" != *"Ready"* ]]; then
         echo "Node ${name} is not ready; skipping."
         continue
       fi
