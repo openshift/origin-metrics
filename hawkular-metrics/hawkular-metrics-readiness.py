@@ -33,6 +33,7 @@ try:
     jsonResponse = json.loads(responseHTML)
     # if the metrics service is started then we are good
     if (jsonResponse["MetricsService"] == "STARTED"):
+      print "The MetricService is in the STARTED state. The service is now ready."
       exit(0)
     else:
       print "The MetricService is not yet in the STARTED state [" + jsonResponse["MetricsService"] + "]. We need to wait until its in the STARTED state."

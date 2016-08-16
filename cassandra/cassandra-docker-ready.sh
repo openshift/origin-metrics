@@ -31,7 +31,7 @@ fi
 
 # Once the status is Up and Normal, then we are ready
 if [ ${STATUS} = "UN" ]; then
-  echo "Cassandra is in the up and normal state. It is now ready"
+  echo "Cassandra is in the up and normal state. It is now ready."
   exit 0
 else
   echo "Cassandra not in the up and normal state. Current state is $STATUS"
