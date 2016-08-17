@@ -22,6 +22,18 @@
 
 FROM jboss/wildfly:10.0.0.Final
 
+#TODO: remove this section once wildfly:10.1.0.CR1 is available in a docker image
+ENV WILDFLY_SHA1 e44dffaff2ed88e834dfcb592b8473083089a56d
+ENV WILDFLY_VERSION 10.1.0.CR1
+RUN rm -rf $JBOSS_HOME \
+    && cd $HOME \
+    && curl -O https://download.jboss.org/wildfly/$WILDFLY_VERSION/wildfly-$WILDFLY_VERSION.tar.gz \
+    && sha1sum wildfly-$WILDFLY_VERSION.tar.gz | grep $WILDFLY_SHA1 \
+    && tar xf wildfly-$WILDFLY_VERSION.tar.gz \
+    && mv $HOME/wildfly-$WILDFLY_VERSION $JBOSS_HOME \
+    && rm wildfly-$WILDFLY_VERSION.tar.gz
+#END TODO
+
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
