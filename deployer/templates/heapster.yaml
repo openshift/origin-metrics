@@ -22,9 +22,9 @@ parameters:
 - description: The identifier used when calcuating node level metric ids
   name: NODE_ID
   value: nodename
-- description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
+- description: "How often metrics should be gathered. Defaults value of '15s' for 15 seconds"
   name: METRIC_RESOLUTION
-  value: "10s"
+  value: "15s"
 objects:
 - apiVersion: v1
   kind: ServiceAccount

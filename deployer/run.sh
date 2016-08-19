@@ -69,7 +69,7 @@ user_write_access=${USER_WRITE_ACCESS:-false}
 heapster_node_id=${HEAPSTER_NODE_ID:-nodename}
 
 #
-metric_resolution=${METRIC_RESOLUTION:-10s}
+metric_resolution=${METRIC_RESOLUTION:-15s}
 
 # The project we are deployed in
 project=${PROJECT:-openshift-infra}
