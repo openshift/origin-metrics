@@ -19,9 +19,9 @@ parameters:
     set version "v1.1"
   name: IMAGE_VERSION
   value: "latest"
-- description: "How often metrics should be gathered. Defaults value of '10s' for 10 seconds"
+- description: "How often metrics should be gathered. Defaults value of '15s' for 15 seconds"
   name: METRIC_RESOLUTION
-  value: "10s"
+  value: "15s"
 objects:
 - apiVersion: v1
   kind: ServiceAccount
