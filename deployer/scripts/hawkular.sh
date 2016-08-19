@@ -208,6 +208,17 @@ EOF
   fi
   # this may return an error code if the route already exists, this is to be expect with a refresh and is why we have the || true here
   oc create route reencrypt hawkular-metrics ${route_params} || true
+
+  # if we are dealing with a refresh, then we need to update the router's CACertificate for the Hawkular Metric's internal certificate
+  if [ "$mode" = "refresh" ]; then
+   type=$(oc get route hawkular-metrics --template='{{.spec.tls.termination}}') || true
+   if [ "$type" = "reencrypt" ]; then
+     #todo: there is probably a much more elegrant way to do this.
+     dest_ca_cert=$(cat ${dir}/hawkular-metrics-ca.cert | python -c 'import json,sys; print json.dumps(sys.stdin.read())' | sed 's/\\r//g' | sed 's/\\n/\\\\n/g' | sed 's/ /\\ /g' | sed 's/\"//g')
+     update_command=$(echo "oc patch route hawkular-metrics -p '{\"spec\":{\"tls\":{\"destinationCACertificate\":\"'${dest_ca_cert}'\"}}}'")
+     eval $update_command
+   fi
+  fi
  
   if [ "${use_persistent_storage}" = true ]; then
     if [ "${dynamically_provision_storage}" = true ]; then
