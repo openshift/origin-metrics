@@ -35,6 +35,7 @@ try:
     jsonResponse = json.loads(responseHTML)
     # if the metrics service is started then we are good
     if (jsonResponse["MetricsService"] == "STARTED"):
+      print "The MetricsService is in the STARTED state and is available."
       exit(0)
     elif (jsonResponse["MetricsService"] == "FAILED"):
       print "The MetricsService is in a FAILED state. Aborting"
