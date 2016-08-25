@@ -213,10 +213,12 @@ EOF
   if [ "$mode" = "refresh" ]; then
    type=$(oc get route hawkular-metrics --template='{{.spec.tls.termination}}') || true
    if [ "$type" = "reencrypt" ]; then
-     #todo: there is probably a much more elegrant way to do this.
-     dest_ca_cert=$(cat ${dir}/hawkular-metrics-ca.cert | python -c 'import json,sys; print json.dumps(sys.stdin.read())' | sed 's/\\r//g' | sed 's/\\n/\\\\n/g' | sed 's/ /\\ /g' | sed 's/\"//g')
-     update_command=$(echo "oc patch route hawkular-metrics -p '{\"spec\":{\"tls\":{\"destinationCACertificate\":\"'${dest_ca_cert}'\"}}}'")
-     eval $update_command
+      oc patch route hawkular-metrics -p "$(python <<-EOF
+				import json
+				ca = open("$dir/hawkular-metrics-ca.cert").read()
+				print json.dumps({"spec": {"tls": {"destinationCACertificate": ca}}})
+				EOF
+      )"
    fi
   fi
  
