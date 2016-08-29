@@ -130,6 +130,52 @@ if [ -n "$HELP" ]; then
   exit 0
 fi
 
+if [ -z "${MAX_HEAP_SIZE}" ]; then
+  if [ -z "${MEMORY_LIMIT}" ]; then
+    MEMORY_LIMIT=`cat /sys/fs/cgroup/memory/memory.limit_in_bytes`
+    echo "The MEMORY_LIMIT envar was not set. Reading value from /sys/fs/cgroup/memory/memory.limit_in_bytes."
+  fi
+  echo "The MAX_HEAP_SIZE envar is not set. Basing the MAX_HEAP_SIZE on the available memory limit for the pod (${MEMORY_LIMIT})."
+  BYTES_MEGABYTE=1048576
+  BYTES_GIGABYTE=1073741824
+  # Based on the Cassandra memory limit recommendations. See http://docs.datastax.com/en/cassandra/2.2/cassandra/operations/opsTuneJVM.html
+  if (( ${MEMORY_LIMIT} <= (2 * ${BYTES_GIGABYTE}) )); then
+    # If less than 2GB, set the heap to be 1/2 of available ram
+    echo "The memory limit is less than 2GB. Using 1/2 of available memory for the max_heap_size."
+    export MAX_HEAP_SIZE="$((${MEMORY_LIMIT} / ${BYTES_MEGABYTE} / 2 ))M"
+  elif (( ${MEMORY_LIMIT} <= (4 * ${BYTES_GIGABYTE}) )); then
+    echo "The memory limit is between 2 and 4GB. Setting max_heap_size to 1GB."
+    # If between 2 and 4GB, set the heap to 1GB
+    export MAX_HEAP_SIZE="1024M"
+  elif (( ${MEMORY_LIMIT} <= (32 * ${BYTES_GIGABYTE}) )); then
+    echo "The memory limit is between 4 and 32GB. Using 1/4 of the available memory for the max_heap_size."
+    # If between 4 and 32GB, use 1/4 of the available ram
+    export MAX_HEAP_SIZE="$(( ${MEMORY_LIMIT} / ${BYTES_MEGABYTE} / 4 ))M"
+  else
+    echo "The memory limit is above 32GB. Using 8GB for the max_heap_size"
+    # If above 32GB, set the heap size to 8GB
+    export MAX_HEAP_SIZE="8192M"
+  fi
+  echo "The MAX_HEAP_SIZE has been set to ${MAX_HEAP_SIZE}"
+else
+  echo "The MAX_HEAP_SIZE envar is set to ${MAX_HEAP_SIZE}. Using this value"
+fi
+
+if [ -z "${HEAP_NEWSIZE}" ] && [ -z "${CPU_LIMIT}" ]; then
+  echo "The HEAP_NEWSIZE and CPU_LIMIT envars are not set. Defaulting the HEAP_NEWSIZE to 100M"
+  export HEAP_NEWSIZE=100M
+elif [ -z "${HEAP_NEWSIZE}" ]; then
+  export HEAP_NEWSIZE=$((CPU_LIMIT/10))M
+  echo "THE HEAP_NEWSIZE envar is not set. Setting to ${HEAP_NEWSIZE} based on the CPU_LIMIT of ${CPU_LIMIT}. [100M per CPU core]"
+else
+  echo "The HEAP_NEWSIZE envar is set to ${HEAP_NEWSIZE}. Using this value"
+fi
+
+#Update the cassandra-env.sh with these new values
+cp /opt/apache-cassandra/conf/cassandra-env.sh.template /opt/apache-cassandra/conf/cassandra-env.sh
+sed -i 's/${MAX_HEAP_SIZE}/'$MAX_HEAP_SIZE'/g' /opt/apache-cassandra/conf/cassandra-env.sh
+sed -i 's/${HEAP_NEWSIZE}/'$HEAP_NEWSIZE'/g' /opt/apache-cassandra/conf/cassandra-env.sh
+
 cp /opt/apache-cassandra/conf/cassandra.yaml.template /opt/apache-cassandra/conf/cassandra.yaml
 
 # set the hostname in the cassandra configuration file

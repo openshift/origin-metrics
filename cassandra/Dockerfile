@@ -27,11 +27,9 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 EXPOSE 9042 9160 7000 7001
 
 # The Cassandra version
-ENV CASSANDRA_VERSION="2.2.4" \
+ENV CASSANDRA_VERSION="2.2.7" \
     CASSANDRA_HOME="/opt/apache-cassandra" \
     HOME="/home/cassandra" \
-    MAX_HEAP_SIZE="512M" \
-    HEAP_NEWSIZE="100M" \
     PATH="/opt/apache-cassandra/bin:$PATH" \
     CASSANDRA_NODES_SERVICE_NAME="hawkular-cassandra-nodes"
 
@@ -54,7 +52,9 @@ RUN cd /opt; \
     ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
 
 # Copy our version of the cassandra configuration file over to the filesystem
-COPY cassandra.yaml.template /opt/apache-cassandra/conf/cassandra.yaml.template
+COPY cassandra.yaml.template \
+     cassandra-env.sh.template \
+     /opt/apache-cassandra/conf/
 
 # Copy across the scripts
 COPY cassandra-docker.sh \
