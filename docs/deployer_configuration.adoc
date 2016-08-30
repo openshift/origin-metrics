@@ -10,7 +10,7 @@ The following table contains more advanced configuration options, detailing all 
 |Secret Name |Description
 
 |*_hawkular-metrics.pem_*
-|The *_pem_* file to use for the Hawkular Metrics certificate used for the re-encrypting route. This 
+|The *_pem_* file to use for the Hawkular Metrics certificate used for the re-encrypting route. This
 certificate *must* contain the hostname used by the route (eg HAWKULAR_METRICS_HOSTNAME). The default router's certificate will be used
 for the route if this option is unspecified.
 
@@ -104,6 +104,12 @@ Default: *"1"*
 |The persistent volume size for each of the Cassandra nodes
 
 Default: *"10Gi"*
+|
+
+|*_DYNAMICALLY_PROVISION_STORAGE_*
+|Set to true to enable dynamic provisioning of cassandra volumes on supported cloud providers.
+
+Default: *"false"*
 |
 
 |*_METRIC_DURATION_*
