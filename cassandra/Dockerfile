@@ -59,6 +59,7 @@ COPY cassandra.yaml.template \
 # Copy across the scripts
 COPY cassandra-docker.sh \
      cassandra-docker-ready.sh \
+     cassandra-prestop.sh \
      gather-seeds.sh \
      /opt/apache-cassandra/bin/
 
