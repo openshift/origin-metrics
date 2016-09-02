@@ -114,6 +114,12 @@ objects:
             exec:
               command:
               - "/opt/apache-cassandra/bin/cassandra-docker-ready.sh"
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - "/opt/apache-cassandra/bin/cassandra-prestop.sh"
+          terminationGracePeriodSeconds: 1800
         volumes:
         - name: cassandra-data
           persistentVolumeClaim:
