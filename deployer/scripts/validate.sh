@@ -520,7 +520,6 @@ function validate_deployment_artifacts() {
 }
 
 function validate_deployment() {
-  set -e
   set +x
 
   echo =========================

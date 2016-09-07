@@ -18,7 +18,12 @@
  
 for script in scripts/*.sh; do source $script; done
 
-set -eux
+set -x
+
+continue_on_error=$(parse_bool "${CONTINUE_ON_ERROR:-false}" CONTINUE_ON_ERROR)
+if [ "$continue_on_error" == false ]; then
+ set -eu
+fi
 
 #
 # determine a bunch of variables from env or defaults
