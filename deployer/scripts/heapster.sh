@@ -17,7 +17,6 @@
 #
 
 function deploy_heapster() {
-  set -ex
   
   # Use existing or generate new Heapster certificates
   if [ -n "${HEAPSTER_CERT:-}" ]; then

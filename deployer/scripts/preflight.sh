@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 # determine whether DNS resolves the master successfully
 function validate_master_accessible() {
   local output
@@ -122,7 +120,6 @@ function validate_deployer_secret() {
 }
 
 function validate_preflight() {
-  set -e
   set +x
   
   local success=()

@@ -17,7 +17,6 @@
 #
 
 function deploy_hawkular() {
-  set -ex
   
   setup_certificate "hawkular-metrics" "hawkular-metrics,${hawkular_metrics_hostname}" "${HAWKULAR_METRICS_PEM:-}"
   setup_certificate "hawkular-cassandra" "hawkular-cassandra" "${HAWKULAR_CASSANDRA_PEM:-}"
