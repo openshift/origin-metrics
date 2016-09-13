@@ -4,13 +4,13 @@
 
 The tests require that:
 
-. the `oc` command is available in the path
+. The `oc` command is available in the path
 
-. the user who is currently logged in via the `oc login` command currently has admin privileges
+. The user who is currently logged in via the `oc login` command currently has admin privileges
 
-. the cluster has a running router
+. The cluster has a running router
 
-. there must be no existing route for hawkular-metrics.example.com in any project
+. There must be no existing route for hawkular-metrics.example.com in any project
 
 Once these prerequisites are met, the following command will run the tests:
 
