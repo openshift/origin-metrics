@@ -85,11 +85,8 @@ token_file=${TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}
 
 # directory to perform all the processing
 dir=${PROCESSING_DIR:-_output} #directory used to write files which generating certificates
-# location of deployer secret mount
-secret_dir=${SECRET_DIR:-_secret}
 # ensure directories exist in local use case
 rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
-mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
 hawkular_metrics_hostname=${HAWKULAR_METRICS_HOSTNAME:-hawkular-metrics.example.com}
 hawkular_metrics_alias=${HAWKULAR_METRICS_ALIAS:-hawkular-metrics}
@@ -132,6 +129,18 @@ oc config set-context deployer-context \
   --user=deployer-account \
   --namespace="${project}"
 [ -n "${WRITE_KUBECONFIG:-}" ] && oc config use-context deployer-context
+
+# Create secret dir, populate with secret contents if it exists.
+secret_name=metrics-deployer
+secret_dir=${SECRET_DIR:-_secret}
+mkdir -p "$secret_dir" && { chmod 700 "$secret_dir" || :; } || exit
+
+for key in hawkular-metrics{.pem,-ca.cert} \
+    heapster{.cert,.key,-allowed-users,-client-ca.cert}; do
+  val=$(get_config_value "secret/$secret_name" "$key")
+  [ "$val" ] && base64 -d <<< "$val" > "$secret_dir/$key"
+done
+unset key val
 
 case $deployer_mode in
 preflight)

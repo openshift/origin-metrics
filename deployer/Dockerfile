@@ -24,7 +24,7 @@ ENV BIN_DIR=/opt/deploy \
     PROCESSING_DIR=/etc/deploy/_output \
     KUBECONFIG=/etc/deploy/.kubeconfig \
     WRITE_KUBECONFIG=1 \
-    SECRET_DIR=/secret
+    SECRET_DIR=/etc/deploy/secret
 
 RUN yum install -y java-1.8.0-openjdk openssl httpd-tools bind-utils && yum clean all
 

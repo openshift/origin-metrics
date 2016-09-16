@@ -136,11 +136,8 @@ $ oc secrets new metrics-deployer hawkular-metrics.pem=/home/openshift/metrics/h
 hawkular-metrics-ca.cert=/home/openshift/metrics/hm-ca.cert -n openshift-infra
 ----
 
-If you do not wish to provie your own certificates and use the router's certificates instead, you will just need to generate an empty secret:
-
-----
-$ oc secrets new metrics-deployer nothing=/dev/null -n openshift-infra
-----
+If you do not wish to provide your own certificates and use the router's
+certificates instead, there's no need to create the secret.
 
 For a full listing of all the available secrets for the Origin Metrics deployer, please see the link:docs/deployer_configuration.adoc#deployer-secrets[deployer configuration] page.
 
