@@ -87,11 +87,11 @@ function test.DefaultInstall {
 function undeployAll {
   UNDEPLOY_START=$(date +%s) 
 
-  oc delete all --selector=metrics-infra       &> /dev/null
-  oc delete secrets --selector=metrics-infra   &> /dev/null
-  oc delete sa --selector=metrics-infra        &> /dev/null
-  oc delete templates --selector=metrics-infra &> /dev/null
-  oc delete secrets metrics-deployer &> /dev/null || true
+  oc delete all --selector=metrics-infra --ignore-not-found=true
+  oc delete secrets --selector=metrics-infra --ignore-not-found=true
+  oc delete sa --selector=metrics-infra --ignore-not-found=true
+  oc delete templates --selector=metrics-infra --ignore-not-found=true
+  oc delete secrets metrics-deployer --ignore-not-found=true
 
   while : 
   do
