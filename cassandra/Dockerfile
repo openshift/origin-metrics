@@ -54,6 +54,7 @@ RUN cd /opt; \
 # Copy our version of the cassandra configuration file over to the filesystem
 COPY cassandra.yaml.template \
      cassandra-env.sh.template \
+     cassandra-metrics-reporter.yaml \
      /opt/apache-cassandra/conf/
 
 # Copy across the scripts
