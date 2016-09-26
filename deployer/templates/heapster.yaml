@@ -79,7 +79,7 @@ objects:
           - "--wrapper.password_file=/hawkular-account/hawkular-metrics.password"
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
           - "--wrapper.endpoint_check=https://hawkular-metrics:443/hawkular/metrics/status"
-          - "--source=kubernetes:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
+          - "--source=kubernetes.summary_api:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
           - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&labelNodeId=${NODE_ID}&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
           - "--tls_cert=/secrets/heapster.cert"
           - "--tls_key=/secrets/heapster.key"
