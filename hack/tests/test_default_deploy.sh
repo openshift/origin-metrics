@@ -72,20 +72,29 @@ function checkMetrics {
    hawkularIp=`oc get svc | grep -i hawkular-metrics | awk '{print $2}'`
   fi
   
-  # Check that we can get the Hawkular Metrics status page at least
-  status=`curl --insecure -L -s -o /dev/null -w "%{http_code}" -X GET https://${hawkularIp}/hawkular/metrics/status`
-  if [[ ! $? -eq 0 ]] || [[ ! $status -eq 200 ]]; then
-    Fail "Could not access the Hawkular Status Endpoint. Test failed."
-  fi
+  CHECK_TIME=$(date +%s)
+  while : ; do
+    if [[ $(($(date +%s) - $CHECK_TIME)) -ge $timeout ]]; then
+      Fail "Could not access the Hawkular Metrics status endpoint after $timeout seconds. Test failed."
+    fi
+
+    # Check that we can get the Hawkular Metrics status page at least
+    status=`curl --insecure -L -s -o /dev/null -w "%{http_code}" -X GET https://${hawkularIp}/hawkular/metrics/status || true`
+    if [[ ! $? -eq 0 ]] || [[ ! $status -eq 200 ]]; then
+      Info "Could not access the Hawkular Status Endpoint. Trying again."
+    else
+      break
+    fi
+  done
 
   # Check if we get any metrics
   CHECK_TIME=$(date +%s)
   while : ; do
-     if [[ $(($(date +%s) - $CHECK_START)) -ge $timeout ]]; then
+     if [[ $(($(date +%s) - $CHECK_TIME)) -ge $timeout ]]; then
       Fail "Could not get any metrics after $timeout seconds. Test failed."
     fi
 
-    status=`curl --insecure -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/metrics`
+    status=`curl --insecure -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/metrics || true`
     if [[ $status -eq 200 ]]; then
       metrics=`curl --insecure -s -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/metrics`
       if [[ ! -z "$metrics" ]]; then
@@ -102,11 +111,11 @@ function checkMetrics {
   CHECK_TIME=$(date +%s)
   while : ; do
 
-     if [[ $(($(date +%s) - $CHECK_START)) -ge $timeout ]]; then
+     if [[ $(($(date +%s) - $CHECK_TIME)) -ge $timeout ]]; then
       Fail "Could not get any metrics after $timeout seconds. Test failed."
     fi
 
-    data=`curl --insecure -s -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/gauges/data?tags=group_id:heapster/memory/usage\&buckets=1  | python -m json.tool | grep -i empty | awk '{print $2}'`
+    data=`curl --insecure -s -H "Authorization: Bearer $token" -H "Hawkular-tenant: $TEST_PROJECT" -X GET https://${hawkularIp}/hawkular/metrics/gauges/data?tags=group_id:heapster/memory/usage\&buckets=1  | python -m json.tool | grep -i empty | awk '{print $2}' || true`
 
     if [[ $data == "false," ]]; then
       Info "Could resolve metrics data"
@@ -175,11 +184,11 @@ function test.DefaultInstall {
 function undeployAll {
   UNDEPLOY_START=$(date +%s) 
 
-  oc delete all --selector=metrics-infra       &> /dev/null
-  oc delete secrets --selector=metrics-infra   &> /dev/null
-  oc delete sa --selector=metrics-infra        &> /dev/null
-  oc delete templates --selector=metrics-infra &> /dev/null
-  oc delete secrets metrics-deployer &> /dev/null || true
+  oc delete all --selector=metrics-infra  --ignore-not-found=true
+  oc delete secrets --selector=metrics-infra --ignore-not-found=true
+  oc delete sa --selector=metrics-infra --ignore-not-found=true
+  oc delete templates --selector=metrics-infra --ignore-not-found=true
+  oc delete secrets metrics-deployer --ignore-not-found=true
 
   while : 
   do
@@ -200,25 +209,6 @@ function undeployAll {
     Debug "Waiting for all components to be undeployed."
 
     sleep 1
-  done
-}
-
-function checkTerminating {
-  CHECK_START=$(date +%s)
-
-  while :
-  do
-    if [[ $(($(date +%s) - $CHECK_START)) -ge 120 ]]; then
-      Fail "No pods entered the terminating state when expected"
-    fi
-
-    terminatingPods=`oc get pods | grep -i terminating` || true
-    if [[ -n $terminatingPods ]]; then
-      break
-    fi
-    Debug "Waiting for all pods to start terminating ${terminatingPods}."
-    sleep 1
-
   done
 }
 
@@ -251,6 +241,8 @@ function test.Redeploy {
 
   Info "Checking Redeployment"
 
+  oc delete pod -l metrics-infra=deployer
+
   redeployTime=$(date +%s)
   Info "About to redeploy the components with REDEPLOY=true"
   oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true | oc create -f - &> /dev/null
@@ -263,10 +255,23 @@ function test.Redeploy {
   checkRoute "hawkular-metrics" "hawkular-metrics.example.com"
   checkMetrics
 
+  local hawkularMetricsPodName=$(oc get pods | grep -i hawkular-metrics | awk '{print $1}')
+  local cassandraPodName=$(oc get pods | grep -i cassandra | awk '{print $1}')
+  local heapsterPodName=$(oc get pods | grep -i heapster | awk '{print $1}')
+
+  oc delete pod -l metrics-infra=deployer
+
   Info "About to redeploy the components with MODE=redeploy"
   oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=redeploy | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
+
+  if [[ $hawkularMetricsPodName == $(oc get pods | grep -i hawkular-metrics | awk '{print $1}') ]] ||
+     [[ $cassandraPodName == $(oc get pods | grep -i cassandra | awk '{print $1}') ]] ||
+     [[ $heapsterPodName == $(oc get pods | grep -i heapster | awk '{print $1}') ]]; then
+     Fail "The pods were not restarted."
+  fi
+
   checkDeployment "Cassandra" 1
   checkDeployment "Hawkular-Metrics" 1
   checkDeployment "Heapster" 1
@@ -283,11 +288,23 @@ function test.Refresh {
 
   Info "Checking Refresh"
 
+  local hawkularMetricsPodName=$(oc get pods | grep -i hawkular-metrics | awk '{print $1}')
+  local cassandraPodName=$(oc get pods | grep -i cassandra | awk '{print $1}')
+  local heapsterPodName=$(oc get pods | grep -i heapster | awk '{print $1}')
+
+  oc delete pod -l metrics-infra=deployer 
+
   Info "About to redeploy the components"
   oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=refresh | oc create -f - &> /dev/null
   checkDeployer
-  checkTerminating
   checkTerminated
+
+  if [[ $hawkularMetricsPodName == $(oc get pods | grep -i hawkular-metrics | awk '{print $1}') ]] ||
+     [[ $cassandraPodName == $(oc get pods | grep -i cassandra | awk '{print $1}') ]] ||
+     [[ $heapsterPodName == $(oc get pods | grep -i heapster | awk '{print $1}') ]]; then
+     Fail "The pods were not restarted."
+  fi
+
   checkDeployment "Cassandra" 1
   checkDeployment "Hawkular-Metrics" 1
   checkDeployment "Heapster" 1
@@ -302,16 +319,29 @@ function test.Remove {
   Info "Deploying the Default setup so that we can check that MODE=remove functionality"
   test.DefaultInstall
 
+  oc delete pod -l metrics-infra=deployer
+
   Info "Checking remove mode"
   oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=remove | oc create -f - &> /dev/null
-  checkDeployer
-  checkTerminating
-  checkTerminated
 
-  echo GET ALL $(oc get all --selector=metrics-infra)
-  if [[ $(oc get all,sa,templates,secrets --selector=metrics-infra) != "" ]]; then
-    Fail "There are still some components running even after running the remove mode"
-  fi
+  CHECK_TIME=$(date +%s)
+  while : ; do
+    if [[ $(($(date +%s) - $CHECK_TIME)) -ge $timeout ]]; then
+      Fail "Not all components were stopped after $timeout seconds. Test failed."
+    fi
+
+    deployer_pod=`oc get pods | grep -i metrics-deployer || true`
+    deployer_status=`echo $deployer_pod | awk '{print $3}'`
+
+    Debug "The current status of the deployer:$deployer_status"
+ 
+    if [[ $(oc get all,sa,templates,secrets --selector=metrics-infra) == "" ]]; then
+     Info "All components were removed after $(($(date +%s) - $CHECK_TIME)) seconds."
+      return 
+    fi
+
+    sleep 1
+  done
 }
 
 function checkCassandraState {
@@ -352,7 +382,7 @@ function test.CassandraScale {
 
   #manually add in a new node using the template
   Info "About to add a new Cassandra node using the hawkular-cassandra-node-emptydir template"
-  oc process hawkular-cassandra-node-emptydir -v "IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},NODE=3" | oc create -f - &> /dev/null
+  oc process hawkular-cassandra-node-emptydir -v "IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},NODE=3" | oc create -f - 
   checkDeployment "Cassandra" 3
   checkCassandraState "hawkular-cassandra-1" 3
   checkMetrics
@@ -407,7 +437,7 @@ function test.HawkularMetricsFailedStart {
   checkTerminated
   
   #Deleting all the deployed artifacts
-  oc delete all --selector=metrics-infra &> /dev/null 
+  oc delete all --selector=metrics-infra --ignore-not-found=true 
  
   #Deploying just Hawkular Metrics without Cassandra, this should be a failure condition
   oc process hawkular-metrics -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}| oc create -f - &> /dev/null
@@ -431,7 +461,7 @@ function test.HawkularMetricsFailedStart {
   done
 
   #Delete all the deployed artifacts
-  oc delete all --selector=metrics-infra &> /dev/null  
+  oc delete all --selector=metrics-infra --ignore-not-found=true  
   checkTerminated
 }
 

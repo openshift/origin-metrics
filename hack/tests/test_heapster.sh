@@ -187,12 +187,13 @@ function test.Redeploy {
   test.DefaultInstall
 
   Info "Checking Redeployment"
+  
+  oc delete pod -l metrics-infra=deployer 
 
   redeployTime=$(date +%s)
   Info "About to redeploy the components"
   oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},REDEPLOY=true | oc create -f - &> /dev/null
   checkDeployer
-  checkTerminating
   checkTerminated
   checkDeployment "Heapster" 1
   checkHeapsterAccess
@@ -205,11 +206,12 @@ function test.RedeployMode {
 
   Info "Checking Redeployment"
 
+  oc delete pod -l metrics-infra=deployer
+
   redeployTime=$(date +%s)
   Info "About to redeploy the components"
   oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},MODE=redeploy | oc create -f - &> /dev/null
   checkDeployer
-  checkTerminating
   checkTerminated
   checkDeployment "Heapster" 1
   checkHeapsterAccess
