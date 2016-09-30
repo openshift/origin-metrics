@@ -1,0 +1,47 @@
+# Scaling the Cassandra Components
+
+Since the Cassandra nodes use persistent storage, we cannot currently scale up or down using replication controllers.
+
+In a subsequent release, nominal services will allow replication controllers to handle this type of scaling and these extra steps will not be needed. But for now a few extra steps are required.
+
+In order to scale up a Cassandra cluster, you will need to use the `hawkular-cassandra-node` template.
+
+By default, the Cassandra cluster is a single node cluster. Add a second node with 10Gi of storage by executing the following command:
+
+[options="nowrap"]
+----
+$ oc process hawkular-cassandra-node-pv -v \
+"IMAGE_PREFIX=openshift/origin-,IMAGE_VERSION=devel,PV_SIZE=10Gi,NODE=2"
+----
+
+To deploy more nodes, increment the `NODE` value.
+
+[NOTE]
+====
+when you add a new node to a Cassandra cluster, the data stored in the cluster will rebalance across the cluster. The same thing will happen when you remove a node from the Cluster. Modifying the number of node in a Cassandra cluster can be an expensive operation.
+====
+
+# Moving the Commit Logs to Another Volume
+
+By default the Cassandra commit logs and data are stored to the same volume. If this volume is backed by a network based filesystem it will need to be fast enough to keep up with the disk writes required by Cassandra.
+
+To alleviate some of the pressure on the main data volume, the commit logs can be written to another volume type instead.
+
+[NOTE]
+====
+As part of the Cassandra pod's normal shutdown process it will process the commit logs so that they are not required the next time the pod is started. If the pod is unable to properly handle its shutdown procedure (eg forcefully stopped, power outage) then it will continue to use the commit logs when the pod is started.
+
+If you decide to use an `emptydir` pod volume for the commit logs, be aware that this volume will not be available when the pod is restarted and if the commit logs were not properly handled at shutdown *metrics data wil be lost*. Using some type of persisted volume will prevent data loss from occuring in this situation.
+====
+
+In order to make this change, you will need to modify the `hawkular-cassandra-node` replication controller, configure the volume to be used and add the `--commitlog_volume` option to point to where this volume is mounted in the pod.
+
+[options="nowrap"]
+----
+          command:
+          - "/opt/apache-cassandra/bin/cassandra-docker.sh"
+          - "--cluster_name=hawkular-metrics"
+          - "--data_volume=/cassandra_data"
+          - "--commitlog_volume=/cassandra_commitlog"
+          - ...
+----

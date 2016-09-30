@@ -28,6 +28,9 @@ do
     --data_volume=*)
       DATA_VOLUME="${args#*=}"
     ;;
+    --commitlog_volume=*)
+      COMMITLOG_VOLUME="${args#*=}"
+    ;;
     --seed_provider_classname=*)
       SEED_PROVIDER_CLASSNAME="${args#*=}"
     ;;
@@ -200,9 +203,18 @@ fi
 if [ -n "$DATA_VOLUME" ]; then
     sed -i 's#${DATA_VOLUME}#'$DATA_VOLUME'#g' /opt/apache-cassandra/conf/cassandra.yaml
 elif [ -n "$CASSANDRA_HOME" ]; then
+    DATA_VOLUME="$CASSANDRA_HOME/data"
     sed -i 's#${DATA_VOLUME}#'$CASSANDRA_HOME'/data#g' /opt/apache-cassandra/conf/cassandra.yaml
 else
+    DATA_VOLUME="/cassandra_data"
     sed -i 's#${DATA_VOLUME}#/cassandra_data#g' /opt/apache-cassandra/conf/cassandra.yaml
+fi
+
+# set the commitlog volume if set, otherwise use the DATA_VOLUME value instead
+if [ -n "$COMMITLOG_VOLUME" ]; then
+  sed -i 's#${COMMITLOG_VOLUME}#'$COMMITLOG_VOLUME'#g' /opt/apache-cassandra/conf/cassandra.yaml
+else
+  sed -i 's#${COMMITLOG_VOLUME}#'$DATA_VOLUME'#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 # set the seed provider class name, otherwise default to the SimpleSeedProvider
