@@ -137,7 +137,7 @@ data_file_directories:
 # commit log.  when running on magnetic HDD, this should be a
 # separate spindle than the data directories.
 # If not set, the default directory is $CASSANDRA_HOME/data/commitlog.
-commitlog_directory: ${DATA_VOLUME}/commitlog
+commitlog_directory: ${COMMITLOG_VOLUME}/commitlog
 
 # policy for data disk failures:
 # die: shut down gossip and client transports and kill the JVM for any fs errors or
