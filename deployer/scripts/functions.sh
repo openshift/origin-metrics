@@ -32,7 +32,6 @@ function handle_previous_deployment() {
     echo "Deleting any previous deployment (leaving route and PVCs)"
     # We don't want to delete ourselves, but we do want to remove old deployers
     # Remove our label so that we are not deleted.
-    echo "POD_NAME ${POD_NAME:-}"
     [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra-
 
     oc delete rc,svc,pod,sa,templates,secrets --selector="metrics-infra" --ignore-not-found=true
@@ -44,7 +43,6 @@ function handle_previous_deployment() {
     echo "Deleting any previous deployment"
     # We don't want to delete ourselves, but we do want to remove old deployers
     # Remove our label so that we are not immediately deleted.
-    echo "POD_NAME ${POD_NAME:-}"
     [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra-
 
     oc delete --grace-period=0 all,sa,templates,secrets --selector="metrics-infra" --ignore-not-found=true
