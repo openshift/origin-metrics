@@ -23,8 +23,8 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 EXPOSE 8082
 
-#Commit for version v1.1.0
-ENV HEAPSTER_COMMIT=v1.1.0
+#Commit for version v1.2.0
+ENV HEAPSTER_COMMIT=v1.2.0
 
 #Remove once golang 1.6 is available in centos
 RUN yum install -y -q wget && \
@@ -34,10 +34,6 @@ RUN yum install -y -q wget && \
     tar xf go1.6.3.linux-amd64.tar.gz
 ENV PATH=/opt/golang/go/bin/:$PATH
 ENV GOROOT=/opt/golang/go
-#
-
-#Removes some verbose logs
-COPY heapster-verbose.patch /tmp/
 #
 
 RUN yum install -y -q go git wget make patch && \
@@ -50,7 +46,6 @@ RUN yum install -y -q go git wget make patch && \
     git clone https://github.com/kubernetes/heapster && \
     cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
-    patch -p1 < /tmp/heapster-verbose.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \
