@@ -26,7 +26,7 @@ Could not start DNS: listen tcp4 0.0.0.0:53: bind: address already in use
 
 ## Console
 
-### Could Not Connect to Metrics Serivice
+### Could Not Connect to Metrics Service
 
 If you open the console and experience the "Could not connect to metric service" error:
 
