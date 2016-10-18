@@ -51,6 +51,7 @@ function checkDeployer {
 
 
     if [ -z "$deployer_pod" ] || [[ $deployer_status == "Failed" ]] || [[ $deployer_status == "Error" ]]; then
+      oc logs $deployer_pod
       Fail "Deployer Pod was not deployed. `echo $deployer_pod | awk '{print $3}'`"
     fi
 
