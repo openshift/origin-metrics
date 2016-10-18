@@ -285,9 +285,29 @@ userkey = ${CASSANDRA_PEM_FILE}
 usercert = ${CASSANDRA_PEM_FILE}
 DONE
 
+# verify that we are not trying to run an older version of Cassandra which has been configured for a newer version.
+if [ -f ${CASSANDRA_DATA_VOLUME}/.cassandra.version ]; then
+    previousVersion=$(cat ${CASSANDRA_DATA_VOLUME}/.cassandra.version)
+    echo "The previous version of Cassandra was $previousVersion. The current version is $CASSANDRA_VERSION"
+    previousMajor=$(cut -d "." -f 1 <<< "$previousVersion")
+    previousMinor=$(cut -d "." -f 2 <<< "$previousVersion")
+
+    currentMajor=$(cut -d "." -f 1 <<< "$CASSANDRA_VERSION")
+    currentMinor=$(cut -d "." -f 2 <<< "$CASSANDRA_VERSION")
+
+    if (( ($currentMajor < $previousMajor) || (($currentMajor == $previousMajor) && ($currentMinor < $previousMinor)) )); then
+       echo "Error: the data volume associated with this pod is configured to be used with Cassandra version $previousVersion"
+       echo "       or higher. This pod is using Cassandra version $CASSANDRA_VERSION which does not meet this requirement."
+       echo "       This pod will not be started."
+       exit 1
+    fi
+fi
+
 if [ -n "$CASSANDRA_HOME" ]; then
-  exec ${CASSANDRA_HOME}/bin/cassandra -f
+  # remove -R once CASSANDRA-12641 is fixed
+  exec ${CASSANDRA_HOME}/bin/cassandra -f -R
 else
-  exec /opt/apache-cassandra/bin/cassandra -f
+  # remove -R once CASSANDRA-12641 is fixed
+  exec /opt/apache-cassandra/bin/cassandra -f -R
 fi
 

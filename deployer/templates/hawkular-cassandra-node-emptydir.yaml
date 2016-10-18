@@ -72,6 +72,8 @@ objects:
           env:
           - name: CASSANDRA_MASTER
             value: "${MASTER}"
+          - name: CASSANDRA_DATA_VOLUME
+            value: "/cassandra_data"
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
@@ -99,6 +101,10 @@ objects:
               exec:
                 command:
                 - "/opt/apache-cassandra/bin/cassandra-prestop.sh"
+            postStart:
+              exec:
+                command:
+                - "/opt/apache-cassandra/bin/cassandra-poststart.sh"
           terminationGracePeriodSeconds: 1800
         volumes:
         - name: cassandra-data
