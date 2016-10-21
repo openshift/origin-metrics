@@ -67,29 +67,43 @@ objects:
             containerPort: 8080
           - name: https-endpoint
             containerPort: 8443
+          - name: ping
+            containerPort: 8888
           command:
           - "/opt/hawkular/scripts/hawkular-metrics-wrapper.sh"
           - "-b"
           - 0.0.0.0
-          - "-Dhawkular-metrics.cassandra-nodes=hawkular-cassandra"
-          - "-Dhawkular-metrics.cassandra-use-ssl"
-          - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
-          - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
-          - "-Dhawkular-metrics.openshift.auth-methods=openshift-oauth,htpasswd"
-          - "-Dhawkular-metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
+          - "-Dhawkular.metrics.cassandra.nodes=hawkular-cassandra"
+          - "-Dhawkular.metrics.cassandra.use-ssl"
+          - "-Dhawkular.metrics.openshift.auth-methods=openshift-oauth,htpasswd"
+          - "-Dhawkular.metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.metrics.allowed-cors-access-control-allow-headers=authorization"
           - "-Dhawkular.metrics.default-ttl=${METRIC_DURATION}"
+          - "-Dhawkular-alerts.cassandra-nodes=hawkular-cassandra"
+          - "-Dhawkular-alerts.cassandra-use-ssl"
+          - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
+          - "-Dhawkular.alerts.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
+          - "-Dhawkular.alerts.allowed-cors-access-control-allow-headers=authorization"
+          - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
+          - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
           - "-DKUBERNETES_MASTER_URL=${MASTER_URL}"
           - "-DUSER_WRITE_ACCESS=${USER_WRITE_ACCESS}"
           - "--hmw.keystore=/secrets/hawkular-metrics.keystore"
           - "--hmw.truststore=/secrets/hawkular-metrics.truststore"
           - "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password"
           - "--hmw.truststore_password_file=/secrets/hawkular-metrics.truststore.password"
+          - "--hmw.jgroups_password_file=/secrets/hawkular-metrics.jgroups.password"
           env:
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          - name: OPENSHIFT_KUBE_PING_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: OPENSHIFT_KUBE_PING_LABELS
+            value: "metrics-infra=hawkular-metrics,name=hawkular-metrics"
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
