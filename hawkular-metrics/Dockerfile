@@ -20,26 +20,14 @@
 # This dockerfile can be used to create a Hawkular-Metrics docker
 # image to be run on Openshift.
 
-FROM jboss/wildfly:10.0.0.Final
-
-#TODO: remove this section once wildfly:10.1.0.CR1 is available in a docker image
-ENV WILDFLY_SHA1 e44dffaff2ed88e834dfcb592b8473083089a56d
-ENV WILDFLY_VERSION 10.1.0.CR1
-RUN rm -rf $JBOSS_HOME \
-    && cd $HOME \
-    && curl -O https://download.jboss.org/wildfly/$WILDFLY_VERSION/wildfly-$WILDFLY_VERSION.tar.gz \
-    && sha1sum wildfly-$WILDFLY_VERSION.tar.gz | grep $WILDFLY_SHA1 \
-    && tar xf wildfly-$WILDFLY_VERSION.tar.gz \
-    && mv $HOME/wildfly-$WILDFLY_VERSION $JBOSS_HOME \
-    && rm wildfly-$WILDFLY_VERSION.tar.gz
-#END TODO
+FROM jboss/wildfly:10.1.0.Final
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.18.3.Final" \
+    HAWKULAR_METRICS_VERSION="0.21.1.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
@@ -50,7 +38,16 @@ EXPOSE 8080 8444
 
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
-    curl -Lo hawkular-metrics-api-jaxrs.war https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-api-jaxrs-openshift\&e=war\&v=${HAWKULAR_METRICS_VERSION}
+    curl -Lo hawkular-metrics.ear https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-openshift-dist\&e=ear\&v=${HAWKULAR_METRICS_VERSION}
+
+# Add in the JGroups Kubernetes clustering module
+RUN mkdir -p $JBOSS_HOME/modules/system/layers/base/org/jgroups/kubernetes/main && \
+    cd $JBOSS_HOME/modules/system/layers/base/org/jgroups/kubernetes/main && \
+    curl -O https://repository.jboss.org/nexus/service/local/repositories/central/content/org/jgroups/kubernetes/kubernetes/0.9.0/kubernetes-0.9.0.jar && \
+    curl -O  https://repository.jboss.org/nexus/service/local/repositories/central/content/org/jgroups/kubernetes/common/0.9.0/common-0.9.0.jar && \
+    curl -O https://repository.jboss.org/nexus/service/local/repositories/central/content/org/jgroups/kubernetes/dns/0.9.0/dns-0.9.0.jar
+COPY modules/org/jgroups/kubernetes/main $JBOSS_HOME/modules/system/layers/base/org/jgroups/kubernetes/main
+COPY modules/org/jgroups/main/module.xml $JBOSS_HOME/modules/system/layers/base/org/jgroups/main/module.xml
 
 # Enable http2/spdy
 # TODO: remove when we are running on JDK9 which will already have this support added
@@ -89,4 +86,4 @@ RUN yum -y install epel-release \
 RUN chmod -R 777 /opt
 USER 1000
 
-CMD $HAWKULAR_METRICS_SCRIPT_DIRECTORY/hawkular-metrics-wrapper.sh -b 0.0.0.0 -bmanagement 0.0.0.0 -Dhawkular-metrics.cassandra-nodes=hawkular-cassandra
+CMD $HAWKULAR_METRICS_SCRIPT_DIRECTORY/hawkular-metrics-wrapper.sh -b 0.0.0.0 -Dhawkular-metrics.cassandra-nodes=hawkular-cassandra

@@ -20,7 +20,9 @@ function deploy_hawkular() {
   
   setup_certificate "hawkular-metrics" "hawkular-metrics,${hawkular_metrics_hostname}" "${HAWKULAR_METRICS_PEM:-}"
   setup_certificate "hawkular-cassandra" "hawkular-cassandra" "${HAWKULAR_CASSANDRA_PEM:-}"
-  
+ 
+  echo "Generating randomized passwords for Hawkular Metrics JGroups"
+  hawkular_metrics_jgroups_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
   
   # Convert the *.pem files into java keystores
   echo "Generating randomized passwords for the Hawkular Metrics and Cassandra keystores and truststores"
@@ -84,7 +86,8 @@ function deploy_hawkular() {
           "hawkular-metrics.truststore": "$(base64 -w 0 $dir/hawkular-metrics.truststore)",
           "hawkular-metrics.truststore.password": "$(base64 <<< `echo $hawkular_metrics_truststore_password`)",
           "hawkular-metrics.keystore.alias": "$(base64 <<< `echo $hawkular_metrics_alias`)",
-          "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)"
+          "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)",
+          "hawkular-metrics.jgroups.password": "$(base64 <<< `echo $hawkular_metrics_jgroups_password`)"
         }
       }
 EOF

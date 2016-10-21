@@ -41,6 +41,12 @@ do
       --hmw.truststore_password_file=*)
         TRUSTSTORE_PASSWORD_FILE="${args#*=}"
         ;;
+      --hmw.jgroups_password=*)
+        JGROUPS_PASSWORD="${args#*=}"
+        ;;
+      --hmw.jgroups_password_file=*)
+        JGROUPS_PASSWORD_FILE="${args#*=}"
+        ;;
     esac
   else
     as_args="$as_args $args"
@@ -54,6 +60,11 @@ fi
 if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
    TRUSTSTORE_PASSWORD=$(cat $TRUSTSTORE_PASSWORD_FILE)
 fi
+
+if [ -n "$JGROUPS_PASSWORD_FILE" ]; then
+   JGROUPS_PASSWORD=$(cat $JGROUPS_PASSWORD_FILE)
+fi
+sed -i "s|#JGROUPS_PASSWORD#|${JGROUPS_PASSWORD}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
 
 # Setup the truststore so that it will accept the OpenShift cert
 HAWKULAR_METRICS_AUTH_DIR=$HAWKULAR_METRICS_DIRECTORY/auth
@@ -76,4 +87,5 @@ exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -Djavax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD \
   -Djavax.net.ssl.trustStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore \
   -Djavax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD \
+  -Djboss.node.name=$HOSTNAME \
   $as_args
