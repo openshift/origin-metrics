@@ -42,7 +42,7 @@ link:https://github.com/kubernetes/heapster[Heapster] is the component which gat
                                        cassandra
 ```
 
-Heapster retrieves metrics (i.e. cpu, memory, ...) for every container running in the cluster, across all namespaces. 
+Heapster retrieves metrics (i.e. cpu, memory, ...) for every container running in the cluster, across all namespaces.
 
 It also retrieves metrics for the node itself, the kubelet, and the docker daemon.
 
@@ -52,7 +52,7 @@ Heapster does not store metrics itself.
 
 link:https://github.com/hawkular/hawkular-metrics/[Hawkular Metrics] is the metric storage engine from the link:http://www.hawkular.org/[Hawkular] project. It provides means of creating, accessing and managing historically stored metrics via an easy to use json based REST interface.
 
-Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface. 
+Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface.
 
 Hawkular Metrics then stores the metrics into a link:http://cassandra.apache.org/[Cassandra] database.
 
@@ -129,7 +129,7 @@ own certificate as a secret for the deployer which will allow you to use your ow
 To provide your own certificates, you can pass these
 values as secrets to the *metrics deployer*.
 
-For instance, to optionally provide your own certificates for Hawkular Metrics, you can point your secret to the certificate's *_.pem_* and certificate authority file:
+For instance, to optionally provide your own certificates for Hawkular Metrics, you can point your secret to the certificate's *_.pem_* (which has to include the private key) and certificate authority file:
 
 ----
 $ oc secrets new metrics-deployer hawkular-metrics.pem=/home/openshift/metrics/hm.pem \
@@ -161,7 +161,7 @@ You should only run the following command if you are sure that you only want the
 
 ----
 $ oc process -f metrics-heapster.yaml | oc create -n openshift-infra -f -
-----	
+----
 
 === Deploying all of the Metrics Components
 
@@ -201,15 +201,15 @@ If you are using non-persistent data, the following command will deploy the metr
 $ oc process -f metrics.yaml -v \
      HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false \
      | oc create -n openshift-infra -f -
-----	
-	
+----
+
 If you are using persistent data, the following command will deploy the metric components but requires a storage volume of sufficient size to be available:
 
 ----
 $ oc process -f metrics.yaml -v \
      HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=true \
      | oc create -n openshift-infra -f -
-----     
+----
 
 [NOTE]
 ====
@@ -333,7 +333,7 @@ If you wish to undeploy and remove everything deployed by the deployer, the foll
 $ oc delete all,secrets,sa,templates --selector=metrics-infra -n openshift-infra
 ----
 
-[NOTE]	
+[NOTE]
 ====
 The persistent volume claim will not be deleted by the above command. If you wish to permanently delete the data in persistent storage you can run `oc delete pvc --selector=metrics-infra`
 ====
@@ -341,7 +341,7 @@ The persistent volume claim will not be deleted by the above command. If you wis
 If you wish to remove the deployer's components themselves
 
 ----
-$ oc delete sa,secret metrics-deployer -n openshift-infra 
+$ oc delete sa,secret metrics-deployer -n openshift-infra
 ----
 
 == Known Issues
