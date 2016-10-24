@@ -1,0 +1,16 @@
+# Hawkular Metrics Advanced Topics
+
+## Increasing the Logging
+
+It is possible to set the logging level for various components by setting an `ADDITIONAL_LOGGING` environment variable for the Hawkular Metrics pod.
+
+`ADDITIONAL_LOGGING` takes a comma separated list of the name of the component and the debugging level to be applied.
+
+For instance, to set the logging level of Hawkular Metrics and its alerting component to `DEBUG` you would make the following changes to the `hawkular-metrics` replication controller:
+
+[options="nowrap"]
+----
+        env:
+        - name: ADDITIONAL_LOGGING
+          value: org.hawkular.metrics=DEBUG,org.hawkular.alerts=DEBUG
+----

@@ -66,6 +66,25 @@ if [ -n "$JGROUPS_PASSWORD_FILE" ]; then
 fi
 sed -i "s|#JGROUPS_PASSWORD#|${JGROUPS_PASSWORD}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
 
+# Setup additional logging if the ADDITIONAL_LOGGING variable is set
+if [ -z "$ADDITIONAL_LOGGING"]; then
+  additional_loggers="            <!-- no additional logging configured -->"
+else
+  entries=$(echo $ADDITIONAL_LOGGING | tr "," "\n")
+  for entry in $entries; do
+    component=${entry%=*}
+    debug_level=${entry##*=}
+
+    debug_config="\
+            <logger category=\"${component}\"> \n\
+              <level name=\"${debug_level}\"/> \n\
+            </logger> \n"
+
+    additional_loggers+=${debug_config}
+  done 
+fi
+sed -i "s|<!-- ##ADDITIONAL LOGGERS## -->|$additional_loggers|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
+
 # Setup the truststore so that it will accept the OpenShift cert
 HAWKULAR_METRICS_AUTH_DIR=$HAWKULAR_METRICS_DIRECTORY/auth
 mkdir $HAWKULAR_METRICS_AUTH_DIR
