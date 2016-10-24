@@ -91,19 +91,10 @@
     <profile>
         <subsystem xmlns="urn:jboss:domain:logging:3.0">
             <console-handler name="CONSOLE">
-                <level name="INFO"/>
                 <formatter>
                     <named-formatter name="COLOR-PATTERN"/>
                 </formatter>
             </console-handler>
-            <periodic-rotating-file-handler name="FILE" autoflush="true">
-                <formatter>
-                    <named-formatter name="PATTERN"/>
-                </formatter>
-                <file relative-to="jboss.server.log.dir" path="server.log"/>
-                <suffix value=".yyyy-MM-dd"/>
-                <append value="true"/>
-            </periodic-rotating-file-handler>
             <logger category="com.arjuna">
                 <level name="WARN"/>
             </logger>
@@ -113,11 +104,11 @@
             <logger category="sun.rmi">
                 <level name="WARN"/>
             </logger>
+            <!-- ##ADDITIONAL LOGGERS## -->
             <root-logger>
                 <level name="INFO"/>
                 <handlers>
                     <handler name="CONSOLE"/>
-                    <handler name="FILE"/>
                 </handlers>
             </root-logger>
             <formatter name="PATTERN">
