@@ -88,4 +88,6 @@ exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -Djavax.net.ssl.trustStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore \
   -Djavax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD \
   -Djboss.node.name=$HOSTNAME \
+  -b `hostname -i` \
+  -bprivate `hostname -i` \
   $as_args

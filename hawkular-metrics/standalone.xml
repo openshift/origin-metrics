@@ -313,7 +313,7 @@
                     <protocol type="ASYM_ENCRYPT">
                       <property name="encrypt_entire_message">true</property>
                       <property name="sym_keylength">128</property>
-                      <property name="sym_algorithm">AES/ECB/PKCS5Padding</property>
+                      <property name="sym_algorithm">AES/CBC/PKCS5Padding</property>
                       <property name="asym_keylength">512</property>
                       <property name="asym_algorithm">RSA</property>
                     </protocol>
@@ -340,7 +340,7 @@
                     <protocol type="ASYM_ENCRYPT">
                       <property name="encrypt_entire_message">true</property>
                       <property name="sym_keylength">128</property>
-                      <property name="sym_algorithm">AES/ECB/PKCS5Padding</property>
+                      <property name="sym_algorithm">AES/CBC/PKCS5Padding</property>
                       <property name="asym_keylength">512</property>
                       <property name="asym_algorithm">RSA</property>
                     </protocol>
