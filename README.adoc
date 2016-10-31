@@ -105,6 +105,19 @@ $ oadm policy add-role-to-user edit \
         -n openshift-infra
 ----
 
+=== Hawkular Service Account
+
+The hawkular service account requires `view` permissions in order to gather information about pods that will make up a Hawkular Metrics cluster.
+
+Run the following command to add the `view` permission to the `hawkular` service account:
+
+----
+$ oadm policy add-role-to-user view \
+        system:serviceaccount:openshift-infra:hawkular \
+        -n openshift-infra
+----
+
+
 === Heapster Service Account
 
 The heapster component requires accessing the kubernetes node to find all the available nodes as well as accessing the `/stats` endpoint on each of those nodes. This means that the `heapster` service account which requires having the `cluster-reader` permission.
