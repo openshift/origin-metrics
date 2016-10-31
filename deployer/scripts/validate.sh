@@ -271,10 +271,10 @@ function test_deployed_pods() {
   while IFS=$'\n' read -r line; do
     line=( ${line:-} ) # name, label, phase for each pod
     [ "${#line[@]}" -eq 0 ] && continue
-    local name="${line[0]}"
-    local label="${line[1]}"
-    local phase="${line[2]}"
-    local ready="${line[3]}"
+    local name="${line[0]-}"
+    local label="${line[1]-}"
+    local phase="${line[2]-}"
+    local ready="${line[3]-}"
     test "${expected_rcs[$label]+set}" || continue # not from a known rc
     case "$phase" in
       Running)

@@ -85,12 +85,11 @@ export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-metrics/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-metrics/artifacts}
 os::util::environment::setup_all_server_vars "origin-metrics/"
 os::util::environment::use_sudo
-reset_tmp_dir
 
 os::log::system::start
 
-configure_os_server
-start_os_server
+os::start::configure_server
+os::start::server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
