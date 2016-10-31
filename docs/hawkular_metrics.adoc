@@ -4,14 +4,26 @@ If you wish to access and manage metrics directly, you can do so via the Hawkula
 
 The link:http://www.hawkular.org/docs/rest/rest-metrics.html[Hawkular Metrics documentation] covers how to use the API, but there are a few differences when dealing with the version of Hawkular Metrics configured for use on OpenShift.
 
+Alerting is now part of the Hawkular Metrics distribution, but it is currently lacking any integration with other OpenShift services and has not UI elements exposed in the console. If you wish to directly access the alerting API endpoints it is possible by following the link:http://www.hawkular.org/docs/rest/rest-alerts.html[Hawkular Metrics Alerting documentation].
+
 [NOTE]
 ====
-By default write access is disabled and you will only be able to read metrics from the Hawkular Metrics REST API. If you wish for individual users to also be able to write metrics, you will need to set
-the '*USER_WRITE_ACCESS*' deployer template parameter to 'true'.
+By default only read access is enabled for accessing the Hawkular Metrics REST API.
 
-It is recommended to disable user write access and only have metrics enter the system via Heapster. If write access is enabled, any user will be able to write metrics to the system which can
-affect performance and use Cassandra disk usage to unpredictably increase.
+To enable write access, you will need to add a link:../metrics-cluster-role.yaml[Hawkular admin cluster policy] and grant your user the `hawkular-metrics-admin` role. This will grant the user full access to write or modify any metrics or alerts for your project.
+
+To add the Hawkular cluster policy:
+----
+$ oc create -f metrics-cluster-role.yaml
+----
+
+To grant the `hawkular-admin` role to a user:
+----
+$ oadm policy add-role-to-user hawkular-metrics-admin ${USER}
+----
+
 ====
+
 
 ## Hawkular Tenants & OpenShift Projects
 
