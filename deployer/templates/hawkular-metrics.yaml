@@ -25,38 +25,35 @@ parameters:
 - description: If users accounts should be able to write metrics
   name: USER_WRITE_ACCESS
   value: "false"
+- description: If this should be considered a 'master' Hawkular Metrics instance
+  name: HAWKULAR_METRICS_MASTER
+  value: "false"
+- description: The name of the replication controller
+  name: HAWKULAR_METRICS_REPLICATION_CONTROLLER_NAME
+  value: hawkular-metrics
+- description: The number of initial replicas
+  name: REPLICAS
+  value: "1"
 objects:
-- apiVersion: v1
-  kind: Service
-  metadata:
-    name: hawkular-metrics
-    labels:
-      metrics-infra: hawkular-metrics
-      name: hawkular-metrics
-  spec:
-    selector:
-      name: hawkular-metrics
-    ports:
-    - name: https-endpoint
-      port: 443
-      targetPort: https-endpoint
 - apiVersion: v1
   kind: ReplicationController
   metadata:
-    name: hawkular-metrics
+    name: ${HAWKULAR_METRICS_REPLICATION_CONTROLLER_NAME}
     labels:
       metrics-infra: hawkular-metrics
       name: hawkular-metrics
   spec:
     selector:
       name: hawkular-metrics
-    replicas: 1
+      hawkular-metrics-master: ${HAWKULAR_METRICS_MASTER}
+    replicas: ${REPLICAS}
     template:
       version: v1
       metadata:
         labels:
           metrics-infra: hawkular-metrics
           name: hawkular-metrics
+          hawkular-metrics-master: ${HAWKULAR_METRICS_MASTER}
       spec:
         serviceAccount: hawkular
         containers:
@@ -104,6 +101,10 @@ objects:
                 fieldPath: metadata.namespace
           - name: OPENSHIFT_KUBE_PING_LABELS
             value: "metrics-infra=hawkular-metrics,name=hawkular-metrics"
+          - name: MASTER_URL
+            value: ${MASTER_URL}
+          - name: HAWKULAR_METRICS_MASTER
+            value: ${HAWKULAR_METRICS_MASTER}
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"

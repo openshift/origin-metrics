@@ -53,6 +53,48 @@ do
   fi
 done
 
+# Check Read Permission
+token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+url="${MASTER_URL}/api/${KUBERNETES_API_VERSION:-v1}/namespaces/${POD_NAMESPACE}/replicationcontrollers/hawkular-master"
+cacrt="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+status_code=$(curl --cacert ${cacrt} --max-time 10 --connect-timeout 10 -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" $url)
+if [ "$status_code" != 200 ]; then
+  echo "Error: the service account for Hawkular Metrics does not have permission to view resources in this namespace. View permissions are required for Hawkular Metrics to function properly."
+  echo "       usually this can be resolved by running: oc policy add-role-to-user view system:serviceaccount:openshift-infra:hawkular"
+  exit 1
+else
+  echo "The service account has read permissions for its project. Proceeding"
+fi
+
+if [ "$HAWKULAR_METRICS_MASTER" == "true" ]; then
+   echo "Launching in Hawkular Master mode"
+   replicas=$(curl -s --cacert ${cacrt} -H "Authorization: Bearer ${token}" $url | python -c "import sys, json; print(json.load(sys.stdin)['spec']['replicas'])")
+
+   if [[ $replicas != "1" ]]; then
+     echo "Error: the Hawkular Metrics Master can only run with a replica of 1, found replica set to '$replicas'. This pod will not run untill this is corrected."
+     exit 1
+   fi
+else
+   echo "Launching in normal mode"
+   start_time=$(date +%s)
+   while : ;do
+    if [[ $(($(date +%s) - ${start_time})) -ge 300 ]]; then
+      echo "The master Hawkular Metrics instance was not detected as being started after 300 seconds. Aborting"
+      exit 1
+    fi
+      
+    readyReplicas=$(curl -s --cacert ${cacrt} -H "Authorization: Bearer ${token}" $url | python -c "import sys, json; print(json.load(sys.stdin)['status'].get('readyReplicas'))")
+    if [[ $readyReplicas == "1" ]]; then
+      echo "The master Hawkular Metrics instance has been detected as started. Continuing to launch a new Hawkular Metrics node."
+      break
+    fi
+
+    echo "The master Hawkular Metrics instance has not yet fully started. Will continue to check until it's in the ready state"
+    sleep 3
+   done
+fi
+
 if [ -n "$KEYSTORE_PASSWORD_FILE" ]; then
    KEYSTORE_PASSWORD=$(cat $KEYSTORE_PASSWORD_FILE)
 fi

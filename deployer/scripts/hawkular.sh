@@ -185,6 +185,7 @@ EOF
   
   echo "Creating Hawkular Metrics & Cassandra Templates"
   oc create -f templates/hawkular-metrics.yaml
+  oc create -f templates/hawkular-metrics-service.yaml
   oc create -f templates/hawkular-cassandra.yaml
   oc create -f templates/hawkular-cassandra-node-pv.yaml
   oc create -f templates/hawkular-cassandra-node-dynamic-pv.yaml
@@ -192,7 +193,9 @@ EOF
   oc create -f templates/support.yaml
 
   echo "Deploying Hawkular Metrics & Cassandra Components"
-  oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url,USER_WRITE_ACCESS=$user_write_access" | oc create -f -
+  oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url,USER_WRITE_ACCESS=$user_write_access,HAWKULAR_METRICS_MASTER=true,HAWKULAR_METRICS_REPLICATION_CONTROLLER_NAME=hawkular-master" | oc create -f -
+  oc process hawkular-metrics -v "IMAGE_PREFIX=$image_prefix,IMAGE_VERSION=$image_version,METRIC_DURATION=$metric_duration,MASTER_URL=$master_url,USER_WRITE_ACCESS=$user_write_access,REPLICAS=0" | oc create -f -
+  oc process hawkular-metrics-service | oc create -f -
   oc process hawkular-cassandra-services | oc create -f -
   oc process hawkular-support | oc create -f -
 

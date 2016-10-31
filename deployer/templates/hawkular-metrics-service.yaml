@@ -1,0 +1,24 @@
+id: hawkular-metrics-service
+kind: Template
+apiVersion: v1
+name: Hawkular Metrics Template
+description: A template to created a Hawkular Metrics instance.
+metadata:
+  name: hawkular-metrics-service
+  labels:
+    metrics-infra: hawkular-metrics-service
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hawkular-metrics
+    labels:
+      metrics-infra: hawkular-metrics
+      name: hawkular-metrics
+  spec:
+    selector:
+      name: hawkular-metrics
+    ports:
+    - name: https-endpoint
+      port: 443
+      targetPort: https-endpoint
