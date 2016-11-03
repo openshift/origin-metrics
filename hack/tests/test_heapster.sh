@@ -76,7 +76,7 @@ function test.DefaultInstall {
   undeployAll
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
 
-  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version} | oc create -f - &> /dev/null
+  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated 
   checkDeployment "Heapster" 1
@@ -192,7 +192,7 @@ function test.Redeploy {
 
   redeployTime=$(date +%s)
   Info "About to redeploy the components"
-  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},REDEPLOY=true | oc create -f - &> /dev/null
+  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v REDEPLOY=true | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
   checkDeployment "Heapster" 1
@@ -210,7 +210,7 @@ function test.RedeployMode {
 
   redeployTime=$(date +%s)
   Info "About to redeploy the components"
-  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},MODE=redeploy | oc create -f - &> /dev/null
+  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v MODE=redeploy | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
   checkDeployment "Heapster" 1
@@ -220,7 +220,7 @@ function test.RedeployMode {
 function test.BasicDeploy {
   undeployAll
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version} | oc create -f - &> /dev/null
+  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -232,7 +232,7 @@ function test.BasicDeploy {
 function test.DeployMode {
   undeployAll
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},MODE=deploy | oc create -f - &> /dev/null
+  oc process -f $heapster_template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v MODE=deploy | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated

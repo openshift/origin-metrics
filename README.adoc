@@ -211,16 +211,18 @@ The following options assume that the kubernetes master will be available under 
 If you are using non-persistent data, the following command will deploy the metric components without requiring a persistent volume to be created before hand:
 
 ----
-$ oc process -f metrics.yaml -v \
-     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false \
+$ oc process -f metrics.yaml \
+       -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com \
+       -v USE_PERSISTENT_STORAGE=false \
      | oc create -n openshift-infra -f -
 ----
 
 If you are using persistent data, the following command will deploy the metric components but requires a storage volume of sufficient size to be available:
 
 ----
-$ oc process -f metrics.yaml -v \
-     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=true \
+$ oc process -f metrics.yaml \
+     -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com \
+     -v USE_PERSISTENT_STORAGE=true \
      | oc create -n openshift-infra -f -
 ----
 
@@ -231,8 +233,10 @@ Any non persisted data will be lost as well. This is equivalent to deleting all 
 
 For example:
 ----
-$ oc process -f metrics.yaml -v \
-     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=redeploy \
+$ oc process -f metrics.yaml \
+     -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com
+     -v USE_PERSISTENT_STORAGE=false
+     -v MODE=redeploy \
      | oc create -n openshift-infra -f -
 ----
 
@@ -241,8 +245,10 @@ to redeploy your components with updated deployer secrets or if you wish to depl
 
 For example:
 ----
-$ oc process -f metrics.yaml -v \
-     HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=refresh \
+$ oc process -f metrics.yaml \
+     -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com \
+     -v USE_PERSISTENT_STORAGE=false \
+     -v MODE=refresh \
      | oc create -n openshift-infra -f -
 ----
 

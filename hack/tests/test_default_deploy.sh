@@ -172,7 +172,7 @@ function test.DefaultInstall {
   undeployAll
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
 
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated 
   checkDeployment "Cassandra" 1
@@ -248,7 +248,7 @@ function test.Redeploy {
 
   redeployTime=$(date +%s)
   Info "About to redeploy the components with REDEPLOY=true"
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,REDEPLOY=true | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false -v REDEPLOY=true | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
   checkDeployment "Cassandra" 1
@@ -265,7 +265,7 @@ function test.Redeploy {
   oc delete pod -l metrics-infra=deployer
 
   Info "About to redeploy the components with MODE=redeploy"
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=redeploy | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false -v MODE=redeploy | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
 
@@ -298,7 +298,7 @@ function test.Refresh {
   oc delete pod -l metrics-infra=deployer 
 
   Info "About to redeploy the components"
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=refresh | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false -v MODE=refresh | oc create -f - &> /dev/null
   checkDeployer
   checkTerminated
 
@@ -325,7 +325,7 @@ function test.Remove {
   oc delete pod -l metrics-infra=deployer
 
   Info "Checking remove mode"
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,MODE=remove | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false -v MODE=remove | oc create -f - &> /dev/null
 
   CHECK_TIME=$(date +%s)
   while : ; do
@@ -372,7 +372,7 @@ function test.CassandraScale {
   Info "Checking if we can start multiple Cassandra Nodes at start and then scale up or down."
   Debug "Creating a new empty secret to be used"
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false,CASSANDRA_NODES=2 | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false -v CASSANDRA_NODES=2 | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -385,7 +385,7 @@ function test.CassandraScale {
 
   #manually add in a new node using the template
   Info "About to add a new Cassandra node using the hawkular-cassandra-node-emptydir template"
-  oc process hawkular-cassandra-node-emptydir -v "IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},NODE=3" | oc create -f - 
+  oc process hawkular-cassandra-node-emptydir -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v NODE=3 | oc create -f - 
   checkDeployment "Cassandra" 3
   checkCassandraState "hawkular-cassandra-1" 3
   checkMetrics
@@ -404,7 +404,7 @@ function test.HawkularMetricsScale {
   Info "Checking if we can start multiple Hawkular Metrics Nodes"
   Debug "Creating a new empty secret to be used"
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -434,7 +434,7 @@ function test.HawkularMetricsFailedStart {
   Info "Checking that Hawkular Metrics can be stopped if started in an invalid state"
   Debug "Creating a new empty secret to be used"
   oc secrets new metrics-deployer nothing=/dev/null &> /dev/null
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
   
   checkDeployer
   checkTerminated
@@ -443,7 +443,7 @@ function test.HawkularMetricsFailedStart {
   oc delete all --selector=metrics-infra --ignore-not-found=true 
  
   #Deploying just Hawkular Metrics without Cassandra, this should be a failure condition
-  oc process hawkular-metrics -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}| oc create -f - &> /dev/null
+  oc process hawkular-metrics -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} | oc create -f - &> /dev/null
 
   START=$(date +%s)
   while : ; do
@@ -469,7 +469,7 @@ function test.HawkularMetricsFailedStart {
 }
 
 function testBasicDeploy {
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v USE_PERSISTENT_STORAGE=false | oc create -f - &> /dev/null
 
   checkDeployer
   checkTerminated
@@ -524,7 +524,7 @@ function test.HawkularMetricsInvalidCertificateSkipPreflight {
   Info "Checking that everything can be properly start with a custom Hawkular Metrics certificate that contains a wildcard"
   oc secrets new metrics-deployer hawkular-metrics.pem=$SOURCE_ROOT/hack/keys/hawkularWildCard/hawkularWildCard.pem hawkular-metrics-ca.cert=$SOURCE_ROOT/hack/keys/signer.ca &> /dev/null
 
-  oc process -f $template -v IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version},HAWKULAR_METRICS_HOSTNAME=mymetrics.hawkular.org,USE_PERSISTENT_STORAGE=false,IGNORE_PREFLIGHT=true | oc create -f - &> /dev/null
+  oc process -f $template -v IMAGE_PREFIX=${image_prefix} -v IMAGE_VERSION=${image_version} -v HAWKULAR_METRICS_HOSTNAME=mymetrics.hawkular.org -v USE_PERSISTENT_STORAGE=false -v IGNORE_PREFLIGHT=true | oc create -f - &> /dev/null
 
   # The deployer will throw an error with post-deployment checks (since the certificate is invalid for the hostname)
   #  checkDeployer
