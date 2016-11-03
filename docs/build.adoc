@@ -54,7 +54,7 @@ For instance, if the *_prefix_* corresponded to *_myName/origin-_* and the *_ver
 
 [options="nowrap"]
 ----
-oc process -f metrics.yaml -v \
-HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com,IMAGE_PREFIX=myName/origin-,IMAGE_VERSION=latest,USE_PERSISTENT_STORAGE=false \
+oc process -f metrics.yaml \
+ -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com -v IMAGE_PREFIX=myName/origin- -v IMAGE_VERSION=latest -v USE_PERSISTENT_STORAGE=false \
 | oc create -f -
 ----

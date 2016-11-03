@@ -42,6 +42,7 @@ objects:
     selector:
       type: hawkular-cassandra
     portalIP: None
+    clusterIP: None
     ports:
     - name: cql-port
       port: 9042
