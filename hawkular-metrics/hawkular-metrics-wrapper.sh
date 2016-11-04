@@ -41,11 +41,20 @@ do
       --hmw.truststore_password_file=*)
         TRUSTSTORE_PASSWORD_FILE="${args#*=}"
         ;;
-      --hmw.jgroups_password=*)
-        JGROUPS_PASSWORD="${args#*=}"
+      --hmw.jgroups_keystore=*)
+        JGROUPS_KEYSTORE="${args#*=}"
         ;;
-      --hmw.jgroups_password_file=*)
-        JGROUPS_PASSWORD_FILE="${args#*=}"
+      --hmw.jgroups_keystore_password_file=*)
+        JGROUPS_KEYSTORE_PASSWORD_FILE="${args#*=}"
+        ;;
+     --hmw.jgroups_keystore_password=*)
+        JGROUPS_KEYSTORE_PASSWORD="${args#*=}"
+        ;;
+      --hmw.jgroups_alias_file=*)
+        JGROUPS_ALIAS_FILE="${args#*=}"
+        ;;
+      --hmw.jgroups.alias=*)
+        JGROUPS_ALIAS="${args#*=}"
         ;;
     esac
   else
@@ -75,10 +84,20 @@ if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
    TRUSTSTORE_PASSWORD=$(cat $TRUSTSTORE_PASSWORD_FILE)
 fi
 
-if [ -n "$JGROUPS_PASSWORD_FILE" ]; then
-   JGROUPS_PASSWORD=$(cat $JGROUPS_PASSWORD_FILE)
+if [ -n "$JGROUPS_KEYSTORE_PASSWORD_FILE" ]; then
+   JGROUPS_KEYSTORE_PASSWORD=$(cat $JGROUPS_KEYSTORE_PASSWORD_FILE)
 fi
-sed -i "s|#JGROUPS_PASSWORD#|${JGROUPS_PASSWORD}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
+if [ -n "$JGROUPS_ALIAS_FILE" ]; then
+   JGROUPS_ALIAS=$(cat $JGROUPS_ALIAS_FILE)
+fi
+sed -i "s|#JGROUPS_KEYSTORE_PASSWORD#|${JGROUPS_KEYSTORE_PASSWORD}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
+sed -i "s|#JGROUPS_ALIAS#|${JGROUPS_ALIAS}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
+
+cp $JGROUPS_KEYSTORE ${JBOSS_HOME}/modules/system/layers/base/org/jgroups/main/hawkular-jgroups.keystore
+JGROUPS_RESOURCES="\
+    <resource-root path=\".\"/>\n\
+    </resources>\n"
+sed -i "s|</resources>|${JGROUPS_RESOURCES}|g" ${JBOSS_HOME}/modules/system/layers/base/org/jgroups/main/module.xml
 
 # Setup additional logging if the ADDITIONAL_LOGGING variable is set
 if [ -z "$ADDITIONAL_LOGGING"]; then

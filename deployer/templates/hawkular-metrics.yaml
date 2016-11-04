@@ -92,7 +92,9 @@ objects:
           - "--hmw.truststore=/secrets/hawkular-metrics.truststore"
           - "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password"
           - "--hmw.truststore_password_file=/secrets/hawkular-metrics.truststore.password"
-          - "--hmw.jgroups_password_file=/secrets/hawkular-metrics.jgroups.password"
+          - "--hmw.jgroups_keystore=/secrets/hawkular-metrics.jgroups.keystore"
+          - "--hmw.jgroups_keystore_password_file=/secrets/hawkular-metrics.jgroups.keystore.password"
+          - "--hmw.jgroups_alias_file=/secrets/hawkular-metrics.jgroups.alias"
           env:
           - name: POD_NAMESPACE
             valueFrom:
