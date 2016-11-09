@@ -5,17 +5,17 @@ TEST_DIR=$(dirname "${BASH_SOURCE}")
 function tests.setup {
   #initial setup required for all test scenarios
   oc create -f $SOURCE_ROOT/metrics-deployer-setup.yaml &> /dev/null || true
-  oadm policy add-role-to-user edit system:serviceaccount:${TEST_PROJECT}:metrics-deployer
-  oadm policy add-role-to-user view system:serviceaccount:${TEST_PROJECT}:hawkular
-  oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:${TEST_PROJECT}:heapster
+  oc adm policy add-role-to-user edit system:serviceaccount:${TEST_PROJECT}:metrics-deployer
+  oc adm policy add-role-to-user view system:serviceaccount:${TEST_PROJECT}:hawkular
+  oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:${TEST_PROJECT}:heapster
 }
 
 function tests.teardown {
   oc delete -f $SOURCE_ROOT/metrics-deployer-setup.yaml &> /dev/null || true
   #clean up required after the tests have run.
-  oadm policy remove-role-from-user edit system:serviceaccount:${TEST_PROJECT}:metrics-deployer
-  oadm policy remove-role-from-user view system:serviceaccount:${TEST_PROJECT}:hawkular
-  oadm policy remove-cluster-role-from-user cluster-reader system:serviceaccount:${TEST_PROJECT}:heapster
+  oc adm policy remove-role-from-user edit system:serviceaccount:${TEST_PROJECT}:metrics-deployer
+  oc adm policy remove-role-from-user view system:serviceaccount:${TEST_PROJECT}:hawkular
+  oc adm policy remove-cluster-role-from-user cluster-reader system:serviceaccount:${TEST_PROJECT}:heapster
 }
 
 function checkDeployer {
