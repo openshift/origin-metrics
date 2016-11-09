@@ -70,7 +70,7 @@ cacrt="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 status_code=$(curl --cacert ${cacrt} --max-time 10 --connect-timeout 10 -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" $url)
 if [ "$status_code" != 200 ]; then
   echo "Error: the service account for Hawkular Metrics does not have permission to view resources in this namespace. View permissions are required for Hawkular Metrics to function properly."
-  echo "       usually this can be resolved by running: oadm policy add-role-to-user view system:serviceaccount:${POD_NAMESPACE}:hawkular"
+  echo "Usually this can be resolved by running: oc adm policy add-role-to-user view system:serviceaccount:${POD_NAMESPACE}:hawkular -n ${POD_NAMESPACE}"
   exit 1
 else
   echo "The service account has read permissions for its project. Proceeding"
