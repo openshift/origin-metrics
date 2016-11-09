@@ -95,7 +95,6 @@ export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
 install_router
 install_registry
-wait_for_registry
 
 ######### metric specific code starts here ####################
 
