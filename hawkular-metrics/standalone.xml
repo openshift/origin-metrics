@@ -270,6 +270,12 @@
                 <transaction mode="NON_XA" locking="PESSIMISTIC"/>
               </replicated-cache>
             </cache-container>
+            <cache-container name="hawkular-metrics" default-cache="triggers" statistics-enabled="true">
+              <transport lock-timeout="60000"/>
+              <replicated-cache name="locks" mode="SYNC">
+                <transaction mode="NON_XA" locking="PESSIMISTIC"/>
+              </replicated-cache>
+            </cache-container>
         </subsystem>
         <subsystem xmlns="urn:jboss:domain:jaxrs:1.0"/>
         <subsystem xmlns="urn:jboss:domain:jca:4.0">
