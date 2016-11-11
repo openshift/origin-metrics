@@ -70,6 +70,8 @@ objects:
           value: ${IGNORE_PREFLIGHT}
         - name: METRIC_RESOLUTION
           value: ${METRIC_RESOLUTION}
+        - name: STARTUP_TIMEOUT
+          value: ${STARTUP_TIMEOUT}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -108,3 +110,8 @@ parameters:
   description: "Can be set to: 'preflight' to perform validation before a deployment; 'deploy' to perform an initial deployment; 'refresh' to delete and redeploy all components but to keep persisted data and routes; 'redeploy' to delete and redeploy everything (losing all data in the process); 'validate' to re-run validations after a deployment"
   name: MODE
   value: "deploy"
+-
+  description: "How long in seconds we should wait until Heapster starts up before attempting a restart"
+  name: STARTUP_TIMEOUT
+  value: "500"
+

@@ -25,6 +25,9 @@ parameters:
 - description: "How often metrics should be gathered. Defaults value of '15s' for 15 seconds"
   name: METRIC_RESOLUTION
   value: "15s"
+- description: How long in seconds we should wait until Heapster starts up before attempting a restart
+  name: STARTUP_TIMEOUT
+  value: "300"
 objects:
 - apiVersion: v1
   kind: ServiceAccount
@@ -86,6 +89,9 @@ objects:
           - "--tls_client_ca=/secrets/heapster.client-ca"
           - "--allowed_users=%allowed_users%"
           - "--metric_resolution=${METRIC_RESOLUTION}"
+          env:
+          - name: STARTUP_TIMEOUT
+            value: ${STARTUP_TIMEOUT}
           volumeMounts:
           - name: heapster-secrets
             mountPath: "/secrets"

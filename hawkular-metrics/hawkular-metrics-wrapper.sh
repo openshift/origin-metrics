@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+echo $(date "+%Y-%m-%d %H:%M:%S") Starting Hawkular Metrics
+
 # Set up the parameters to pass to EAP while removing the ones specific to the wrapper
 as_args=
 
