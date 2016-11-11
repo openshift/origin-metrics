@@ -24,7 +24,7 @@ parameters:
   value: "15s"
 - description: How long in seconds we should wait until Heapster starts up before attempting a restart
   name: STARTUP_TIMEOUT
-  value: "300"
+  value: "500"
 objects:
 - apiVersion: v1
   kind: ServiceAccount
