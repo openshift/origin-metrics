@@ -25,6 +25,9 @@ parameters:
 - description: If users accounts should be able to write metrics
   name: USER_WRITE_ACCESS
   value: "false"
+- description: How long in seconds we should wait until Hawkular Metrics starts up before attempting a restart
+  name: STARTUP_TIMEOUT
+  value: "500"
 objects:
 - apiVersion: v1
   kind: Service
@@ -108,6 +111,8 @@ objects:
                 fieldPath: metadata.namespace
           - name: OPENSHIFT_KUBE_PING_LABELS
             value: "metrics-infra=hawkular-metrics,name=hawkular-metrics"
+          - name: STARTUP_TIMEOUT
+            value: ${STARTUP_TIMEOUT}
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
