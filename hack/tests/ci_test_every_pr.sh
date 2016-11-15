@@ -93,8 +93,8 @@ os::start::server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
-install_router
-install_registry
+os::start::router
+os::start::registry
 
 ######### metric specific code starts here ####################
 
