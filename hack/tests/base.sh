@@ -129,7 +129,7 @@ parse_args() {
 
 continue=false
 debug=false
-timeout=240
+timeout=500
 template=$SOURCE_ROOT/metrics.yaml
 heapster_template=$SOURCE_ROOT/metrics-heapster.yaml
 image_prefix=openshift/origin-

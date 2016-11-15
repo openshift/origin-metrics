@@ -37,6 +37,9 @@ deployer_mode=${MODE:-deploy}
 image_prefix=${IMAGE_PREFIX:-openshift/origin-}
 image_version=${IMAGE_VERSION:-latest}
 
+# The startup timeout for Hawkular Metrics and Heapster
+startup_timeout=${STARTUP_TIMEOUT:-500}
+
 master_url=${MASTER_URL:-https://kubernetes.default.svc:8443}
 # If the master url ends in a '/' then remove it.
 if [[ "${master_url: -1}" == "/" ]]; then
