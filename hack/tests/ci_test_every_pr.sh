@@ -93,8 +93,8 @@ os::start::server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
-install_router
-install_registry
+os::start::router
+os::start::registry
 
 ######### metric specific code starts here ####################
 
@@ -102,7 +102,7 @@ os::cmd::expect_success 'oadm policy add-cluster-role-to-user cluster-admin metr
 os::cmd::expect_success 'oadm policy add-cluster-role-to-user cluster-admin metrics-admin'
 os::cmd::expect_success 'oc login -u metrics-admin -p g1b315H'
 
-"${ORIGIN_METRICS_DIR}/hack/e2e-tests.sh" -x --timeout=300 --test=DefaultInstall
+"${ORIGIN_METRICS_DIR}/hack/e2e-tests.sh" -x --test=DefaultInstall
 
 ### finished tests ###
 
