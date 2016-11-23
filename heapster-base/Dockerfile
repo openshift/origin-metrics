@@ -53,4 +53,12 @@ RUN yum install -y -q go git wget make patch && \
     
 ENV PATH=$PATH:/opt
 
+RUN groupadd -r heapster -g 1000 && \
+    useradd -u 1000 -r -g heapster -m -d /home/heapster -s /sbin/nologin heapster && \
+    chmod 755 /home/heapster
+
+USER 1000
+
+WORKDIR /opt
+
 ENTRYPOINT ["/opt/heapster"]
