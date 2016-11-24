@@ -3,13 +3,18 @@
 # determine whether DNS resolves the master successfully
 function validate_master_accessible() {
   local output
-  if output=$(curl -sSI --stderr - --connect-timeout 2 --cacert "$master_ca" "$master_url"); then
+  if output=$(curl -sSI --stderr - --connect-timeout 5 --cacert "$master_ca" "$master_url"); then
     echo "ok"
     return 0
   fi
   local rc=$?
   echo "unable to access master url $master_url"
   case $rc in # if curl's message needs interpretation
+  28)
+          echo "The connection to $master_url timed out."
+          echo "This can either mean that the $master_url is incorrect or"
+          echo "that the system is too overloaded to process requests in a timely manner."
+          ;;
   51)
 	  echo "The master server cert was not valid for $master_url."
 	  echo "You most likely need to regenerate the master server cert;"
