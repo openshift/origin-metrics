@@ -22,6 +22,13 @@ To grant the `hawkular-admin` role to a user:
 $ oadm policy add-role-to-user hawkular-metrics-admin ${USER}
 ----
 
+To grant the `hawkular-admin` cluster role to a service account (e.g. for management):
+----
+$ oadm policy add-cluster-role-to-user hawkular-metrics-admin ${SERVICEACCOUNT}
+----
+
+Note that typically the service account used for management is `system:serviceaccount:management-infra:management-admin`.
+
 ====
 
 
