@@ -84,6 +84,8 @@ objects:
           value: ${USER_WRITE_ACCESS}
         - name: HEAPSTER_NODE_ID
           value: ${HEAPSTER_NODE_ID}
+        - name: HEAPSTER_ADDITIONAL_SINKS
+          value: ${HEAPSTER_ADDITIONAL_SINKS}
         - name: METRIC_RESOLUTION
           value: ${METRIC_RESOLUTION}
         - name: STARTUP_TIMEOUT
@@ -162,6 +164,9 @@ parameters:
   description: "How often metrics should be gathered. Defaults value of '15s' for 15 seconds"
   name: METRIC_RESOLUTION
   value: "15s"
+-
+  description: "(Optional) A list separated by spaces with the additinal sinks where heapster will push metrics"
+  name: HEAPSTER_ADDITIONAL_SINKS
 -
   description: "How long in seconds we should wait until Hawkular Metrics and Heapster starts up before attempting a restart"
   name: STARTUP_TIMEOUT

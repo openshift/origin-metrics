@@ -81,8 +81,10 @@ EOF
   
   echo "Creating the Heapster template"
   if [ -n "${HEAPSTER_STANDALONE:-}" ]; then
+    addAdditionalSinks templates/heapster-standalone.yaml
     oc create -f templates/heapster-standalone.yaml
   else
+    addAdditionalSinks templates/heapster.yaml
     oc create -f templates/heapster.yaml
   fi
   
@@ -91,5 +93,15 @@ EOF
     oc process heapster-standalone -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v MASTER_URL=$master_url -v METRIC_RESOLUTION=$metric_resolution -v STARTUP_TIMEOUT=$startup_timeout | oc create -f -
   else
     oc process hawkular-heapster -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v MASTER_URL=$master_url -v NODE_ID=$heapster_node_id -v METRIC_RESOLUTION=$metric_resolution -v STARTUP_TIMEOUT=$startup_timeout | oc create -f -
+  fi
+}
+
+function addAdditionalSinks() {
+  local file=$1
+  if [ -n "${HEAPSTER_ADDITIONAL_SINKS}" ]; then
+    echo "Processing Additional Sinks"
+    for sink in $(echo -e "${HEAPSTER_ADDITIONAL_SINKS}"); do
+      sed -i '/--source/ a \ \ \ \ \ \ \ \ \ \ - \"--sink='${sink}'"' $file
+    done
   fi
 }

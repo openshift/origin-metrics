@@ -34,9 +34,11 @@ objects:
   metadata:
     generateName: metrics-deployer-
   spec:
+    securityContext: {}
     containers:
     - image: ${IMAGE_PREFIX}metrics-deployer:${IMAGE_VERSION}
       name: deployer
+      securityContext: {}
       volumeMounts:
       - name: secret
         mountPath: /secret
@@ -68,6 +70,8 @@ objects:
           value: "true"
         - name: IGNORE_PREFLIGHT
           value: ${IGNORE_PREFLIGHT}
+        - name: HEAPSTER_ADDITIONAL_SINKS
+          value: ${HEAPSTER_ADDITIONAL_SINKS}
         - name: METRIC_RESOLUTION
           value: ${METRIC_RESOLUTION}
         - name: STARTUP_TIMEOUT
@@ -106,6 +110,9 @@ parameters:
   description: "How often metrics should be gathered. Defaults value of '15s' for 15 seconds"
   name: METRIC_RESOLUTION
   value: "15s"
+-
+  description: "(Optional) A list separated by spaces with the additinal sinks where heapster will push metrics"
+  name: HEAPSTER_ADDITIONAL_SINKS
 -
   description: "Can be set to: 'preflight' to perform validation before a deployment; 'deploy' to perform an initial deployment; 'refresh' to delete and redeploy all components but to keep persisted data and routes; 'redeploy' to delete and redeploy everything (losing all data in the process); 'validate' to re-run validations after a deployment"
   name: MODE
