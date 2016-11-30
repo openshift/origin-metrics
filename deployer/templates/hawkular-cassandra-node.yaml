@@ -1,10 +1,10 @@
-id: hawkular-cassandra-node-emptydir
+id: hawkular-cassandra-node-pv
 kind: Template
 apiVersion: v1
-name: 'Hawkular Cassandra Node Template: Emphemeral Storage'
-description: Configures a Cassandra Node with ephemeral storage.
+name: 'Hawkular Cassandra Node Template'
+description: Configures a Cassandra Node to be added to a cluster.
 metadata:
-  name: hawkular-cassandra-node-emptydir
+  name: hawkular-cassandra-node
   labels:
     metrics-infra: hawkular-cassandra
 parameters:
@@ -22,7 +22,25 @@ parameters:
 - description: The node number for the Cassandra cluster.
   name: NODE
   required: true
+- description: The persistent volume claim prefix.
+  name: PV_PREFIX
+  value: metrics-cassandra
+- description: The size of storage requested.
+  name: PV_SIZE
+  value: 10Gi
 objects:
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: "${PV_PREFIX}-${NODE}"
+    labels:
+      metrics-infra: hawkular-cassandra
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: "${PV_SIZE}"
 - apiVersion: v1
   kind: ReplicationController
   metadata:
@@ -110,7 +128,8 @@ objects:
           terminationGracePeriodSeconds: 1800
         volumes:
         - name: cassandra-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: "${PV_PREFIX}-${NODE}"
         - name: hawkular-cassandra-secrets
           secret:
             secretName: hawkular-cassandra-secrets

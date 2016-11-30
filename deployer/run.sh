@@ -59,14 +59,47 @@ ignore_preflight=$(parse_bool "${IGNORE_PREFLIGHT:-false}" IGNORE_PREFLIGHT)
 
 # The number of initial Cassandra Nodes to Deploy
 cassandra_nodes=${CASSANDRA_NODES:-1}
-# If we should use persistent storage or not
-use_persistent_storage=$(parse_bool \
-    "${USE_PERSISTENT_STORAGE:-true}" USE_PERSISTENT_STORAGE)
-# If we should dynamically provision storage
-dynamically_provision_storage=$(parse_bool \
-    "${DYNAMICALLY_PROVISION_STORAGE:-false}" DYNAMICALLY_PROVISION_STORAGE)
-# The size of each Cassandra Node
+
+# Storage Options
+if [ -n "$USE_PERSISTENT_STORAGE" ]; then
+  #if USE_PERSISTENT_STORAGE is set, then we are using an old template or the user is directly specifying this parameter.
+  #continue to use these values for backwards compatibility
+  if [ $(parse_bool "${USE_PERSISTENT_STORAGE:-true}" USE_PERSISTENT_STORAGE) == true ]; then
+    if [ -n "$DYNAMICALLY_PROVISION_STORAGE" ]; then
+      if [ $(parse_bool "${DYNAMICALLY_PROVISION_STORAGE:-false}" DYNAMICALLY_PROVISION_STORAGE)  == true ]; then
+        metric_storage="pv-dynamic"
+      else
+        metric_storage="pv"
+      fi
+    else
+      metric_storage="pv"
+    fi    
+  else
+    metric_storage="pod" 
+  fi
+else
+  metric_storage=${METRIC_STORAGE:-pod}
+fi
+
+case $metric_storage in
+pv|pv-dynamic|pod|hostpath)
+  echo "Using metric storage type $metric_storage"
+  ;;
+*)
+  echo "Invalid metric storage type. Only pv|pv-dynamic|pod|hostpath are acceptable"
+  exit 1
+  ;;    
+esac
+
 cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
+
+cassandra_master_hostpath=${CASSANDRA_MASTER_HOSTPATH:-}
+cassandra_master_hostname=${CASSANDRA_MASTER_HOSTNAME:-}
+
+if [ $metric_storage = "hostpath" ] && ([ -z $cassandra_master_hostpath ] || [ -z $cassandra_master_hostname ]); then
+ echo "If METRIC_STORAGE is set to 'hostpath' then the CASSANDRA_MASTER_HOSTPATH and CASSANDRA_MASTER_HOSTNAME must also be set"
+ exit 1
+fi
 
 # How long metrics should be stored in days
 metric_duration=${METRIC_DURATION:-7}

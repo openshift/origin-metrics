@@ -70,6 +70,12 @@ objects:
           value: ${IGNORE_PREFLIGHT}
         - name: USE_PERSISTENT_STORAGE
           value: ${USE_PERSISTENT_STORAGE}
+        - name: METRIC_STORAGE
+          value: ${METRIC_STORAGE}
+        - name: CASSANDRA_MASTER_HOSTPATH
+          value: ${CASSANDRA_MASTER_HOSTPATH}
+        - name: CASSANDRA_MASTER_HOSTNAME
+          value: ${CASSANDRA_MASTER_HOSTNAME}
         - name: DYNAMICALLY_PROVISION_STORAGE
           value: ${DYNAMICALLY_PROVISION_STORAGE}
         - name: HAWKULAR_METRICS_HOSTNAME
@@ -131,13 +137,15 @@ parameters:
   name: IGNORE_PREFLIGHT
   value: "false"
 -
-  description: "Set to true for persistent storage, set to false to use non persistent storage"
+  description: "(Deprecated) Set to true for persistent storage, set to false to use non persistent storage"
   name: USE_PERSISTENT_STORAGE
-  value: "true"
 -
-  description: "Set to true to dynamically provision storage, set to false to use use pre-created persistent volumes"
+  description: "(Deprecated) Set to true to dynamically provision storage, set to false to use use pre-created persistent volumes"
   name: DYNAMICALLY_PROVISION_STORAGE
-  value: "false"
+-
+  description: "Specifies how metric data should be stored. Can be set to: 'pv' to use presistent volumdes; 'pv-dynamic' to use dynamically provisioned persistent volumes; 'hostpath' to store directly to the node's filesyste; 'pod' to use non-persistent pod volumes which are lost when the pod is destroyed."
+  name: METRIC_STORAGE
+  value: 'pv'
 -
   description: "The number of Cassandra Nodes to deploy for the initial cluster"
   name: CASSANDRA_NODES
@@ -146,6 +154,12 @@ parameters:
   description: "The persistent volume size for each of the Cassandra nodes"
   name: CASSANDRA_PV_SIZE
   value: "10Gi"
+-
+  description: "Specifies the path for the hostpath if METRIC_STORAGE is set to 'hostpath'"
+  name: CASSANDRA_MASTER_HOSTPATH
+-
+  description: "Specified the hostname of where the metrics storage should reside if METRIC_STORAGE is set to 'hostpath'"
+  name: CASSANDRA_MASTER_HOSTNAME
 -
   description: "How many days metrics should be stored for."
   name: METRIC_DURATION

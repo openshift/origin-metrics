@@ -191,9 +191,7 @@ EOF
   echo "Creating Hawkular Metrics & Cassandra Templates"
   oc create -f templates/hawkular-metrics.yaml
   oc create -f templates/hawkular-cassandra.yaml
-  oc create -f templates/hawkular-cassandra-node-pv.yaml
-  oc create -f templates/hawkular-cassandra-node-dynamic-pv.yaml
-  oc create -f templates/hawkular-cassandra-node-emptydir.yaml
+  oc create -f templates/hawkular-cassandra-node.yaml
   oc create -f templates/support.yaml
 
   echo "Deploying Hawkular Metrics & Cassandra Components"
@@ -228,37 +226,57 @@ EOF
       )"
    fi
   fi
- 
-  if [ "${use_persistent_storage}" = true ]; then
-    if [ "${dynamically_provision_storage}" = true ]; then
-      echo "Setting up Cassandra with Dynamically Provisioned Storage"
-      # Deploy the main 'master' Cassandra node
-      # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-      oc process hawkular-cassandra-node-dynamic-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v PV_SIZE=$cassandra_pv_size -v MASTER=true | oc create -f - || true
-      # Deploy any subsequent Cassandra nodes
-      for i in $(seq 2 $cassandra_nodes);
-      do
-        # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-        oc process hawkular-cassandra-node-dynamic-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v PV_SIZE=$cassandra_pv_size -v NODE=$i | oc create -f - || true
-      done
-    else
-      echo "Setting up Cassandra with Persistent Storage"
-      # Deploy the main 'master' Cassandra node
-      # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-      oc process hawkular-cassandra-node-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v PV_SIZE=$cassandra_pv_size -v MASTER=true | oc create -f - || true
-      # Deploy any subsequent Cassandra nodes
-      for i in $(seq 2 $cassandra_nodes);
-      do
-        # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-        oc process hawkular-cassandra-node-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v PV_SIZE=$cassandra_pv_size -v NODE=$i | oc create -f - || true
-      done
-    fi
-  else 
-    echo "Setting up Cassandra with Non Persistent Storage"
-    oc process hawkular-cassandra-node-emptydir -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v MASTER=true | oc create -f -  
-    for i in $(seq 2 $cassandra_nodes);
-    do
-      oc process hawkular-cassandra-node-emptydir -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=$i | oc create -f -
-    done
-  fi
+
+  extra_master_parameters=""
+  extra_parameters=""
+  case $metric_storage in
+  pv)
+    echo "Configuring Cassandra template for persistent volumes"
+    extra_parameters="${extra_parameters} -v PV_SIZE=$cassandra_pv_size"
+    ;;
+  pv-dynamic)
+    echo "Configuring Cassandra template for dynamically provisioned persistent volumes"
+    oc patch template hawkular-cassandra-node -p '[{"op": "add", "path" : "/objects/0/metadata/annotations", "value":{"volume.alpha.kubernetes.io/storage-class": "dynamic"}}]' --type='json'
+    extra_parameters="${extra_parameters} -v PV_SIZE=$cassandra_pv_size"
+    ;;
+  hostpath)
+    echo "Configuring Cassandra template for hostpath"
+    # remove the template parameters that we don't need
+    oc patch template hawkular-cassandra-node -p '[{"op": "remove", "path" : "/parameters/4"}]' --type='json'
+    oc patch template hawkular-cassandra-node -p '[{"op": "remove", "path" : "/parameters/4"}]' --type='json'
+    # add the template parameters that we do want
+    oc patch template hawkular-cassandra-node -p '[{"op": "add", "path" : "/parameters/-", "value": {"description": "The path to use for the HostPath", "name":"HOSTPATH", "required": true}}]' --type='json'
+    oc patch template hawkular-cassandra-node -p '[{"op": "add", "path" : "/parameters/-", "value": {"description": "The hostname the pod should be bound to. Required when using a HostPath.", "name":"HOSTNAME", "required": true}}]' --type='json'
+    # remove the PVC from the template
+    oc patch template hawkular-cassandra-node -p '[{"op": "remove", "path" : "/objects/0"}]' --type='json'
+    # replace the hostpath 
+    oc patch template hawkular-cassandra-node -p '[{"op": "replace", "path" : "/objects/0/spec/template/spec/volumes/0", "value":{"name":"cassandra-data", "hostPath": {"path":"${HOSTPATH}"}}}]' --type='json'
+    # make sure this pod is running in privileged mode, required to be able to use hostpaths
+    oc patch template hawkular-cassandra-node -p '[{"op": "add", "path" : "/objects/0/spec/template/spec/containers/0/securityContext", "value":{"privileged":true}}]' --type='json'
+    # add in the node selector, if using a host path we must constrain to a specific hostname
+    oc patch template hawkular-cassandra-node -p '[{"op": "add", "path" : "/objects/0/spec/template/spec/nodeSelector", "value":{"kubernetes.io/hostname":"${HOSTNAME}"}}]' --type='json'
+
+    extra_master_parameters="${extra_master_parameters} -v HOSTPATH=${cassandra_master_hostpath} -v HOSTNAME=${cassandra_master_hostname}"
+    ;;
+  pod)
+    echo "Configuring the Cassandra template for pod based storage"
+    # remove the template parameters that we don't need
+    oc patch template hawkular-cassandra-node -p '[{"op": "remove", "path" : "/parameters/4"}]' --type='json'
+    oc patch template hawkular-cassandra-node -p '[{"op": "remove", "path" : "/parameters/4"}]' --type='json'
+    # remove the PVC from the template since we are using emptydirs
+    oc patch template hawkular-cassandra-node -p '[{"op": "remove", "path" : "/objects/0"}]' --type='json'
+    # change the volume type to emptydir
+    oc patch template hawkular-cassandra-node -p '[{"op": "replace", "path" : "/objects/0/spec/template/spec/volumes/0", "value":{"name":"cassandra-data", "emptyDir":{}}}]' --type='json'
+  esac  
+
+  echo "Setting up Cassandra Nodes"
+  # Deploy the main 'master' Cassandra node
+  # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+  oc process hawkular-cassandra-node -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v MASTER=true ${extra_parameters} ${extra_master_parameters} | oc create -f - || true
+  # Deploy any subsequent Cassandra nodes
+  for i in $(seq 2 $cassandra_nodes);
+  do
+   # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
+   oc process hawkular-cassandra-node -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=$i ${extra_parameters} | oc create -f - || true
+  done
 }
