@@ -56,8 +56,6 @@ objects:
           value: ${IMAGE_PREFIX}
         - name: IMAGE_VERSION
           value: ${IMAGE_VERSION}
-        - name: PUBLIC_MASTER_URL
-          value: ${PUBLIC_MASTER_URL}
         - name: MODE
           value: ${MODE}
         - name: MASTER_URL
