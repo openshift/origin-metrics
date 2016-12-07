@@ -217,8 +217,13 @@
                     <transaction mode="BATCH"/>
                 </replicated-cache>
             </cache-container>
-            <cache-container name="web" default-cache="dist" module="org.wildfly.clustering.web.infinispan">
+            <cache-container name="web" default-cache="repl" module="org.wildfly.clustering.web.infinispan">
                 <transport lock-timeout="60000"/>
+                <replicated-cache name="repl" mode="ASYNC">
+                    <locking isolation="REPEATABLE_READ"/>
+                    <transaction mode="BATCH"/>
+                    <file-store/>
+                </replicated-cache>
                 <distributed-cache name="dist" mode="ASYNC" l1-lifespan="0" owners="2">
                     <locking isolation="REPEATABLE_READ"/>
                     <transaction mode="BATCH"/>
@@ -228,8 +233,14 @@
                     <file-store/>
                 </distributed-cache>
             </cache-container>
-            <cache-container name="ejb" aliases="sfsb" default-cache="dist" module="org.wildfly.clustering.ejb.infinispan">
+            <cache-container name="ejb" aliases="sfsb" default-cache="repl" module="org.wildfly.clustering.ejb.infinispan">
                 <transport lock-timeout="60000"/>
+                <replicated-cache name="repl" mode="ASYNC">
+                    <locking isolation="REPEATABLE_READ"/>
+                    <eviction strategy="LRU" max-entries="10000"/>
+                    <transaction mode="BATCH"/>
+                    <file-store/>
+                </replicated-cache>
                 <distributed-cache name="dist" mode="ASYNC" l1-lifespan="0" owners="2">
                     <locking isolation="REPEATABLE_READ"/>
                     <transaction mode="BATCH"/>
@@ -300,7 +311,7 @@
         <subsystem xmlns="urn:jboss:domain:jdr:1.0"/>
         <subsystem xmlns="urn:jboss:domain:jgroups:4.0">
             <channels default="ee">
-                <channel name="ee" stack="udp"/>
+                <channel name="ee" stack="tcp"/>
             </channels>
             <stacks>
                 <stack name="udp">
