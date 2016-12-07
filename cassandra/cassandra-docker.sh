@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+CASSANDRA_AUTH_DIR=$CASSANDRA_HOME/auth
 
 for args in "$@"
 do
@@ -250,22 +251,42 @@ else
 fi
 
 # handle setting up the keystore
-if [ -n "$KEYSTORE_FILE" ]; then
-   sed -i 's#${KEYSTORE_FILE}#'$KEYSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
-fi
 if [ -n "$KEYSTORE_PASSWORD_FILE" ]; then
    KEYSTORE_PASSWORD=$(cat $KEYSTORE_PASSWORD_FILE)
+fi
+if [ -n "$KEYSTORE_FILE" ]; then
+  if [ "${KEYSTORE_FILE##*.}" == pkcs12 ]; then
+    mkdir -p "$CASSANDRA_AUTH_DIR"
+    keytool -v -importkeystore \
+      -srckeystore "$KEYSTORE_FILE" \
+      -srcstoretype PKCS12 \
+      -destkeystore "$CASSANDRA_AUTH_DIR/cassandra.keystore" \
+      -deststoretype JKS \
+      -srcstorepass "$KEYSTORE_PASSWORD" \
+      -deststorepass "$KEYSTORE_PASSWORD"
+    KEYSTORE_FILE=$CASSANDRA_AUTH_DIR/cassandra.keystore
+  fi
+  sed -i 's#${KEYSTORE_FILE}#'$KEYSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 if [ -n "$KEYSTORE_PASSWORD" ]; then
    sed -i 's#${KEYSTORE_PASSWORD}#'$KEYSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 # handle setting up the truststore
-if [ -n "$TRUSTSTORE_FILE" ]; then
-   sed -i 's#${TRUSTSTORE_FILE}#'$TRUSTSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
-fi
 if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
    TRUSTSTORE_PASSWORD=$(cat $TRUSTSTORE_PASSWORD_FILE)
+fi
+if [ ! "$TRUSTSTORE_FILE" ]; then
+  mkdir -p "$CASSANDRA_AUTH_DIR"
+  TRUSTSTORE_FILE=$CASSANDRA_AUTH_DIR/cassandra.truststore
+  for f in hawkular-metrics hawkular-cassandra ca; do
+    keytool -noprompt -import -v -trustcacerts \
+      -alias "$f" -file "/secret/$f.crt" \
+      -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD"
+  done
+fi
+if [ -n "$TRUSTSTORE_FILE" ]; then
+   sed -i 's#${TRUSTSTORE_FILE}#'$TRUSTSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
 fi
 if [ -n "$TRUSTSTORE_PASSWORD" ]; then
    sed -i 's#${TRUSTSTORE_PASSWORD}#'$TRUSTSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
