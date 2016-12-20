@@ -234,8 +234,8 @@ Any non persisted data will be lost as well. This is equivalent to deleting all 
 For example:
 ----
 $ oc process -f metrics.yaml \
-     -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com
-     -v USE_PERSISTENT_STORAGE=false
+     -v HAWKULAR_METRICS_HOSTNAME=hawkular-metrics.example.com \
+     -v USE_PERSISTENT_STORAGE=false \
      -v MODE=redeploy \
      | oc create -n openshift-infra -f -
 ----
