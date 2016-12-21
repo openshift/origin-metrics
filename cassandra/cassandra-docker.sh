@@ -58,7 +58,7 @@ do
     --truststore_file=*)
       TRUSTSTORE_FILE="${args#*=}"
     ;;
-    --trustsotre_password=*)
+    --truststore_password=* | --trustsotre_password=*)
       TRUSTSTORE_PASSWORD="${args#*=}"
     ;;
     --truststore_password_file=*)
