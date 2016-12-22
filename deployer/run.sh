@@ -72,6 +72,9 @@ cassandra_pv_size=${CASSANDRA_PV_SIZE:-10Gi}
 metric_duration=${METRIC_DURATION:-7}
 # If user accounts should be able to write metrics
 user_write_access=${USER_WRITE_ACCESS:-false}
+# SMTP settings for alert emails
+mail_smtp_host=${MAIL_SMTP_HOST:-localhost}
+mail_smtp_port=${MAIL_SMTP_PORT:-25}
 
 #
 heapster_node_id=${HEAPSTER_NODE_ID:-nodename}

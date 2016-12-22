@@ -49,7 +49,7 @@ do
       --hmw.jgroups_keystore_password_file=*)
         JGROUPS_KEYSTORE_PASSWORD_FILE="${args#*=}"
         ;;
-     --hmw.jgroups_keystore_password=*)
+      --hmw.jgroups_keystore_password=*)
         JGROUPS_KEYSTORE_PASSWORD="${args#*=}"
         ;;
       --hmw.jgroups_alias_file=*)

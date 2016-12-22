@@ -88,6 +88,10 @@ objects:
           value: ${METRIC_RESOLUTION}
         - name: STARTUP_TIMEOUT
           value: ${STARTUP_TIMEOUT}
+        - name: MAIL_SMTP_HOST
+          value: ${MAIL_SMTP_HOST}
+        - name: MAIL_SMTP_PORT
+          value: ${MAIL_SMTP_PORT}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: metrics-deployer
@@ -166,3 +170,12 @@ parameters:
   description: "How long in seconds we should wait until Hawkular Metrics and Heapster starts up before attempting a restart"
   name: STARTUP_TIMEOUT
   value: "500"
+-
+  description: SMTP host for sending alert email
+  name: MAIL_SMTP_HOST
+  value: "localhost"
+-
+  description: SMTP port for sending alert email
+  name: MAIL_SMTP_PORT
+  value: "25"
+

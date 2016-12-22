@@ -197,7 +197,7 @@ EOF
   oc create -f templates/support.yaml
 
   echo "Deploying Hawkular Metrics & Cassandra Components"
-  oc process hawkular-metrics -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v METRIC_DURATION=$metric_duration -v MASTER_URL=$master_url -v USER_WRITE_ACCESS=$user_write_access -v STARTUP_TIMEOUT=$startup_timeout | oc create -f -
+  oc process hawkular-metrics -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v METRIC_DURATION=$metric_duration -v MASTER_URL=$master_url -v USER_WRITE_ACCESS=$user_write_access -v STARTUP_TIMEOUT=$startup_timeout -v MAIL_SMTP_HOST=$mail_smtp_host -v MAIL_SMTP_PORT=$mail_smtp_port | oc create -f -
   oc process hawkular-cassandra-services | oc create -f -
   oc process hawkular-support | oc create -f -
 
