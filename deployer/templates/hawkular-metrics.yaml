@@ -28,6 +28,12 @@ parameters:
 - description: How long in seconds we should wait until Hawkular Metrics starts up before attempting a restart
   name: STARTUP_TIMEOUT
   value: "500"
+- description: SMTP host for sending alert email
+  name: MAIL_SMTP_HOST
+  value: "localhost"
+- description: SMTP port for sending alert email
+  name: MAIL_SMTP_PORT
+  value: "25"
 objects:
 - apiVersion: v1
   kind: Service
@@ -87,6 +93,8 @@ objects:
           - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
           - "-Dhawkular.alerts.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.alerts.allowed-cors-access-control-allow-headers=authorization"
+          - "-Dmail.smtp.host=${MAIL_SMTP_HOST}"
+          - "-Dmail.smtp.port=${MAIL_SMTP_PORT}"
           - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
           - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
           - "-DKUBERNETES_MASTER_URL=${MASTER_URL}"
@@ -113,6 +121,10 @@ objects:
             value: "metrics-infra=hawkular-metrics,name=hawkular-metrics"
           - name: STARTUP_TIMEOUT
             value: ${STARTUP_TIMEOUT}
+          - name: MAIL_SMTP_HOST
+            value: ${MAIL_SMTP_HOST}
+          - name: MAIL_SMTP_PORT
+            value: ${MAIL_SMTP_PORT}
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
