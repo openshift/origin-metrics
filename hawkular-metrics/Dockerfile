@@ -27,7 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.23.0-SNAPSHOT" \
+    HAWKULAR_METRICS_VERSION="0.23.0.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
@@ -37,8 +37,8 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
 EXPOSE 8080 8444
 
 # Get and copy the hawkular metrics war to the deployment directory
-# RUN cd $JBOSS_HOME/standalone/deployments/ && \
-COPY hawkular-metrics-openshift-dist-${HAWKULAR_METRICS_VERSION}.ear $JBOSS_HOME/standalone/deployments/hawkular-metrics.ear 
+RUN cd $JBOSS_HOME/standalone/deployments/ && \
+    curl -Lo hawkular-metrics.ear https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-openshift-dist\&e=ear\&v=${HAWKULAR_METRICS_VERSION}
 
 # Add in the JGroups Kubernetes clustering module
 RUN mkdir -p $JBOSS_HOME/modules/system/layers/base/org/jgroups/kubernetes/main && \
@@ -77,10 +77,10 @@ COPY logging.properties $JBOSS_HOME/standalone/configuration/logging.properties
 
 # Install Hawkular-Metrics Python client, only available on EPEL
 USER root
-#RUN yum -y install epel-release \
-#    && yum -y install python-pip \
-#    && yum clean all \
-#    && pip install --no-cache-dir 'hawkular-client==0.4.4'
+RUN yum -y install epel-release \
+    && yum -y install python-pip \
+    && yum clean all \
+    && pip install --no-cache-dir 'hawkular-client==0.4.4'
 
 # Change the permissions so that the user running the image can start up Hawkular Metrics
 RUN chmod -R 777 /opt
