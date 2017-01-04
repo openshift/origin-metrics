@@ -207,7 +207,7 @@ For the following example, we want to determine what the average cpu usage is fo
 ----
 $ curl -H "Authorization: Bearer XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
        -H "Hawkular-Tenant: test" 
-       -X GET https://hawkular-metrics.example.com/hawkular/metrics/counters/data?tags=descriptor_name:cpu/usage,pod_namespace=openshift-infra\&buckets=3\&start=`date -d -10minutes +%s%3N`  | python -m json.tool 
+       -X GET https://hawkular-metrics.example.com/hawkular/metrics/counters/data?tags=descriptor_name:cpu/usage,pod_namespace:openshift-infra\&buckets=3\&start=`date -d -10minutes +%s%3N`  | python -m json.tool 
 ----
 
 
