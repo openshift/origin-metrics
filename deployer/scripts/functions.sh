@@ -1,5 +1,10 @@
 #!/bin/bash
 
+function get_config_value {
+  oc get "$1" --template \
+    "$(printf '{{if .data}}{{or (index .data "%s") ""}}{{end}}' "$2")"
+}
+
 function parse_bool {
   local v=${1,,}
   if [ "$v" != true -a "$v" != false ]; then

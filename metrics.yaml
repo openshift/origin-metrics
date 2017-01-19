@@ -21,7 +21,10 @@ kind: "Template"
 metadata:
   name: metrics-deployer-template
   annotations:
-    description: "Template for deploying the required Metrics integration. Requires cluster-admin 'metrics-deployer' service account and 'metrics-deployer' secret."
+    description: >
+      Template for deploying the required Metrics integration. Requires
+      cluster-admin 'metrics-deployer' service account. An optional
+      'metrics-deployer' secret can also be used to pass certificates.
     tags: "infrastructure"
 labels:
   metrics-infra: deployer
@@ -40,9 +43,6 @@ objects:
       name: deployer
       securityContext: {}
       volumeMounts:
-      - name: secret
-        mountPath: /secret
-        readOnly: true
       - name: empty
         mountPath: /etc/deploy
       env:
@@ -94,9 +94,6 @@ objects:
     volumes:
     - name: empty
       emptyDir: {}
-    - name: secret
-      secret:
-        secretName: metrics-deployer
 parameters:
 -
   description: 'Specify prefix for metrics components; e.g. for "openshift/origin-metrics-deployer:latest", set prefix "openshift/origin-"'
