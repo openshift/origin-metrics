@@ -88,6 +88,7 @@ objects:
           - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
           - "-Dhawkular.alerts.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.alerts.allowed-cors-access-control-allow-headers=authorization"
+          - "-Dcom.datastax.driver.FORCE_NIO=true"
           - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
           - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
           - "-DKUBERNETES_MASTER_URL=${MASTER_URL}"
