@@ -277,8 +277,11 @@
               <replicated-cache name="schema" mode="SYNC">
                 <transaction mode="NON_XA"/>
               </replicated-cache>
-              <replicated-cache name="locks" mode="SYNC">
-                <transaction mode="NON_XA" locking="PESSIMISTIC"/>
+              <replicated-cache name="dataIds" mode="ASYNC">
+                <transaction mode="BATCH"/>
+              </replicated-cache>
+              <replicated-cache name="globalActions" mode="ASYNC">
+                <transaction mode="BATCH"/>
               </replicated-cache>
             </cache-container>
             <cache-container name="hawkular-metrics" default-cache="triggers" statistics-enabled="true">

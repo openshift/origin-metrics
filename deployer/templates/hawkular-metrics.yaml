@@ -82,6 +82,7 @@ objects:
           - "-Dhawkular.metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.metrics.allowed-cors-access-control-allow-headers=authorization"
           - "-Dhawkular.metrics.default-ttl=${METRIC_DURATION}"
+          - "-Dhawkular.metrics.admin-tenant=_hawkular_admin"
           - "-Dhawkular-alerts.cassandra-nodes=hawkular-cassandra"
           - "-Dhawkular-alerts.cassandra-use-ssl"
           - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
