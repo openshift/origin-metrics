@@ -1,99 +1,66 @@
 = origin-metrics
 
-[NOTE]
-====
-This document and its corresponding containers are meant to run on version v1.0.8 or later of link:https://github.com/openshift/origin[OpenShift Origin]
-====
+== About
 
-The following document will describe how to build, configure and install the metric components for OpenShift.
+Origin Metrics is designed to gather container, pod and node metrics from across an entire OpenShift cluster. These metrics can then be viewed in the OpenShift Console or exported to another system.
 
-The metric components will gather metrics for all containers and nodes across an entire OpenShift cluster. As such it needs to be performed by a cluster administrator.
+It achieves this goals via these main components:
 
-== Overview
+==== Heapster
+link:https://github.com/kubernetes/heapster[Heapster] gathers the metrics from across the OpenShift cluster. It retrieves metadata associated with the cluster from the master API and retrieves individual metrics from the `/stats` endpoint which is exposed on each individual OpenShift node.
 
-There are three main components to the metrics gathering:
+It gathers system level metrics such as CPU, Memory, Network, etc
 
-=== Heapster
-
-link:https://github.com/kubernetes/heapster[Heapster] is the component which gathers the various metrics from the OpenShift cluster. It connects to each node in an OpenShift cluster and reads the kubelet's `/stats` endpoint to retrieve metrics.
-
-```
- +----------+
- | Heapster |
- +-----+----+
- |     |   read /stats
- |     +---------------------> kubelet1
- |     |
- |     |   read /stats
- |     +---------------------> kubelet2
- |
- |              ...
- |
- |
- |
- |       write /hawkular/metrics/
- +------------------------------>  Hawkular
-                                    ^    +
-                                    |    |
- 	Hawkular Console +----------|    |
-                                         |
-                                         v
-
-                                       cassandra
-```
-
-Heapster retrieves metrics (i.e. cpu, memory, ...) for every container running in the cluster, across all namespaces.
-
-It also retrieves metrics for the node itself, the kubelet, and the docker daemon.
-
-Heapster does not store metrics itself.
+Heapster will then send these metrics to Hawkular Metrics and expose a REST endpoint that the horizontal pod autoscaler (HPA) uses.
 
 ==== Hawkular Metrics
-
 link:https://github.com/hawkular/hawkular-metrics/[Hawkular Metrics] is the metric storage engine from the link:http://www.hawkular.org/[Hawkular] project. It provides means of creating, accessing and managing historically stored metrics via an easy to use json based REST interface.
 
-Heapster sends the metrics it receives to Hawkular Metrics over the Hawkular Metric REST interface.
+Hawkular Metrics uses Cassandra as its metric datastore.
 
-Hawkular Metrics then stores the metrics into a link:http://cassandra.apache.org/[Cassandra] database.
+It receives metrics from the Heapster component and is also used to expose metrics to the console and other third party systems.
 
-== Building the Docker Containers
+==== Cassandra
+link:http://cassandra.apache.org/[Cassandra] is the data store for Hawkular Metrics. It stores and persists all the metrics coming in from Hawkular Metrics.
 
-All the docker images for Origin Metric components are available at link:https://hub.docker.com/search/?q=openshift%2Forigin-metrics&page=1&isAutomated=0&isOfficial=0&starCount=0&pullCount=0[docker hub] and there should not be a need to build these directly.
+==== Hawkular OpenShift Agent
+The link:https://github.com/hawkular/hawkular-openshift-agent[Hawkular OpenShift Agent] is a component which can be used to gather application level metrics coming from pods. This allows pods themselves to expose metrics that they wish to be collected.
 
-If you wish to build your own images or hack on the project. Please see the link:docs/build.adoc[build instructions].
+This component runs as a deamon set across the OpenShift cluster and is responsible for gathering application level metrics from each pod running on that node.
+
+[NOTE]
+====
+The Hawkular OpenShift Agent is currently in Tech Preview.
+====
 
 == Before You Begin
 
 The Metrics components requires that OpenShift is properly installed and configured. How to properly install and configure OpenShift is beyond the scope of this document. Please see the link:https://docs.openshift.org/latest/welcome/index.html[OpenShift documentation] on how to properly install and setup your system.
 
-There are a few things which you will specifically need to make sure are properly configured with your OpenShift instance:
-
-. The link:docs/troubleshooting.adoc#checking-if-the-dns-service-is-running-or-not[OpenShift DNS server] needs to be properly running on your system.
-
-. link:docs/troubleshooting.adoc#empty-charts[Node certificate problems] if your OpenShift installation was originally installed on an older version.
-
-. SELinux and firewall configurations may cause problems if not properly configured.
+The metrics install requires integation with the OpenShift cluster and if there are installation or configuration problems with your OpenShift cluster you may encounter them when tyring to running metrics. Some of the more common issues are checked in the deployer pod and will give you an error message about your installation.
 
 Please see the link:docs/troubleshooting.adoc[troubleshooting guide] for a complete list of things to watch out for.
 
-== Deploying the Origin Metrics Components
+== Installing
+
+The link:https://docs.openshift.org/latest/install_config/cluster_metrics.html[OpenShift documentation] describes how to install metrics.
+
+A brief overview of the steps required are as follows:
 
 [NOTE]
 ====
-In order to use the horizontal pod autoscaler (HPA), all of the metric components will need to be deployed to the `openshift-infra` project.
+In order to support the horizontal pod autoscaler (HPA), all of the metric components will need to be deployed to the `openshift-infra` project.
 ====
 
-=== Create the Deployer Service Account
+=== Deployer Service Account
 
 A pod is used to setup, configure and deploy all the various metric components. This deployer pod is run under the `metrics-deployer` service account.
 
-The `metrics-deployer` can be created from the link:metrics-deployer-setup.yaml[*_metrics-deployer-setup.yaml_*] configuration file. The following command will create the service account for you:
+The `metrics-deployer` service account can be created from the link:metrics-deployer-setup.yaml[*_metrics-deployer-setup.yaml_*] configuration file. The following command will create the service account for you:
 
 ----
 $ oc create -f metrics-deployer-setup.yaml -n openshift-infra
 ----
-
-=== Metrics Deployer Service Account
 
 In order to deploy components within the project, the `metrics-deployer` service account needs to be granted the 'edit' permission.
 
@@ -107,7 +74,7 @@ $ oadm policy add-role-to-user edit \
 
 === Hawkular Service Account
 
-The hawkular service account requires `view` permissions in order to gather information about pods that will make up a Hawkular Metrics cluster.
+The hawkular service account requires `view` permissions in order to gather information about the pods that will make up a Hawkular Metrics cluster.
 
 Run the following command to add the `view` permission to the `hawkular` service account:
 
@@ -280,6 +247,30 @@ The next step will be to check the Heapster validate page. The link:#accessing-h
 
 Please see the link:docs/troubleshooting.adoc[troubleshooting guide] if you are running into any issues.
 
+== Deploying the Hawkular OpenShift Agent
+
+A few steps are required to deploy the link:https://github.com/hawkular/hawkular-openshift-agent[Hawkular OpenShift Agent] into OpenShift.
+
+You will first need to create the ConfigMap that the Agent uses to configure itself:
+----
+$oc create -f deploy/openshift/hawkular-openshift-agent-configmap.yaml -n openshift-infra
+----
+
+You will then need to process the Agent's template and deploy its components:
+----
+$oc process -f deploy/openshift/hawkular-openshift-agent.yaml | oc create -n openshift-infra -f -
+----
+
+Finally you will need to grant the `hawkular-openshift-agent`'s service acount the proper permissions:
+----
+$oc adm policy add-cluster-role-to-user hawkular-openshift-agent system:serviceaccount:openshift-infra:hawkular-openshift-agent
+----
+
+Once this is completed, the `Hawkular OpenShift Agent` should be deployed into the `openshift-infra` project.
+
+If you are running the latest OpenShift, you should be able to verify that the agent is functioning by seeing extra metrics showing up under the agent's pod metric page.
+
+For instructions on how to expose custom metrics on your own pod and for more information about the agent itself, please the the link:https://github.com/hawkular/hawkular-openshift-agent[Hawkular OpenShift Agent] project.
 
 == Configurations for the OpenShift Console
 
@@ -362,6 +353,13 @@ If you wish to remove the deployer's components themselves
 ----
 $ oc delete sa,secret metrics-deployer -n openshift-infra
 ----
+
+
+== Docker Containers
+
+All the docker images for Origin Metric components are available at link:https://hub.docker.com/search/?q=openshift%2Forigin-metrics&page=1&isAutomated=0&isOfficial=0&starCount=0&pullCount=0[docker hub] and there should not be a need to build these directly.
+
+If you wish to build your own images or hack on the project. Please see the link:docs/build.adoc[build instructions].
 
 == Known Issues
 
