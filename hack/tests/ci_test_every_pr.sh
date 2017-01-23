@@ -35,16 +35,7 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 
 # include all the origin test libs we need
-for lib in "${OS_ROOT}"/hack/util.sh \
-           "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
-do source "$lib"; done
-os::log::stacktrace::install
-
-os::util::environment::setup_time_vars
-
-cd "${OS_ROOT}"
-
-os::build::setup_env
+source ${OS_ROOT}/hack/lib/init.sh # one stop shopping
 
 os::test::junit::declare_suite_start 'origin-metrics'
 
@@ -58,7 +49,7 @@ function cleanup()
     echo
     if [ $out -ne 0 ]; then echo "[FAIL] !!!!! Test Failed !!!!"
     else
-        echo "[INFO] Test Succeeded"
+        os::log::info  "Test Succeeded"
     fi
     echo
 
@@ -69,7 +60,7 @@ function cleanup()
         sleep 54321 || echo debugging done - continuing
     fi
     cleanup_openshift
-    echo "[INFO] Exiting at " `date`
+    os::log::info  "Exiting at `date`"
     ENDTIME=$(date +%s); echo "$0 took $(($ENDTIME - $STARTTIME)) seconds"
     exit $out
 }
@@ -77,12 +68,13 @@ function cleanup()
 trap "exit" INT TERM
 trap "cleanup" EXIT
 
-echo "[INFO] Starting metrics tests at " `date`
+os::log::info "Starting metrics tests at `date`"
 
 # override LOG_DIR and ARTIFACTS_DIR
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-metrics/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-metrics/artifacts}
 os::util::environment::setup_all_server_vars "origin-metrics/"
+os::util::environment::setup_time_vars
 os::util::environment::use_sudo
 
 os::log::system::start
@@ -94,6 +86,9 @@ export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
 os::start::router
 os::start::registry
+
+os::cmd::expect_success 'oadm registry'
+os::cmd::expect_success 'oadm router'
 
 ######### metric specific code starts here ####################
 
