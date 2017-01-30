@@ -34,7 +34,7 @@ function handle_previous_deployment() {
     # Remove our label so that we are not deleted.
     [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra-
 
-    oc delete rc,svc,pod,sa,templates,secrets --selector="metrics-infra" --ignore-not-found=true
+    oc delete rc,svc,pod,sa,templates,secrets,configmaps --selector="metrics-infra" --ignore-not-found=true
 
     # Add back our label so that the next time the deployer is run this will be deleted
     [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra=deployer
@@ -45,7 +45,7 @@ function handle_previous_deployment() {
     # Remove our label so that we are not immediately deleted.
     [ -n "${POD_NAME:-}" ] && oc label pod ${POD_NAME} metrics-infra-
 
-    oc delete --grace-period=0 all,sa,templates,secrets --selector="metrics-infra" --ignore-not-found=true
+    oc delete --grace-period=0 all,sa,templates,secrets,configmaps --selector="metrics-infra" --ignore-not-found=true
     oc delete pvc --selector="metrics-infra" --ignore-not-found=true
 
     # Add back our label so that the next time the deployer is run this will be deleted

@@ -134,6 +134,8 @@ KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
 $KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
 popd
 
+echo $(date "+%Y-%m-%d %H:%M:%S") Starting with config map properties:
+cat /configuration/hawkular-metrics.properties
 
 cat > $HAWKULAR_METRICS_DIRECTORY/server.properties << EOL
 javax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD
@@ -147,4 +149,5 @@ exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -b `hostname -i` \
   -bprivate `hostname -i` \
   -P $HAWKULAR_METRICS_DIRECTORY/server.properties \
+  --properties=/configuration/hawkular-metrics.properties \
   $as_args

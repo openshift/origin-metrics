@@ -196,6 +196,10 @@ EOF
   oc create -f templates/hawkular-cassandra-node-emptydir.yaml
   oc create -f templates/support.yaml
 
+  echo "Creating Hawkular Metrics & Cassandra Config Maps"
+  oc create configmap hawkular-metrics-configuration --from-file=config/hawkular-metrics.properties
+  oc label configmaps hawkular-metrics-configuration metrics-infra=hawkular-metrics
+
   echo "Deploying Hawkular Metrics & Cassandra Components"
   oc process hawkular-metrics -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v METRIC_DURATION=$metric_duration -v MASTER_URL=$master_url -v USER_WRITE_ACCESS=$user_write_access -v STARTUP_TIMEOUT=$startup_timeout | oc create -f -
   oc process hawkular-cassandra-services | oc create -f -
