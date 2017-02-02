@@ -132,16 +132,19 @@ chmod a+rw hawkular-metrics.*
 
 KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
 $KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
-
 popd
 
 
+cat > $HAWKULAR_METRICS_DIRECTORY/server.properties << EOL
+javax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD
+javax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD
+EOL
+
 exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -Djavax.net.ssl.keyStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.keystore \
-  -Djavax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD \
   -Djavax.net.ssl.trustStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore \
-  -Djavax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD \
   -Djboss.node.name=$HOSTNAME \
   -b `hostname -i` \
   -bprivate `hostname -i` \
+  -P $HAWKULAR_METRICS_DIRECTORY/server.properties \
   $as_args
