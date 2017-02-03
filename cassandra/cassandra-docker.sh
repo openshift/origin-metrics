@@ -67,6 +67,9 @@ do
     --cassandra_pem_file=*)
       CASSANDRA_PEM_FILE="${args#*=}"
     ;;
+    --extra_cassandra_yaml_parameters=*)
+      EXTRA_CASSANDRA_YAML_PARAMETERS="${args#*=}"
+    ;;
     --help)
       HELP=true
     ;;
@@ -129,6 +132,9 @@ if [ -n "$HELP" ]; then
   echo
   echo "  --truststore_password_file=TRUSTSTORE_PASSWORD"
   echo "        a file containing only the truststore password"
+  echo
+  echo " --extra_cassandra_yaml_parameters=EXTRA_CASSANDRA_YAML_PARAMETERS"
+  echo "        any extra parameters to be set in the cassandra.yaml file"
   echo
   exit 0
 fi
@@ -269,6 +275,10 @@ if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
 fi
 if [ -n "$TRUSTSTORE_PASSWORD" ]; then
    sed -i 's#${TRUSTSTORE_PASSWORD}#'$TRUSTSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
+fi
+
+if [ -n "$EXTRA_CASSANDRA_YAML_PARAMETERS" ]; then
+   echo -e "$EXTRA_CASSANDRA_YAML_PARAMETERS" >> /opt/apache-cassandra/conf/cassandra.yaml
 fi
 
 # create the cqlshrc file so that cqlsh can be used much more easily from the system
