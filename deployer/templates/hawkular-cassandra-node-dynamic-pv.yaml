@@ -84,11 +84,6 @@ objects:
           - "--require_node_auth=true"
           - "--enable_client_encryption=true"
           - "--require_client_auth=true"
-          - "--keystore_file=/secret/cassandra.keystore"
-          - "--keystore_password_file=/secret/cassandra.keystore.password"
-          - "--truststore_file=/secret/cassandra.truststore"
-          - "--truststore_password_file=/secret/cassandra.truststore.password"
-          - "--cassandra_pem_file=/secret/cassandra.pem"
           env:
           - name: CASSANDRA_MASTER
             value: "${MASTER}"
@@ -113,7 +108,7 @@ objects:
           - name: cassandra-data
             mountPath: "/cassandra_data"
           - name: hawkular-cassandra-secrets
-            mountPath: "/secret"
+            mountPath: "/secrets"
           readinessProbe:
             exec:
               command:
