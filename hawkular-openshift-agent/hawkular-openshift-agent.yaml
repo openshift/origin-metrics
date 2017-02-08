@@ -1,0 +1,119 @@
+id: hawkular-openshift-agent
+kind: Template
+apiVersion: v1
+name: Hawkular OpenShift Agent Template
+metadata:
+  name: hawkular-openshift-agent
+  metrics-infra: agent
+parameters:
+- description: The version of the image to use
+  name: IMAGE_VERSION
+  value: v3.5
+- description: The image to use
+  name: IMAGE
+  value: registry.access.redhat.com/openshift3/metrics-hawkular-openshift-agent
+objects:
+- apiVersion: v1
+  kind: ClusterRole
+  metadata:
+    name: hawkular-openshift-agent
+    labels:
+      metrics-infra: agent
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - configmaps
+    - namespaces
+    - nodes
+    - pods
+    - projects
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - ""
+    resources:
+    - secrets
+    verbs:
+    - get
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: hawkular-openshift-agent
+    labels:
+      metrics-infra: agent
+- apiVersion: extensions/v1beta1
+  kind: DaemonSet
+  metadata:
+    name: hawkular-openshift-agent
+    labels:
+      name: hawkular-openshift-agent
+      metrics-infra: agent
+  spec:
+    selector:
+      matchLabels:
+        name: hawkular-openshift-agent
+    template:
+      metadata:
+        labels:
+          name: hawkular-openshift-agent
+          metrics-infra: agent
+      spec:
+        serviceAccount: hawkular-openshift-agent
+        containers:
+        - image: ${IMAGE}:${IMAGE_VERSION}
+          imagePullPolicy: Always
+          name: hawkular-openshift-agent
+          livenessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          command:
+            - "hawkular-openshift-agent"
+            - "-config"
+            - "/hawkular-openshift-agent-configuration/config.yaml"
+            - "-v"
+            - "3"
+          env:
+          - name: K8S_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: K8S_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: HAWKULAR_SERVER_URL
+            value: https://hawkular-metrics
+          - name: HAWKULAR_SERVER_CA_CERT_FILE
+            value: "/hawkular-metrics-certificate/hawkular-metrics-ca.certificate"
+          - name: HAWKULAR_SERVER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: hawkular-metrics-account 
+                key: hawkular-metrics.username
+          - name: HAWKULAR_SERVER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: hawkular-metrics-account
+                key: hawkular-metrics.password
+          volumeMounts:
+          - name: hawkular-metrics-certificate
+            mountPath: "/hawkular-metrics-certificate"
+          - name: hawkular-openshift-agent-configuration
+            mountPath: "/hawkular-openshift-agent-configuration"
+        volumes:
+        - name: hawkular-metrics-certificate
+          secret:
+            secretName: hawkular-metrics-certificate
+        - name: hawkular-openshift-agent-configuration
+          configMap:
+            name: hawkular-openshift-agent-configuration
+        - name: hawkular-openshift-agent
+          configMap:
+            name: hawkular-openshift-agent-configuration
