@@ -46,6 +46,8 @@ objects:
     labels:
       metrics-infra: heapster
       name: heapster
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": heapster-certs
   spec:
     selector:
       name: heapster
@@ -84,9 +86,9 @@ objects:
           - "--wrapper.endpoint_check=https://hawkular-metrics:443/hawkular/metrics/status"
           - "--source=kubernetes.summary_api:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
           - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&labelNodeId=${NODE_ID}&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
-          - "--tls_cert=/secrets/heapster.cert"
-          - "--tls_key=/secrets/heapster.key"
-          - "--tls_client_ca=/secrets/heapster.client-ca"
+          - "--tls_cert=/heapster-certs/tls.crt"
+          - "--tls_key=/heapster-certs/tls.key"
+          - "--tls_client_ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
           - "--allowed_users=%allowed_users%"
           - "--metric_resolution=${METRIC_RESOLUTION}"
           env:
@@ -99,6 +101,8 @@ objects:
             mountPath: "/hawkular-cert"
           - name: hawkular-metrics-account
             mountPath: "/hawkular-account"
+          - name: heapster-certs
+            mountPath: "/heapster-certs"
           readinessProbe:
             exec:
               command:
@@ -107,6 +111,9 @@ objects:
         - name: heapster-secrets
           secret:
             secretName: heapster-secrets
+        - name: heapster-certs
+          secret:
+            secretName: heapster-certs
         - name: hawkular-metrics-certificate
           secret:
             secretName: hawkular-metrics-certificate
