@@ -2,3 +2,5 @@ deployer/_output
 deployer/_secret
 *.sw?
 *~
+.idea
+*.iml

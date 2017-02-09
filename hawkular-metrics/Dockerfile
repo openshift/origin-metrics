@@ -86,4 +86,9 @@ RUN yum -y install epel-release \
 RUN chmod -R 777 /opt
 USER 1000
 
+## remove this ugly hack as soon as Hawkular ships with JGroups 3.6.12 or higher
+## we need it because of JGRP-2152
+RUN cd $JBOSS_HOME/modules/system/layers/base/org/jgroups/main && \
+    curl https://repo1.maven.org/maven2/org/jgroups/jgroups/3.6.12.Final/jgroups-3.6.12.Final.jar -o jgroups-3.6.10.Final.jar
+
 CMD $HAWKULAR_METRICS_SCRIPT_DIRECTORY/hawkular-metrics-wrapper.sh -b 0.0.0.0 -Dhawkular-metrics.cassandra-nodes=hawkular-cassandra
