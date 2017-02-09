@@ -37,7 +37,7 @@ ENV CASSANDRA_VERSION="3.0.9" \
 USER root
 
 #
-RUN yum install -y -q bind-utils && \
+RUN yum install -y -q openssl bind-utils && \
     yum clean all
 
 COPY apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5 \

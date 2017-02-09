@@ -20,20 +20,14 @@ function deploy_heapster() {
   
   # Use existing or generate new Heapster certificates
   if [ -n "${HEAPSTER_CERT:-}" ]; then
-    echo "${HEAPSTER_CERT:-}" | base64 -d > $dir/heapster.cert
-    echo "${HEAPSTER_KEY:-}" | base64 -d > $dir/heapster.key
+    echo "${HEAPSTER_CERT:-}" | base64 -d > $dir/tls.crt
+    echo "${HEAPSTER_KEY:-}" | base64 -d > $dir/tls.key
   elif  [ -s ${secret_dir}/heapster.cert ]; then
       # use files from secret if present
-      cp ${secret_dir}/heapster.cert $dir
-      cp ${secret_dir}/heapster.key $dir
-  else #fallback to creating one
-      openshift admin ca create-server-cert  \
-        --key=$dir/heapster.key \
-        --cert=$dir/heapster.cert \
-        --hostnames=heapster \
-        --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
+      cp ${secret_dir}/tls.crt $dir
+      cp ${secret_dir}/tls.key $dir
   fi
-  
+
   # Get the Heapster allowed users
   if [ -n "${HEAPSTER_ALLOWED_USERS:-}" ]; then
     echo "${HEAPSTER_ALLOWED_USERS:-}" | base64 -d > $dir/heapster_allowed_users
@@ -42,7 +36,7 @@ function deploy_heapster() {
   else #by default accept access from the api proxy
     echo "system:master-proxy" > $dir/heapster_allowed_users
   fi
-  
+
   # Get the Heapster Client CA
   if [ -n "${HEAPSTER_CLIENT_CA:-}" ]; then
     echo "${HEAPSTER_CLIENT_CA:-}" | base64 -d > $dir/heapster_client_ca.cert
@@ -51,7 +45,7 @@ function deploy_heapster() {
   else #use the service account ca by default
     cp ${master_ca} $dir/heapster_client_ca.cert
   fi
-  
+
   echo
   echo "Creating the Heapster Secrets configuration json file"
   cat > $dir/heapster-secrets.json <<EOF

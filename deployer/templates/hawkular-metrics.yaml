@@ -28,6 +28,11 @@ parameters:
 - description: How long in seconds we should wait until Hawkular Metrics starts up before attempting a restart
   name: STARTUP_TIMEOUT
   value: "500"
+- description: The password to be used for the nodes to communicate with each other. Auto generated if empty.
+  displayName: JGroups Password
+  name: JGROUPS_PASSWORD
+  from: '[a-zA-Z0-9]{23}'
+  generate: expression
 objects:
 - apiVersion: v1
   kind: Service
@@ -36,6 +41,8 @@ objects:
     labels:
       metrics-infra: hawkular-metrics
       name: hawkular-metrics
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": hawkular-metrics-secrets
   spec:
     selector:
       name: hawkular-metrics
@@ -93,13 +100,7 @@ objects:
           - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
           - "-DKUBERNETES_MASTER_URL=${MASTER_URL}"
           - "-DUSER_WRITE_ACCESS=${USER_WRITE_ACCESS}"
-          - "--hmw.keystore=/secrets/hawkular-metrics.keystore"
-          - "--hmw.truststore=/secrets/hawkular-metrics.truststore"
-          - "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password"
-          - "--hmw.truststore_password_file=/secrets/hawkular-metrics.truststore.password"
-          - "--hmw.jgroups_keystore=/secrets/hawkular-metrics.jgroups.keystore"
-          - "--hmw.jgroups_keystore_password_file=/secrets/hawkular-metrics.jgroups.keystore.password"
-          - "--hmw.jgroups_alias_file=/secrets/hawkular-metrics.jgroups.alias"
+          - "-DJGROUPS_PASSWORD=${JGROUPS_PASSWORD}"
           env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -115,11 +116,11 @@ objects:
             value: "metrics-infra=hawkular-metrics,name=hawkular-metrics"
           - name: STARTUP_TIMEOUT
             value: ${STARTUP_TIMEOUT}
+          - name: JGROUPS_PASSWORD
+            value: ${JGROUPS_PASSWORD}
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
-          - name: hawkular-metrics-client-secrets
-            mountPath: "/client-secrets"
           readinessProbe:
             exec:
               command:
@@ -132,6 +133,15 @@ objects:
         - name: hawkular-metrics-secrets
           secret:
             secretName: hawkular-metrics-secrets
-        - name: hawkular-metrics-client-secrets
-          secret:
-            secretName: hawkular-metrics-account
+- apiVersion: v1
+  kind: Route
+  metadata:
+    creationTimestamp: null
+    name: hawkular-metrics-route
+  spec:
+    tls:
+      insecureEdgeTerminationPolicy: Allow
+      termination: reencrypt
+    to:
+      kind: Service
+      name: hawkular-metrics

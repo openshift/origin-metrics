@@ -41,6 +41,8 @@ objects:
     labels:
       metrics-infra: heapster
       name: heapster
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": heapster-secrets
   spec:
     selector:
       name: heapster
@@ -73,11 +75,10 @@ objects:
             containerPort: 8082
           command:
           - "heapster-wrapper.sh"
-          - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
           - "--source=kubernetes:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
-          - "--tls_cert=/secrets/heapster.cert"
-          - "--tls_key=/secrets/heapster.key"
-          - "--tls_client_ca=/secrets/heapster.client-ca"
+          - "--tls_cert=/secrets/tls.crt"
+          - "--tls_key=/secrets/tls.key"
+          - "--tls_client_ca=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
           - "--allowed_users=%allowed_users%"
           - "--metric_resolution=${METRIC_RESOLUTION}"
           env:

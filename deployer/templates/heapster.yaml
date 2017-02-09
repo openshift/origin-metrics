@@ -37,7 +37,6 @@ objects:
       metrics-infra: support
   secrets:
   - name: heapster-secrets
-  - name: hawkular-metrics-certificate
   - name: hawkular-metrics-account
 - apiVersion: v1
   kind: Service
@@ -46,6 +45,8 @@ objects:
     labels:
       metrics-infra: heapster
       name: heapster
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": heapster-secrets
   spec:
     selector:
       name: heapster
@@ -83,10 +84,10 @@ objects:
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
           - "--wrapper.endpoint_check=https://hawkular-metrics:443/hawkular/metrics/status"
           - "--source=kubernetes.summary_api:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
-          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&labelNodeId=${NODE_ID}&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
-          - "--tls_cert=/secrets/heapster.cert"
-          - "--tls_key=/secrets/heapster.key"
-          - "--tls_client_ca=/secrets/heapster.client-ca"
+          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=pod_namespace&labelNodeId=${NODE_ID}&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
+          - "--tls_cert=/secrets/tls.crt"
+          - "--tls_key=/secrets/tls.key"
+          - "--tls_client_ca=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
           - "--allowed_users=%allowed_users%"
           - "--metric_resolution=${METRIC_RESOLUTION}"
           env:
@@ -95,8 +96,6 @@ objects:
           volumeMounts:
           - name: heapster-secrets
             mountPath: "/secrets"
-          - name: hawkular-metrics-certificate
-            mountPath: "/hawkular-cert"
           - name: hawkular-metrics-account
             mountPath: "/hawkular-account"
           readinessProbe:
@@ -107,9 +106,6 @@ objects:
         - name: heapster-secrets
           secret:
             secretName: heapster-secrets
-        - name: hawkular-metrics-certificate
-          secret:
-            secretName: hawkular-metrics-certificate
         - name: hawkular-metrics-account
           secret:
             secretName: hawkular-metrics-account

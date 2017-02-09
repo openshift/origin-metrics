@@ -33,7 +33,7 @@ link:http://cassandra.apache.org/[Cassandra] is the data store for Hawkular Metr
 ==== Hawkular OpenShift Agent
 The link:https://github.com/hawkular/hawkular-openshift-agent[Hawkular OpenShift Agent] is a component which can be used to gather application level metrics coming from pods. This allows pods themselves to expose metrics that they wish to be collected.
 
-This component runs as a deamon set across the OpenShift cluster and is responsible for gathering application level metrics from each pod running on that node.
+This component runs as a daemon set across the OpenShift cluster and is responsible for gathering application level metrics from each pod running on that node.
 
 [NOTE]
 ====
@@ -44,7 +44,7 @@ The Hawkular OpenShift Agent is currently in Tech Preview.
 
 The Metrics components requires that OpenShift is properly installed and configured. How to properly install and configure OpenShift is beyond the scope of this document. Please see the link:https://docs.openshift.org/latest/welcome/index.html[OpenShift documentation] on how to properly install and setup your system.
 
-The metrics install requires integation with the OpenShift cluster and if there are installation or configuration problems with your OpenShift cluster you may encounter them when tyring to running metrics. Some of the more common issues are checked in the deployer pod and will give you an error message about your installation.
+The metrics install requires integration with the OpenShift cluster and if there are installation or configuration problems with your OpenShift cluster you may encounter them when tyring to running metrics. Some of the more common issues are checked in the deployer pod and will give you an error message about your installation.
 
 Please see the link:docs/troubleshooting.adoc[troubleshooting guide] for a complete list of things to watch out for.
 
@@ -63,17 +63,17 @@ A few steps are required to deploy the link:https://github.com/hawkular/hawkular
 
 You will first need to create the ConfigMap that the Agent uses to configure itself:
 ----
-$oc create -f deploy/openshift/hawkular-openshift-agent-configmap.yaml -n openshift-infra
+$ oc create -f hawkular-agent/hawkular-openshift-agent-configmap.yaml -n openshift-infra
 ----
 
 You will then need to process the Agent's template and deploy its components:
 ----
-$oc process -f deploy/openshift/hawkular-openshift-agent.yaml | oc create -n openshift-infra -f -
+$ oc process -f hawkular-agent/hawkular-openshift-agent.yaml | oc create -n openshift-infra -f -
 ----
 
-Finally you will need to grant the `hawkular-openshift-agent`'s service acount the proper permissions:
+Finally you will need to grant the `hawkular-openshift-agent`'s service account the proper permissions:
 ----
-$oc adm policy add-cluster-role-to-user hawkular-openshift-agent system:serviceaccount:openshift-infra:hawkular-openshift-agent
+$ oc adm policy add-cluster-role-to-user hawkular-openshift-agent system:serviceaccount:openshift-infra:hawkular-openshift-agent
 ----
 
 Once this is completed, the `Hawkular OpenShift Agent` should be deployed into the `openshift-infra` project.
