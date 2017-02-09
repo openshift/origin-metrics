@@ -102,6 +102,17 @@ chmod a+rw hawkular-metrics.*
 
 KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
 $KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
+
+PREV_DIR=${PWD}
+cd ${HAWKULAR_METRICS_AUTH_DIR}
+csplit -z -f cas-to-import /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+if [ $? != 0 ]; then
+    echo "Failed to split the original service-ca into individual cert files. Aborting."
+    exit 1
+fi
+$KEYTOOL_COMMAND -noprompt -import -v -alias services-ca -file cas-to-import01 -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
+cd ${PREV_DIR}
+
 popd
 
 if [ "x${JGROUPS_PASSWORD}" == "x" ]; then

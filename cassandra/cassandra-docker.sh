@@ -46,26 +46,17 @@ do
     --require_client_auth=*)
       REQUIRE_CLIENT_AUTH="${args#*=}"
     ;;
-    --keystore_file=*)
-      KEYSTORE_FILE="${args#*=}"
+    --truststore_nodes_authorities=*)
+      TRUSTSTORE_NODES_AUTHORITIES="${args#*=}"
     ;;
-    --keystore_password=*)
-      KEYSTORE_PASSWORD="${args#*=}"
+    --truststore_client_authorities=*)
+      TRUSTSTORE_CLIENT_AUTHORITIES="${args#*=}"
     ;;
-    --keystore_password_file=*)
-      KEYSTORE_PASSWORD_FILE="${args#*=}"
+    --tls_certificate=*)
+      SERVICE_CERT="${args#*=}"
     ;;
-    --truststore_file=*)
-      TRUSTSTORE_FILE="${args#*=}"
-    ;;
-    --truststore_password=* | --trustsotre_password=*)
-      TRUSTSTORE_PASSWORD="${args#*=}"
-    ;;
-    --truststore_password_file=*)
-      TRUSTSTORE_PASSWORD_FILE="${args#*=}"
-    ;;
-    --cassandra_pem_file=*)
-      CASSANDRA_PEM_FILE="${args#*=}"
+    --tls_certificate_key=*)
+      SERVICE_CERT_KEY="${args#*=}"
     ;;
     --help)
       HELP=true
@@ -112,26 +103,43 @@ if [ -n "$HELP" ]; then
   echo "        if certificate based authentication should be required for client"
   echo "        default: false"
   echo
-  echo "  --keystore_file=KEYSTORE_FILE_LOCATION"
-  echo "        the path to where the keystore is located"
+  echo "  --truststore_nodes_authorities=TRUSTSTORE_NODES_AUTHORITIES"
+  echo "        a file containing all certificate authorities to trust as peers"
   echo
-  echo "  --keystore_password=KEYSTORE_PASSWORD"
-  echo "        the password to use for the keystore"
+  echo "  --truststore_client_authorities=TRUSTSTORE_CLIENT_AUTHORITIES"
+  echo "        a file containing all certificate authorities to trust as clients"
   echo
-  echo "  --keystore_password_file=KEYSTORE_PASSWORD"
-  echo "        a file containing only the keystore password"
+  echo "  --tls_certificate=SERVICE_CERT"
+  echo "        the path to the certificate file to be used as the service certificate"
   echo
-  echo "  --truststore_file=TRUSTSTORE_FILE_LOCATION"
-  echo "        the path to where the truststore is located"
-  echo
-  echo "  --truststore_password=TRUSTSTORE_PASSWORD"
-  echo "        the password to use for the truststore"
-  echo
-  echo "  --truststore_password_file=TRUSTSTORE_PASSWORD"
-  echo "        a file containing only the truststore password"
+  echo "  --tls_certificate_key=SERVICE_CERT_KEY"
+  echo "        the path to the certificate private key part to the SERVICE_CERT"
   echo
   exit 0
 fi
+
+CASSANDRA_HOME=${CASSANDRA_HOME:-"/opt/apache-cassandra"}
+CASSANDRA_CONF=${CASSANDRA_CONF:-"${CASSANDRA_HOME}/conf"}
+CASSANDRA_CONF_FILE=${CASSANDRA_CONF_FILE:-"${CASSANDRA_CONF}/cassandra.yaml"}
+KEYSTORE_DIR=${KEYSTORE_DIR:-"${CASSANDRA_CONF}"}
+
+SERVICE_ALIAS=${SERVICE_ALIAS:-"cassandra"}
+SERVICE_CERT=${SERVICE_CERT:-"/hawkular-cassandra-certs/tls.crt"}
+SERVICE_CERT_KEY=${SERVICE_CERT_KEY:-"/hawkular-cassandra-certs/tls.key"}
+
+if [ -z "${TRUSTSTORE_NODES_AUTHORITIES}" ]; then
+ echo "The --truststore_node_authorities value is not specified. Aborting"
+ exit 1
+fi
+
+if [ -z "${TRUSTSTORE_CLIENT_AUTHORITIES}" ]; then
+ echo "The --truststore_client_authorities value is not specified. Aborting"
+ exit 1
+fi
+
+
+PKCS12_FILE=${PKCS12_FILE:-"${KEYSTORE_DIR}/cassandra.pkcs12"}
+KEYTOOL_COMMAND="/usr/lib/jvm/java-1.8.0/jre/bin/keytool"
 
 if [ -z "${MAX_HEAP_SIZE}" ]; then
   if [ -z "${MEMORY_LIMIT}" ]; then
@@ -250,39 +258,100 @@ else
 fi
 
 # handle setting up the keystore
-if [ -n "$KEYSTORE_FILE" ]; then
-   sed -i 's#${KEYSTORE_FILE}#'$KEYSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
+KEYSTORE_FILE="${KEYSTORE_DIR}/.keystore"
+KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-$(openssl rand -base64 512 | tr -dc A-Z-a-z-0-9 | head -c 17)}
+
+echo "Creating the Cassandra keystore from the Secret's cert data"
+openssl pkcs12 -export -in ${SERVICE_CERT} -inkey ${SERVICE_CERT_KEY} -out ${PKCS12_FILE} -name ${SERVICE_ALIAS} -noiter -nomaciter -password pass:${KEYSTORE_PASSWORD}
+if [ $? != 0 ]; then
+    echo "Failed to create a PKCS12 certificate file with the service-specific certificate. Aborting."
+    exit 1
 fi
-if [ -n "$KEYSTORE_PASSWORD_FILE" ]; then
-   KEYSTORE_PASSWORD=$(cat $KEYSTORE_PASSWORD_FILE)
+echo "Converting the PKCS12 keystore into a Java Keystore"
+${KEYTOOL_COMMAND} -v -importkeystore -srckeystore ${PKCS12_FILE} -srcstoretype PKCS12 -destkeystore ${KEYSTORE_FILE} -deststoretype JKS -deststorepass ${KEYSTORE_PASSWORD} -srcstorepass ${KEYSTORE_PASSWORD}
+if [ $? != 0 ]; then
+    echo "Failed to create a Java Keystore file with the service-specific certificate. Aborting."
+    exit 1
 fi
-if [ -n "$KEYSTORE_PASSWORD" ]; then
-   sed -i 's#${KEYSTORE_PASSWORD}#'$KEYSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
+sed -i 's#${KEYSTORE_PASSWORD}#'$KEYSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
+sed -i 's#${KEYSTORE_FILE}#'$KEYSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
+
+# handle setting up the trust store for the inter node communication
+TRUSTSTORE_NODES_FILE=${TRUSTSTORE_NODES_FILE:-"${KEYSTORE_DIR}/.nodes.truststore"}
+TRUSTSTORE_NODES_PASSWORD=${TRUSTSTORE_NODES_PASSWORD:-$(openssl rand -base64 512 | tr -dc A-Z-a-z-0-9 | head -c 17)}
+
+# The next few lines deserve an explantion: the TRUSTSTORE_NODES_AUTHORITIES may contain the root CA and the certificates
+# in a single file. Java's keytool can't handle this, it seems, and ends up importing only
+# the first one. So, we split the file, having one cert per resulting file. The next lines are for that, and
+# will only work properly on the scenario described. If the scenario ever changes, the next lines will probably
+# need to be adapted accordingly. The best solution would be to have one cert per file.
+PREV_DIR=${PWD}
+cd ${KEYSTORE_DIR}
+csplit -z -f cas-to-import ${TRUSTSTORE_NODES_AUTHORITIES} '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+if [ $? != 0 ]; then
+    echo "Failed to split the trustore_nodes_authorities into individual cert files. Aborting."
+    exit 1
 fi
 
-# handle setting up the truststore
-if [ -n "$TRUSTSTORE_FILE" ]; then
-   sed -i 's#${TRUSTSTORE_FILE}#'$TRUSTSTORE_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
+echo "Building the trust store for inter node communication"
+for file in $(ls cas-to-import*);
+do
+    ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore ${TRUSTSTORE_NODES_FILE} -trustcacerts -storepass ${TRUSTSTORE_NODES_PASSWORD}
+    if [ $? != 0 ]; then
+        echo "Failed to import the authority from '${file}' into the node communication trust store. Aborting."
+        exit 1
+    fi
+done
+
+rm cas-to-import*
+cd ${PREV_DIR}
+sed -i 's#${TRUSTSTORE_NODES_FILE}#'$TRUSTSTORE_NODES_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
+sed -i 's#${TRUSTSTORE_NODES_PASSWORD}#'$TRUSTSTORE_NODES_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
+
+# handle setting up the trust store for the client communication
+TRUSTSTORE_CLIENT_FILE=${TRUSTSTORE_CLIENT_FILE:-"${KEYSTORE_DIR}/.clients.truststore"}
+TRUSTSTORE_CLIENT_PASSWORD=${TRUSTSTORE_CLIENT_PASSWORD:-$(openssl rand -base64 512 | tr -dc A-Z-a-z-0-9 | head -c 17)}
+
+# see comment on a similar code for inter-node communication
+PREV_DIR=${PWD}
+cd ${KEYSTORE_DIR}
+csplit -z -f cas-to-import ${TRUSTSTORE_CLIENT_AUTHORITIES} '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+if [ $? != 0 ]; then
+    echo "Failed to split the truststore_client_authorities into individual cert files. Aborting."
+    exit 1
 fi
-if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
-   TRUSTSTORE_PASSWORD=$(cat $TRUSTSTORE_PASSWORD_FILE)
-fi
-if [ -n "$TRUSTSTORE_PASSWORD" ]; then
-   sed -i 's#${TRUSTSTORE_PASSWORD}#'$TRUSTSTORE_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
-fi
+
+echo "Building the trust store for client communication"
+for file in $(ls cas-to-import*);
+do
+    ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore ${TRUSTSTORE_CLIENT_FILE} -trustcacerts -storepass ${TRUSTSTORE_CLIENT_PASSWORD}
+    if [ $? != 0 ]; then
+        echo "Failed to import the authority from '${file}' into the client communication trust store. Aborting."
+        exit 1
+    fi
+done
+
+rm cas-to-import*
+
+echo "Generating self signed certificates for the local client for cqlsh"
+openssl req -new -newkey rsa:4096 -x509 -keyout .cassandra.local.client.key -out .cassandra.local.client.cert -subj "/CN=local.cassandra" -nodes -days 1825
+${KEYTOOL_COMMAND} -noprompt -import -alias .cassandra.local.client.cert -file .cassandra.local.client.cert -keystore ${TRUSTSTORE_CLIENT_FILE} -trustcacerts -storepass ${TRUSTSTORE_CLIENT_PASSWORD}
+
+cd ${PREV_DIR}
+sed -i 's#${TRUSTSTORE_CLIENT_FILE}#'$TRUSTSTORE_CLIENT_FILE'#g' /opt/apache-cassandra/conf/cassandra.yaml
+sed -i 's#${TRUSTSTORE_CLIENT_PASSWORD}#'$TRUSTSTORE_CLIENT_PASSWORD'#g' /opt/apache-cassandra/conf/cassandra.yaml
 
 # create the cqlshrc file so that cqlsh can be used much more easily from the system
 mkdir -p $HOME/.cassandra
 cat >> $HOME/.cassandra/cqlshrc << DONE
 [connection]
 hostname= $HOSTNAME
-factory = cqlshlib.ssl.ssl_transport_factory
 port = 9042
-
+factory = cqlshlib.ssl.ssl_transport_factory
 [ssl]
-certfile = ${CASSANDRA_PEM_FILE}
-userkey = ${CASSANDRA_PEM_FILE}
-usercert = ${CASSANDRA_PEM_FILE}
+certfile = ${SERVICE_CERT}
+userkey = ${KEYSTORE_DIR}/.cassandra.local.client.key
+usercert = ${KEYSTORE_DIR}/.cassandra.local.client.cert
 DONE
 
 # verify that we are not trying to run an older version of Cassandra which has been configured for a newer version.
@@ -303,11 +372,4 @@ if [ -f ${CASSANDRA_DATA_VOLUME}/.cassandra.version ]; then
     fi
 fi
 
-if [ -n "$CASSANDRA_HOME" ]; then
-  # remove -R once CASSANDRA-12641 is fixed
-  exec ${CASSANDRA_HOME}/bin/cassandra -f -R
-else
-  # remove -R once CASSANDRA-12641 is fixed
-  exec /opt/apache-cassandra/bin/cassandra -f -R
-fi
-
+exec ${CASSANDRA_HOME}/bin/cassandra -f -R
