@@ -17,14 +17,16 @@
 #
 
 function deploy_hawkular() {
-
   setup_certificate "hawkular-metrics" "hawkular-metrics,hawkular-metrics.${PROJECT}.svc.cluster.local,${hawkular_metrics_hostname}" "${HAWKULAR_METRICS_PEM:-}"
   setup_certificate "hawkular-cassandra" "hawkular-cassandra" "${HAWKULAR_CASSANDRA_PEM:-}"
 
+  metrics_tls_crt=$(base64 -w 0 ${dir}/hawkular-metrics.crt)
+  metrics_tls_key=$(base64 -w 0 ${dir}/hawkular-metrics.key)
   cassandra_tls_crt=$(base64 -w 0 ${dir}/hawkular-cassandra.crt)
   cassandra_tls_key=$(base64 -w 0 ${dir}/hawkular-cassandra.key)
 
   # note that each of the following files contain the cert itself + the cert for the signer
+  metrics_tls_truststore=$(base64 -w 0 ${dir}/hawkular-cassandra.crt)
   cassandra_tls_peer_truststore=$(base64 -w 0 ${dir}/hawkular-cassandra.crt)
   cassandra_tls_client_truststore=$(base64 -w 0 ${dir}/hawkular-metrics.crt)
 
@@ -45,71 +47,28 @@ metadata:
 type: kubernetes.io/tls
 EOF
 
+  cat > ${dir}/hawkular-metrics-certs.yaml <<EOF
+apiVersion: v1
+data:
+  tls.crt: ${metrics_tls_crt}
+  tls.key: ${metrics_tls_key}
+  tls.truststore.crt: ${metrics_tls_truststore}
+kind: Secret
+metadata:
+  labels:
+    metrics-infra: hawkular-metrics-certs
+  annotations:
+    service.alpha.openshift.io/originating-service-name: hawkular-metrics
+  name: hawkular-metrics-certs
+type: kubernetes.io/tls
+EOF
+
   echo "Creating the secret with the required certs if it doesn't exist yet"
+  oc get secret hawkular-metrics-certs > /dev/null || oc create -f ${dir}/hawkular-metrics-certs.yaml
   oc get secret hawkular-cassandra-certs > /dev/null || oc create -f ${dir}/hawkular-cassandra-certs.yaml
 
-  # Convert the *.pem files into java keystores
-  echo "Generating randomized passwords for the Hawkular Metrics keystores and truststores"
-  hawkular_metrics_keystore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-  hawkular_metrics_truststore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-
-  echo "Creating the Hawkular Metrics keystore from the PEM file"
-  openssl pkcs12 -export -in $dir/hawkular-metrics.pem -out $dir/hawkular-metrics.pkcs12 -name $hawkular_metrics_alias -noiter -nomaciter -password pass:$hawkular_metrics_keystore_password
-  keytool -v -importkeystore -srckeystore $dir/hawkular-metrics.pkcs12 -srcstoretype PKCS12 -destkeystore $dir/hawkular-metrics.keystore -deststoretype JKS -deststorepass $hawkular_metrics_keystore_password -srcstorepass $hawkular_metrics_keystore_password
-
-  echo "Creating the Hawkular Metrics Certificate"
-  keytool -noprompt -export -alias $hawkular_metrics_alias -file $dir/hawkular-metrics.cert -keystore $dir/hawkular-metrics.keystore -storepass $hawkular_metrics_keystore_password
-
-  echo "Importing the CA Certificate into the Hawkular Metrics Truststore"
-  keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
-  keytool -noprompt -import -v -trustcacerts -alias metricsca -file ${dir}/hawkular-metrics-ca.cert -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
-
-  hawkular_metrics_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
+  hawkular_metrics_password=`openssl rand -base64 512 | tr -dc A-Z-a-z-0-9 | head -c 17`
   htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password
-
-  echo
-  echo "Creating the Hawkular Metrics Secrets configuration json file"
-  cat > $dir/hawkular-metrics-secrets.json <<EOF
-      {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata":
-        { "name": "hawkular-metrics-secrets",
-          "labels": {
-            "metrics-infra": "hawkular-metrics"
-          }
-        },
-        "data":
-        {
-          "hawkular-metrics.keystore": "$(base64 -w 0 $dir/hawkular-metrics.keystore)",
-          "hawkular-metrics.keystore.password": "$(base64 <<< `echo $hawkular_metrics_keystore_password`)",
-          "hawkular-metrics.truststore": "$(base64 -w 0 $dir/hawkular-metrics.truststore)",
-          "hawkular-metrics.truststore.password": "$(base64 <<< `echo $hawkular_metrics_truststore_password`)",
-          "hawkular-metrics.keystore.alias": "$(base64 <<< `echo $hawkular_metrics_alias`)",
-          "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)"
-        }
-      }
-EOF
-
-  echo
-  echo "Creating the Hawkular Metrics Certificate Secrets configuration json file"
-  cat > $dir/hawkular-metrics-certificate.json <<EOF
-      {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata":
-        { "name": "hawkular-metrics-certificate",
-          "labels": {
-            "metrics-infra": "hawkular-metrics"
-          }
-        },
-        "data":
-        {
-          "hawkular-metrics.certificate": "$(base64 -w 0 $dir/hawkular-metrics.cert)",
-          "hawkular-metrics-ca.certificate": "$(base64 -w 0 $dir/hawkular-metrics-ca.cert)"
-        }
-      }
-EOF
 
   echo
   echo "Creating the Hawkular Metrics User Account Secrets"
@@ -132,8 +91,6 @@ EOF
 EOF
 
   echo "Creating Hawkular Metrics"
-  oc create -f $dir/hawkular-metrics-secrets.json
-  oc create -f $dir/hawkular-metrics-certificate.json
   oc create -f $dir/hawkular-metrics-account.json
 
   echo "Creating Hawkular Metrics & Cassandra Templates"
@@ -149,33 +106,9 @@ EOF
   oc process hawkular-cassandra-services | oc create -f -
   oc process hawkular-support | oc create -f -
 
-  echo "Creating the Hawkular Metrics Route"
-  # We need to create the route after the service has been created so that its labels get applied to the route itself
-  route_params="--hostname=$hawkular_metrics_hostname --service=hawkular-metrics --dest-ca-cert=$dir/hawkular-metrics-ca.cert"
-  if [ -s ${secret_dir}/hawkular-metrics.pem ]; then
-    `openssl rsa -in  ${secret_dir}/hawkular-metrics.pem > $dir/custom-certificate.key`
-    # We want to get all the certificates in the pem which is a bit tricky. The more simple 'openssl x509 ...' command will not work since it only returns the first certificate
-    `openssl crl2pkcs7 -nocrl -certfile ${secret_dir}/hawkular-metrics.pem | openssl pkcs7 -print_certs | grep -v "^subject=*\|^issuer=*\|^$" > $dir/custom-certificate.crt`
-     route_params="${route_params} --cert=$dir/custom-certificate.crt --key=$dir/custom-certificate.key"
-     if [ -s ${secret_dir}/hawkular-metrics-ca.cert ]; then
-       route_params="${route_params} --ca-cert=${secret_dir}/hawkular-metrics-ca.cert"
-     fi
-  fi
-  # this may return an error code if the route already exists, this is to be expect with a refresh and is why we have the || true here
-  oc create route reencrypt hawkular-metrics ${route_params} || true
-
-  # if we are dealing with a refresh, then we need to update the router's CACertificate for the Hawkular Metric's internal certificate
-  if [ "$mode" = "refresh" ]; then
-   type=$(oc get route hawkular-metrics --template='{{.spec.tls.termination}}') || true
-   if [ "$type" = "reencrypt" ]; then
-      oc patch route hawkular-metrics -p "$(python <<-EOF
-				import json
-				ca = open("$dir/hawkular-metrics-ca.cert").read()
-				print json.dumps({"spec": {"tls": {"destinationCACertificate": ca}}})
-				EOF
-      )"
-   fi
-  fi
+  # this may return an error code if the route already exists, this is to be expected with a refresh and is why we have the || true here
+  ## once BZ 1401081 is done, the Route specified on `hawkular-metrics.yaml` should work and this command here should be removed.
+  oc create route reencrypt --service hawkular-metrics --dest-ca-cert=${dir}/hawkular-metrics-ca.cert || true
 
   if [ "${use_persistent_storage}" = true ]; then
     if [ "${dynamically_provision_storage}" = true ]; then

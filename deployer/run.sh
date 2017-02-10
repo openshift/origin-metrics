@@ -83,7 +83,7 @@ metric_resolution=${METRIC_RESOLUTION:-30s}
 project=${PROJECT:-openshift-infra}
 
 # the master certificate and service account tokens
-master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
+master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt}
 token_file=${TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}
 
 # directory to perform all the processing
@@ -95,13 +95,12 @@ rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
 mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
 hawkular_metrics_hostname=${HAWKULAR_METRICS_HOSTNAME:-hawkular-metrics.example.com}
-hawkular_metrics_alias=${HAWKULAR_METRICS_ALIAS:-hawkular-metrics}
 
 openshift admin ca create-signer-cert  \
   --key="${dir}/ca.key" \
   --cert="${dir}/ca.crt" \
   --serial="${dir}/ca.serial.txt" \
-  --name="metrics-signer@$(date +%s)"
+--name="metrics-signer@$(date +%s)"
 
 # set up configuration for client
 if [ -n "${WRITE_KUBECONFIG:-}" ]; then
@@ -144,7 +143,6 @@ deploy|redeploy|refresh)
         validate_preflight
     fi
     handle_previous_deployment
-    create_signer_cert "${dir}"
     [ -z "${HEAPSTER_STANDALONE:-}" ] && deploy_hawkular
     deploy_heapster
     validate_deployment

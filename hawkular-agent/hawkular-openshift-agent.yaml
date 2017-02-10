@@ -87,7 +87,7 @@ objects:
           - name: HAWKULAR_SERVER_URL
             value: https://hawkular-metrics
           - name: HAWKULAR_SERVER_CA_CERT_FILE
-            value: "/hawkular-metrics-certificate/hawkular-metrics-ca.certificate"
+            value: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
           - name: HAWKULAR_SERVER_USERNAME
             valueFrom:
               secretKeyRef:
@@ -99,14 +99,9 @@ objects:
                 name: hawkular-metrics-account
                 key: hawkular-metrics.password
           volumeMounts:
-          - name: hawkular-metrics-certificate
-            mountPath: "/hawkular-metrics-certificate"
           - name: hawkular-openshift-agent-configuration
             mountPath: "/hawkular-openshift-agent-configuration"
         volumes:
-        - name: hawkular-metrics-certificate
-          secret:
-            secretName: hawkular-metrics-certificate
         - name: hawkular-openshift-agent-configuration
           configMap:
             name: hawkular-openshift-agent-configuration

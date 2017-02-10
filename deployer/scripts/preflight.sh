@@ -39,89 +39,12 @@ function validate_hostname() {
   fi
 }
 
-function cert_should_have_names() {
-  local file="$1"; shift
-  local output name cn san sans found count
-
-  if ! output=$(openssl x509 -in "$file" -noout -text 2>&1); then
-    echo "Could not extract certificate from $file. The error was:"
-    echo "$output"
-    return 1
-  fi
-  if san=$(echo -e "$output" | grep -A 1 "Subject Alternative Name:"); then
-    found=0
-    sans=$(process_san $san)
-    count=${#@}
-    for name in $@; do
-       for san in $sans; do
-         check=$(check_san $san $name)
-         if [[ "$check" == "true" ]]; then
-          ((found++))
-         fi
-       done
-    done
-    if [[ $found != $count ]]; then
-      echo "The supplied $file certificate is required to match the following name(s) in the Subject Alternative Name field:"
-      echo $@
-      echo "Instead the certificate has:"
-      echo -e "$sans"
-      echo "Please supply a correct certificate or omit it to allow the deployer to generate it."
-      return 1
-    fi
-  elif [[ $# -gt 1 ]]; then
-    echo "The supplied $file certificate is required to have a Subject Alternative Name field containing these names:"
-    echo $@
-    echo "The certificate does not have the Subject Alternative Name field."
-    echo "Please supply a correct certificate or omit it to allow the deployer to generate it."
-    return 1
-  else
-    cn=$(echo -e "$output" | grep "Subject:")
-    if [[ "$cn" != *CN=$1* ]]; then
-      echo "The supplied $file certificate does not contain $1 in the Subject field and lacks a Subject Alternative Name field."
-      echo "Please supply a correct certificate or omit it to allow the deployer to generate it."
-      return 1
-    fi
-  fi
-  return 0
-}
-
-function validate_deployer_secret() {
-  local failure=false
-  local file
-  local output
-  pushd ${secret_dir} >& /dev/null
-  for file in *; do
-    case $file in
-      hawkular-metrics.pem)
-        cert_should_have_names "$file" "$hawkular_metrics_hostname" || failure=true
-       ;;
-      hawkular-metrics-ca.cert|heapster.key|heapster_client_ca.cert|heapster_allowed_users)
-        # is there a need to validate these?
-        ;;
-      nothing|none|null|foo|'*')
-        # dummy files, ignore
-        ;;
-      *)
-        failure=true
-        echo "Unexpected file found in deployer secret: $file"
-        echo "This is likely to be a typo; failing validation."
-        ;;
-    esac
-  done
-  popd >& /dev/null
-  if [ "$failure" = false ]; then
-    echo "ok"
-    return 0
-  fi
-  return 1
-}
-
 function validate_preflight() {
   set +x
   
   local success=()
   local failure=()
-  for func in validate_master_accessible validate_hostname validate_deployer_secret; do
+  for func in validate_master_accessible validate_hostname; do
     func_output="$($func 2>&1)" && \
       success+=("$func: $func_output") || \
       failure+=("$func: "$'\n'"$func_output")

@@ -130,7 +130,7 @@ function validate_deployed_project() {
 function test_deployed_accounts() {
   # test that secrets and service accounts exist
   local object missing=false objects=(secret/heapster-secrets serviceaccount/heapster)
-  [ -z "${HEAPSTER_STANDALONE:-}" ] && objects+=( secret/{hawkular-metrics-secrets,hawkular-metrics-certificate,hawkular-metrics-account} serviceaccount/{hawkular,cassandra} )
+  [ -z "${HEAPSTER_STANDALONE:-}" ] && objects+=( serviceaccount/{hawkular,cassandra} )
   for object in "${objects[@]}"; do
     if ! output=$(check_exists "$object"); then
       missing=true
@@ -447,7 +447,7 @@ function test_reencrypt_route() {
   # dest ca is required for reencrypt, and we assume the secret exists from previous tests.
   local dest_ca=$(oc get route/hawkular-metrics --template='{{.spec.tls.destinationCACertificate}}' 2>&1) ||  { bail_on_tls destinationCACertificate "$dest_ca"; return 1; }
   # note: following mess is because we want the error output from the first failure, not a pipeline
-  if secret_cert=$(oc get secret/hawkular-metrics-certificate --template='{{index .data "hawkular-metrics.certificate"}}' 2>&1) && \
+  if secret_cert=$(oc get secret/hawkular-metrics-certs --template='{{index .data "tls.crt"}}' 2>&1) && \
     [[ $secret_cert != "" ]] && \
     secret_cert=$(echo -e "$secret_cert" | base64 -d | keytool -printcert -rfc 2>&1); then :
   else
