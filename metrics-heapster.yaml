@@ -101,9 +101,9 @@ parameters:
   name: IGNORE_PREFLIGHT
   value: "false"
 -
-  description: "How often metrics should be gathered. Defaults value of '15s' for 15 seconds"
+  description: "How often metrics should be gathered. Defaults value of '30s' for 30 seconds"
   name: METRIC_RESOLUTION
-  value: "15s"
+  value: "30s"
 -
   description: "Can be set to: 'preflight' to perform validation before a deployment; 'deploy' to perform an initial deployment; 'refresh' to delete and redeploy all components but to keep persisted data and routes; 'redeploy' to delete and redeploy everything (losing all data in the process); 'validate' to re-run validations after a deployment"
   name: MODE

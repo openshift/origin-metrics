@@ -127,9 +127,9 @@ Default: *"false"*
 
 
 |*_METRIC_RESOLUTION_*
-|How often metrics should be gathered. Defaults value of '15s' for 15 seconds
+|How often metrics should be gathered. Defaults value of '30s' for 30 seconds
 
-Default: *"15s"*
+Default: *"30s"*
 |
 
 |===
