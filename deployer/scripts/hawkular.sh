@@ -18,7 +18,7 @@
 
 function deploy_hawkular() {
   
-  setup_certificate "hawkular-metrics" "hawkular-metrics,${hawkular_metrics_hostname}" "${HAWKULAR_METRICS_PEM:-}"
+  setup_certificate "hawkular-metrics" "hawkular-metrics,hawkular-metrics.${PROJECT}.svc.cluster.local,${hawkular_metrics_hostname}" "${HAWKULAR_METRICS_PEM:-}"
   setup_certificate "hawkular-cassandra" "hawkular-cassandra" "${HAWKULAR_CASSANDRA_PEM:-}"
  
   # Convert the *.pem files into java keystores
