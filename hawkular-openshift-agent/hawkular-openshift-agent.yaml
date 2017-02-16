@@ -88,29 +88,10 @@ objects:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          - name: HAWKULAR_SERVER_URL
-            value: https://hawkular-metrics
-          - name: HAWKULAR_SERVER_CA_CERT_FILE
-            value: "/hawkular-metrics-certificate/hawkular-metrics-ca.certificate"
-          - name: HAWKULAR_SERVER_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: hawkular-metrics-account 
-                key: hawkular-metrics.username
-          - name: HAWKULAR_SERVER_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: hawkular-metrics-account
-                key: hawkular-metrics.password
           volumeMounts:
-          - name: hawkular-metrics-certificate
-            mountPath: "/hawkular-metrics-certificate"
           - name: hawkular-openshift-agent-configuration
             mountPath: "/hawkular-openshift-agent-configuration"
         volumes:
-        - name: hawkular-metrics-certificate
-          secret:
-            secretName: hawkular-metrics-certificate
         - name: hawkular-openshift-agent-configuration
           configMap:
             name: hawkular-openshift-agent-configuration
