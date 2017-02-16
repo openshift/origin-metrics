@@ -35,6 +35,8 @@ The link:https://github.com/hawkular/hawkular-openshift-agent[Hawkular OpenShift
 
 This component runs as a deamon set across the OpenShift cluster and is responsible for gathering application level metrics from each pod running on that node.
 
+By default we deploy the agent to the `default` project. By deploying to the `default` project, the agent will be able to monitor all pods even if running with the `ovs_multitenant` plugin.
+
 [NOTE]
 ====
 The Hawkular OpenShift Agent is currently in Tech Preview.
@@ -63,20 +65,20 @@ A few steps are required to deploy the link:https://github.com/hawkular/hawkular
 
 You will first need to create the ConfigMap that the Agent uses to configure itself:
 ----
-$oc create -f deploy/openshift/hawkular-openshift-agent-configmap.yaml -n openshift-infra
+$oc create -f hawkular-agent/hawkular-openshift-agent-configmap.yaml -n default
 ----
 
 You will then need to process the Agent's template and deploy its components:
 ----
-$oc process -f deploy/openshift/hawkular-openshift-agent.yaml | oc create -n openshift-infra -f -
+$oc process -f hawkular-agent/hawkular-openshift-agent.yaml | oc create -n default -f -
 ----
 
 Finally you will need to grant the `hawkular-openshift-agent`'s service acount the proper permissions:
 ----
-$oc adm policy add-cluster-role-to-user hawkular-openshift-agent system:serviceaccount:openshift-infra:hawkular-openshift-agent
+$oc adm policy add-cluster-role-to-user hawkular-openshift-agent system:serviceaccount:default:hawkular-openshift-agent
 ----
 
-Once this is completed, the `Hawkular OpenShift Agent` should be deployed into the `openshift-infra` project.
+Once this is completed, the `Hawkular OpenShift Agent` should be deployed into the `default` project.
 
 If you are running the latest OpenShift, you should be able to verify that the agent is functioning by seeing extra metrics showing up under the agent's pod metric page.
 
