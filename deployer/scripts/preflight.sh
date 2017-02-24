@@ -95,9 +95,6 @@ function validate_deployer_secret() {
       hawkular-metrics.pem)
         cert_should_have_names "$file" "$hawkular_metrics_hostname" || failure=true
        ;;
-      heapster.cert)
-        cert_should_have_names "$file" heapster || failure=true
-        ;;
       hawkular-metrics-ca.cert|heapster.key|heapster_client_ca.cert|heapster_allowed_users)
         # is there a need to validate these?
         ;;
