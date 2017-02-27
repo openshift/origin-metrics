@@ -36,20 +36,41 @@ ENV CASSANDRA_VERSION="3.0.9" \
 # Become the root user to be able to install and setup Cassandra under /opt
 USER root
 
-#
-RUN yum install -y -q bind-utils && \
-    yum clean all
+# Remove once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
+COPY 0001-Handle-exabyte-sized-filesystems.patch /tmp/
+# Remove once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
+RUN yum install -y -q bind-utils git ant patch && \
+    yum clean all && \
+    export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 && \
+    export CASSANDRA_BUILD=1 && \
+    cd /tmp && \
+    git clone https://github.com/apache/cassandra && \
+    cd cassandra && \
+    git checkout cassandra-${CASSANDRA_VERSION} && \
+    patch -p1 < /tmp/0001-Handle-exabyte-sized-filesystems.patch && \
+    ant artifacts -Dbase.version=${CASSANDRA_VERSION}-${CASSANDRA_BUILD} -Drelease=true && \
+    cd /opt && \
+    cp /tmp/cassandra/build/apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz . && \
+    tar xzf apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz && \
+    rm apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz && \
+    ln -s apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD} apache-cassandra
 
-COPY apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5 \
-     /tmp/
+
+#Uncomment the following sections once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
+#
+#RUN yum install -y -q bind-utils && \
+#    yum clean all
+
+#COPY apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5 \
+#     /tmp/
 
 # Copy the Cassandra binary to the /opt directory
-RUN cd /opt; \
-    curl -LO https://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
-    if [ "$(md5sum apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz | awk '{print $1}')" != "$(cat /tmp/apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5)" ]; then echo "The Cassandra binary does not match the expected md5sum"; exit 1; fi && \
-    tar xzf apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
-    rm apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
-    ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
+#RUN cd /opt; \
+#    curl -LO https://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
+#    if [ "$(md5sum apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz | awk '{print $1}')" != "$(cat /tmp/apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz.md5)" ]; then echo "The Cassandra binary does not match the expected md5sum"; exit 1; fi && \
+#    tar xzf apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
+#    rm apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
+#    ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
 
 # Copy our version of the cassandra configuration file over to the filesystem
 COPY cassandra.yaml.template \
