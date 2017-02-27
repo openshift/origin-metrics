@@ -92,11 +92,11 @@ final_args=
 for arg in "$heapster_args"
 do
   arg=${arg//\%username\%/$HEAPSTER_USERNAME}
-  arg=${arg//\%password\%/$HEAPSTER_PASSWORD}
+  arg=${arg//\%password\%/\$HEAPSTER_PASSWORD}
   arg=${arg//\%allowed_users\%/$HEAPSTER_ALLOWED_USERS}
   final_args="$final_args $arg"
 done
 
 echo Starting Heapster with the following arguments: $final_args
 
-exec heapster $final_args
+HEAPSTER_PASSWORD=$HEAPSTER_PASSWORD exec heapster $final_args
