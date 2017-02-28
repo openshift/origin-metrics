@@ -76,6 +76,7 @@ RUN yum install -y -q bind-utils git ant patch && \
 COPY cassandra.yaml.template \
      cassandra-env.sh.template \
      cassandra-metrics-reporter.yaml \
+     logback.xml \
      /opt/apache-cassandra/conf/
 
 # Copy across the scripts
