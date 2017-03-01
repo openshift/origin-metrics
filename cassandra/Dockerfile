@@ -39,8 +39,9 @@ USER root
 # Remove once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
 COPY 0001-Handle-exabyte-sized-filesystems.patch /tmp/
 # Remove once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
-RUN yum install -y -q bind-utils git ant patch && \
+RUN yum install -y -q bind-utils git ant patch maven && \
     yum clean all && \
+    mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get -Dartifact=org.jboss.byteman:byteman-install:3.0.3 && \
     export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 && \
     export CASSANDRA_BUILD=1 && \
     cd /tmp && \
