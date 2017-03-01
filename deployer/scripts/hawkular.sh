@@ -64,12 +64,6 @@ function deploy_hawkular() {
   hawkular_metrics_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
   htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password 
 
-  echo "Generating the JGroups Keystore"
-  hawkular_jgroups_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-  hawkular_jgroups_keystore=${dir}/hawkular-jgroups-keystore
-  hawkular_jgroups_alias="hawkular"
-  keytool -genseckey -alias ${hawkular_jgroups_alias} -keypass ${hawkular_jgroups_password} -storepass ${hawkular_jgroups_password}  -keyalg Blowfish -keysize 56 -keystore ${hawkular_jgroups_keystore} -storetype JCEKS
-
   echo
   echo "Creating the Hawkular Metrics Secrets configuration json file"
   cat > $dir/hawkular-metrics-secrets.json <<EOF
@@ -89,10 +83,7 @@ function deploy_hawkular() {
           "hawkular-metrics.truststore": "$(base64 -w 0 $dir/hawkular-metrics.truststore)",
           "hawkular-metrics.truststore.password": "$(base64 <<< `echo $hawkular_metrics_truststore_password`)",
           "hawkular-metrics.keystore.alias": "$(base64 <<< `echo $hawkular_metrics_alias`)",
-          "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)",
-          "hawkular-metrics.jgroups.keystore.password":"$(base64 <<< `echo $hawkular_jgroups_password`)",
-          "hawkular-metrics.jgroups.keystore":"$(base64 -w 0 ${hawkular_jgroups_keystore})",
-          "hawkular-metrics.jgroups.alias":"$(base64 <<< `echo $hawkular_jgroups_alias`)"
+          "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)"
         }
       }
 EOF

@@ -43,21 +43,6 @@ do
       --hmw.truststore_password_file=*)
         TRUSTSTORE_PASSWORD_FILE="${args#*=}"
         ;;
-      --hmw.jgroups_keystore=*)
-        JGROUPS_KEYSTORE="${args#*=}"
-        ;;
-      --hmw.jgroups_keystore_password_file=*)
-        JGROUPS_KEYSTORE_PASSWORD_FILE="${args#*=}"
-        ;;
-     --hmw.jgroups_keystore_password=*)
-        JGROUPS_KEYSTORE_PASSWORD="${args#*=}"
-        ;;
-      --hmw.jgroups_alias_file=*)
-        JGROUPS_ALIAS_FILE="${args#*=}"
-        ;;
-      --hmw.jgroups.alias=*)
-        JGROUPS_ALIAS="${args#*=}"
-        ;;
     esac
   else
     as_args="$as_args $args"
@@ -86,23 +71,8 @@ if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
    TRUSTSTORE_PASSWORD=$(cat $TRUSTSTORE_PASSWORD_FILE)
 fi
 
-if [ -n "$JGROUPS_KEYSTORE_PASSWORD_FILE" ]; then
-   JGROUPS_KEYSTORE_PASSWORD=$(cat $JGROUPS_KEYSTORE_PASSWORD_FILE)
-fi
-if [ -n "$JGROUPS_ALIAS_FILE" ]; then
-   JGROUPS_ALIAS=$(cat $JGROUPS_ALIAS_FILE)
-fi
-sed -i "s|#JGROUPS_KEYSTORE_PASSWORD#|${JGROUPS_KEYSTORE_PASSWORD}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
-sed -i "s|#JGROUPS_ALIAS#|${JGROUPS_ALIAS}|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
-
-cp $JGROUPS_KEYSTORE ${JBOSS_HOME}/modules/system/layers/base/org/jgroups/main/hawkular-jgroups.keystore
-JGROUPS_RESOURCES="\
-    <resource-root path=\".\"/>\n\
-    </resources>\n"
-sed -i "s|</resources>|${JGROUPS_RESOURCES}|g" ${JBOSS_HOME}/modules/system/layers/base/org/jgroups/main/module.xml
-
 # Setup additional logging if the ADDITIONAL_LOGGING variable is set
-if [ -z "$ADDITIONAL_LOGGING"]; then
+if [ -z "$ADDITIONAL_LOGGING" ]; then
   additional_loggers="            <!-- no additional logging configured -->"
 else
   entries=$(echo $ADDITIONAL_LOGGING | tr "," "\n")
@@ -116,7 +86,7 @@ else
             </logger> \n"
 
     additional_loggers+=${debug_config}
-  done 
+  done
 fi
 sed -i "s|<!-- ##ADDITIONAL LOGGERS## -->|$additional_loggers|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
 
@@ -134,10 +104,16 @@ KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
 $KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
 popd
 
+if [ "x${JGROUPS_PASSWORD}" == "x" ]; then
+    echo "Could not determine the JGroups password. Without it, we cannot get a cluster lock, which could lead to unpredictable results."
+    echo "Set the JGROUPS_PASSWORD environment variable and try again."
+    exit 1
+fi
 
 cat > $HAWKULAR_METRICS_DIRECTORY/server.properties << EOL
 javax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD
 javax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD
+jgroups.password=${JGROUPS_PASSWORD}
 EOL
 
 exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \

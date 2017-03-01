@@ -324,12 +324,12 @@
                     <protocol type="FD_SOCK" socket-binding="jgroups-udp-fd"/>
                     <protocol type="FD_ALL"/>
                     <protocol type="VERIFY_SUSPECT"/>
-                    <protocol type="SYM_ENCRYPT">
-                      <property name="encrypt_entire_message">true</property>
-                      <property name="sym_algorithm">AES</property>
-                      <property name="keystore_name">hawkular-jgroups.keystore</property>
-                      <property name="store_password">#JGROUPS_KEYSTORE_PASSWORD#</property>
-                      <property name="alias">#JGROUPS_ALIAS#</property>
+                    <protocol type="ASYM_ENCRYPT">
+                        <property name="encrypt_entire_message">true</property>
+                        <property name="sym_keylength">128</property>
+                        <property name="sym_algorithm">AES</property>
+                        <property name="asym_keylength">512</property>
+                        <property name="asym_algorithm">RSA</property>
                     </protocol>
                     <protocol type="pbcast.NAKACK2"/>
                     <protocol type="UNICAST3"/>
@@ -338,6 +338,11 @@
                     <protocol type="UFC"/>
                     <protocol type="MFC"/>
                     <protocol type="FRAG2"/>
+                    <protocol type="AUTH">
+                        <property name="auth_class">org.jgroups.auth.MD5Token</property>
+                        <property name="auth_value">${jgroups.password}</property>
+                        <property name="token_hash">MD5</property>
+                    </protocol>
                 </stack>
                 <stack name="tcp">
                     <transport type="TCP" socket-binding="jgroups-tcp"/>
@@ -346,12 +351,12 @@
                     <protocol type="FD_SOCK" socket-binding="jgroups-tcp-fd"/>
                     <protocol type="FD"/>
                     <protocol type="VERIFY_SUSPECT"/>
-                    <protocol type="SYM_ENCRYPT">
-                      <property name="encrypt_entire_message">true</property>
-                      <property name="sym_algorithm">AES</property>
-                      <property name="keystore_name">hawkular-jgroups.keystore</property>
-                      <property name="store_password">#JGROUPS_KEYSTORE_PASSWORD#</property>
-                      <property name="alias">#JGROUPS_ALIAS#</property>
+                    <protocol type="ASYM_ENCRYPT">
+                        <property name="encrypt_entire_message">true</property>
+                        <property name="sym_keylength">128</property>
+                        <property name="sym_algorithm">AES</property>
+                        <property name="asym_keylength">512</property>
+                        <property name="asym_algorithm">RSA</property>
                     </protocol>
                     <protocol type="pbcast.NAKACK2"/>
                     <protocol type="UNICAST3"/>
@@ -359,6 +364,11 @@
                     <protocol type="pbcast.GMS"/>
                     <protocol type="MFC"/>
                     <protocol type="FRAG2"/>
+                    <protocol type="AUTH">
+                        <property name="auth_class">org.jgroups.auth.MD5Token</property>
+                        <property name="auth_value">${jgroups.password}</property>
+                        <property name="token_hash">MD5</property>
+                    </protocol>
                 </stack>
             </stacks>
         </subsystem>

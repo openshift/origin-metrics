@@ -28,6 +28,11 @@ parameters:
 - description: How long in seconds we should wait until Hawkular Metrics starts up before attempting a restart
   name: STARTUP_TIMEOUT
   value: "500"
+- description: The password to be used for the nodes to communicate with each other. Auto generated if empty.
+  displayName: JGroups Password
+  name: JGROUPS_PASSWORD
+  from: '[a-zA-Z0-9]{23}'
+  generate: expression
 objects:
 - apiVersion: v1
   kind: Service
@@ -97,9 +102,6 @@ objects:
           - "--hmw.truststore=/secrets/hawkular-metrics.truststore"
           - "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password"
           - "--hmw.truststore_password_file=/secrets/hawkular-metrics.truststore.password"
-          - "--hmw.jgroups_keystore=/secrets/hawkular-metrics.jgroups.keystore"
-          - "--hmw.jgroups_keystore_password_file=/secrets/hawkular-metrics.jgroups.keystore.password"
-          - "--hmw.jgroups_alias_file=/secrets/hawkular-metrics.jgroups.alias"
           env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -115,6 +117,8 @@ objects:
             value: "metrics-infra=hawkular-metrics,name=hawkular-metrics"
           - name: STARTUP_TIMEOUT
             value: ${STARTUP_TIMEOUT}
+          - name: JGROUPS_PASSWORD
+            value: ${JGROUPS_PASSWORD}
           volumeMounts:
           - name: hawkular-metrics-secrets
             mountPath: "/secrets"
