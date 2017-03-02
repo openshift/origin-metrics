@@ -95,8 +95,27 @@ HAWKULAR_METRICS_AUTH_DIR=$HAWKULAR_METRICS_DIRECTORY/auth
 mkdir $HAWKULAR_METRICS_AUTH_DIR
 pushd $HAWKULAR_METRICS_AUTH_DIR
 
-cp $KEYSTORE hawkular-metrics.keystore
-cp $TRUSTSTORE hawkular-metrics.truststore
+if [ "${KEYSTORE##*.}" != pkcs12 ]; then
+  cp $KEYSTORE hawkular-metrics.keystore
+else
+  keytool -v -importkeystore \
+    -srckeystore "$KEYSTORE" \
+    -srcstoretype PKCS12 \
+    -destkeystore "$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.keystore" \
+    -deststoretype JKS \
+    -srcstorepass "$KEYSTORE_PASSWORD" \
+    -deststorepass "$KEYSTORE_PASSWORD"
+fi
+if [ "$TRUSTSTORE" ]; then
+  cp $TRUSTSTORE hawkular-metrics.truststore
+else
+  TRUSTSTORE=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore
+  for f in hawkular-cassandra ca; do
+    keytool -noprompt -import -v -trustcacerts \
+      -alias "$f" -file "/secrets/$f.crt" \
+      -keystore "$TRUSTSTORE" -storepass "$TRUSTSTORE_PASSWORD"
+  done
+fi
 
 chmod a+rw hawkular-metrics.*
 
