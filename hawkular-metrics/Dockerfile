@@ -80,7 +80,7 @@ USER root
 RUN yum -y install epel-release \
     && yum -y install python-pip \
     && yum clean all \
-    && pip install --no-cache-dir 'hawkular-client==0.4.4'
+    && pip install --no-cache-dir 'hawkular-client==0.5.2'
 
 # Change the permissions so that the user running the image can start up Hawkular Metrics
 RUN chmod -R 777 /opt
