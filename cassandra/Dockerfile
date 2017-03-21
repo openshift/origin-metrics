@@ -54,7 +54,9 @@ RUN yum install -y -q bind-utils git ant patch maven openssl && \
     cp /tmp/cassandra/build/apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz . && \
     tar xzf apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz && \
     rm apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz && \
-    ln -s apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD} apache-cassandra
+    ln -s apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD} apache-cassandra && \
+    rm -rf /tmp/cassandra && \
+    rm -rf /root/.m2
 
 
 #Uncomment the following sections once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
