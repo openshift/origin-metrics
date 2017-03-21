@@ -22,6 +22,14 @@ parameters:
 - description: The node number for the Cassandra cluster.
   name: NODE
   required: true
+- description: Path within the container to the file containing the Certificate Authorities to add to the peer trust store
+  name: TRUSTSTORE_NODES_AUTHORITIES
+  value: '/hawkular-cassandra-certs/tls.peer.truststore.crt'
+  required: false
+- description: Path within the container to the file containing the Certificate Authorities to add to the client trust store
+  name: TRUSTSTORE_CLIENT_AUTHORITIES
+  value: '/hawkular-cassandra-certs/tls.client.truststore.crt'
+  required: false
 objects:
 - apiVersion: v1
   kind: ReplicationController
@@ -64,11 +72,8 @@ objects:
           - "--require_node_auth=true"
           - "--enable_client_encryption=true"
           - "--require_client_auth=true"
-          - "--keystore_file=/secret/cassandra.keystore"
-          - "--keystore_password_file=/secret/cassandra.keystore.password"
-          - "--truststore_file=/secret/cassandra.truststore"
-          - "--truststore_password_file=/secret/cassandra.truststore.password"
-          - "--cassandra_pem_file=/secret/cassandra.pem"
+          - "--truststore_nodes_authorities=${TRUSTSTORE_NODES_AUTHORITIES}"
+          - "--truststore_client_authorities=${TRUSTSTORE_CLIENT_AUTHORITIES}"
           env:
           - name: CASSANDRA_MASTER
             value: "${MASTER}"
@@ -92,8 +97,8 @@ objects:
           volumeMounts:
           - name: cassandra-data
             mountPath: "/cassandra_data"
-          - name: hawkular-cassandra-secrets
-            mountPath: "/secret"
+          - name: hawkular-cassandra-certs
+            mountPath: "/hawkular-cassandra-certs"
           readinessProbe:
             exec:
               command:
@@ -111,6 +116,6 @@ objects:
         volumes:
         - name: cassandra-data
           emptyDir: {}
-        - name: hawkular-cassandra-secrets
+        - name: hawkular-cassandra-certs
           secret:
-            secretName: hawkular-cassandra-secrets
+            secretName: hawkular-cassandra-certs

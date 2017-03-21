@@ -17,52 +17,55 @@
 #
 
 function deploy_hawkular() {
-  
+
   setup_certificate "hawkular-metrics" "hawkular-metrics,hawkular-metrics.${PROJECT}.svc.cluster.local,${hawkular_metrics_hostname}" "${HAWKULAR_METRICS_PEM:-}"
   setup_certificate "hawkular-cassandra" "hawkular-cassandra" "${HAWKULAR_CASSANDRA_PEM:-}"
- 
+
+  cassandra_tls_crt=$(base64 -w 0 ${dir}/hawkular-cassandra.crt)
+  cassandra_tls_key=$(base64 -w 0 ${dir}/hawkular-cassandra.key)
+
+  # note that each of the following files contain the cert itself + the cert for the signer
+  cassandra_tls_peer_truststore=$(base64 -w 0 ${dir}/hawkular-cassandra.crt)
+  cassandra_tls_client_truststore=$(base64 -w 0 ${dir}/hawkular-metrics.crt)
+
+  cat > ${dir}/hawkular-cassandra-certs.yaml <<EOF
+apiVersion: v1
+data:
+  tls.crt: ${cassandra_tls_crt}
+  tls.key: ${cassandra_tls_key}
+  tls.peer.truststore.crt: ${cassandra_tls_peer_truststore}
+  tls.client.truststore.crt: ${cassandra_tls_client_truststore}
+kind: Secret
+metadata:
+  labels:
+    metrics-infra: hawkular-cassandra-certs
+  annotations:
+    service.alpha.openshift.io/originating-service-name: hawkular-cassandra
+  name: hawkular-cassandra-certs
+type: kubernetes.io/tls
+EOF
+
+  echo "Creating the secret with the required certs if it doesn't exist yet"
+  oc get secret hawkular-cassandra-certs > /dev/null || oc create -f ${dir}/hawkular-cassandra-certs.yaml
+
   # Convert the *.pem files into java keystores
-  echo "Generating randomized passwords for the Hawkular Metrics and Cassandra keystores and truststores"
+  echo "Generating randomized passwords for the Hawkular Metrics keystores and truststores"
   hawkular_metrics_keystore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
   hawkular_metrics_truststore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-  hawkular_cassandra_keystore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-  hawkular_cassandra_truststore_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-  
+
   echo "Creating the Hawkular Metrics keystore from the PEM file"
   openssl pkcs12 -export -in $dir/hawkular-metrics.pem -out $dir/hawkular-metrics.pkcs12 -name $hawkular_metrics_alias -noiter -nomaciter -password pass:$hawkular_metrics_keystore_password
   keytool -v -importkeystore -srckeystore $dir/hawkular-metrics.pkcs12 -srcstoretype PKCS12 -destkeystore $dir/hawkular-metrics.keystore -deststoretype JKS -deststorepass $hawkular_metrics_keystore_password -srcstorepass $hawkular_metrics_keystore_password
-  
-  echo "Creating the Hawkular Cassandra keystore from the PEM file"
-  openssl pkcs12 -export -in $dir/hawkular-cassandra.pem -out $dir/hawkular-cassandra.pkcs12 -name $hawkular_cassandra_alias -noiter -nomaciter -password pass:$hawkular_cassandra_keystore_password
-  keytool -v -importkeystore -srckeystore $dir/hawkular-cassandra.pkcs12 -srcstoretype PKCS12 -destkeystore $dir/hawkular-cassandra.keystore -deststoretype JKS -deststorepass $hawkular_cassandra_keystore_password -srcstorepass $hawkular_cassandra_keystore_password
-  
+
   echo "Creating the Hawkular Metrics Certificate"
   keytool -noprompt -export -alias $hawkular_metrics_alias -file $dir/hawkular-metrics.cert -keystore $dir/hawkular-metrics.keystore -storepass $hawkular_metrics_keystore_password
-  
-  echo "Creating the Hawkular Cassandra Certificate"
-  keytool -noprompt -export -alias $hawkular_cassandra_alias -file $dir/hawkular-cassandra.cert -keystore $dir/hawkular-cassandra.keystore -storepass $hawkular_cassandra_keystore_password
-  
-  echo "Importing the Hawkular Metrics Certificate into the Cassandra Truststore"
-  keytool -noprompt -import -v -trustcacerts -alias $hawkular_metrics_alias -file $dir/hawkular-metrics.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
-  
-  echo "Importing the Hawkular Cassandra Certificate into the Hawkular Metrics Truststore"
-  keytool -noprompt -import -v -trustcacerts -alias $hawkular_cassandra_alias -file $dir/hawkular-cassandra.cert -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
-  
-  echo "Importing the Hawkular Cassandra Certificate into the Cassandra Truststore"
-  keytool -noprompt -import -v -trustcacerts -alias $hawkular_cassandra_alias -file $dir/hawkular-cassandra.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
-  
-  echo "Importing the CA Certificate into the Cassandra Truststore"
-  keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
-  keytool -noprompt -import -v -trustcacerts -alias metricca -file ${dir}/hawkular-metrics-ca.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
-  keytool -noprompt -import -v -trustcacerts -alias cassandraca -file ${dir}/hawkular-cassandra-ca.cert -keystore $dir/hawkular-cassandra.truststore -trustcacerts -storepass $hawkular_cassandra_truststore_password
-  
+
   echo "Importing the CA Certificate into the Hawkular Metrics Truststore"
   keytool -noprompt -import -v -trustcacerts -alias ca -file ${dir}/ca.crt -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
   keytool -noprompt -import -v -trustcacerts -alias metricsca -file ${dir}/hawkular-metrics-ca.cert -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
-  keytool -noprompt -import -v -trustcacerts -alias cassandraca -file ${dir}/hawkular-cassandra-ca.cert -keystore $dir/hawkular-metrics.truststore -trustcacerts -storepass $hawkular_metrics_truststore_password
-  
+
   hawkular_metrics_password=`cat /dev/urandom | tr -dc _A-Z-a-z-0-9 | head -c15`
-  htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password 
+  htpasswd -cb $dir/hawkular-metrics.htpasswd hawkular $hawkular_metrics_password
 
   echo
   echo "Creating the Hawkular Metrics Secrets configuration json file"
@@ -127,58 +130,12 @@ EOF
         }
       }
 EOF
-  
-  echo
-  echo "Creating the Cassandra Secrets configuration file"
-  cat > $dir/cassandra-secrets.json <<EOF
-      {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata":
-        { "name": "hawkular-cassandra-secrets",
-          "labels": {
-            "metrics-infra": "hawkular-cassandra"
-          }
-        },
-        "data":
-        {
-          "cassandra.keystore": "$(base64 -w 0 $dir/hawkular-cassandra.keystore)",
-          "cassandra.keystore.password": "$(base64 <<< `echo $hawkular_cassandra_keystore_password`)",
-          "cassandra.keystore.alias": "$(base64 <<< `echo $hawkular_cassandra_alias`)",
-          "cassandra.truststore": "$(base64 -w 0 $dir/hawkular-cassandra.truststore)",
-          "cassandra.truststore.password": "$(base64 <<< `echo $hawkular_cassandra_truststore_password`)",
-          "cassandra.pem": "$(base64 -w 0 $dir/hawkular-cassandra.pem)"
-        }
-      }
-EOF
-  
-  echo
-  echo "Creating the Cassandra Certificate Secrets configuration json file"
-  cat > $dir/cassandra-certificate.json <<EOF
-      {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata":
-        { "name": "hawkular-cassandra-certificate",
-          "labels": {
-            "metrics-infra": "hawkular-cassandra"
-          }
-        },
-        "data":
-        {
-          "cassandra.certificate": "$(base64 -w 0 $dir/hawkular-cassandra.cert)",
-          "cassandra-ca.certificate": "$(base64 -w 0 $dir/hawkular-cassandra-ca.cert)"
-        }
-      }
-EOF
-  
-  echo "Creating Hawkular Metrics & Cassandra Secrets"
+
+  echo "Creating Hawkular Metrics"
   oc create -f $dir/hawkular-metrics-secrets.json
   oc create -f $dir/hawkular-metrics-certificate.json
   oc create -f $dir/hawkular-metrics-account.json
-  oc create -f $dir/cassandra-secrets.json
-  oc create -f $dir/cassandra-certificate.json
-  
+
   echo "Creating Hawkular Metrics & Cassandra Templates"
   oc create -f templates/hawkular-metrics.yaml
   oc create -f templates/hawkular-cassandra.yaml
@@ -219,37 +176,61 @@ EOF
       )"
    fi
   fi
- 
+
   if [ "${use_persistent_storage}" = true ]; then
     if [ "${dynamically_provision_storage}" = true ]; then
       echo "Setting up Cassandra with Dynamically Provisioned Storage"
       # Deploy the main 'master' Cassandra node
       # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-      oc process hawkular-cassandra-node-dynamic-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v PV_SIZE=$cassandra_pv_size -v MASTER=true | oc create -f - || true
+      oc process hawkular-cassandra-node-dynamic-pv \
+        -v IMAGE_PREFIX=$image_prefix \
+        -v IMAGE_VERSION=$image_version \
+        -v NODE=1 \
+        -v PV_SIZE=$cassandra_pv_size \
+        -v MASTER=true | oc create -f - || true
       # Deploy any subsequent Cassandra nodes
       for i in $(seq 2 $cassandra_nodes);
       do
         # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-        oc process hawkular-cassandra-node-dynamic-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v PV_SIZE=$cassandra_pv_size -v NODE=$i | oc create -f - || true
+        oc process hawkular-cassandra-node-dynamic-pv \
+          -v IMAGE_PREFIX=$image_prefix \
+          -v IMAGE_VERSION=$image_version \
+          -v PV_SIZE=$cassandra_pv_size -v NODE=$i | oc create -f - || true
       done
     else
       echo "Setting up Cassandra with Persistent Storage"
       # Deploy the main 'master' Cassandra node
       # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-      oc process hawkular-cassandra-node-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v PV_SIZE=$cassandra_pv_size -v MASTER=true | oc create -f - || true
+      oc process hawkular-cassandra-node-pv \
+        -v IMAGE_PREFIX=$image_prefix \
+        -v IMAGE_VERSION=$image_version \
+        -v NODE=1 \
+        -v PV_SIZE=$cassandra_pv_size \
+        -v MASTER=true | oc create -f - || true
       # Deploy any subsequent Cassandra nodes
       for i in $(seq 2 $cassandra_nodes);
       do
         # Note that this may return an error code if the pvc already exists, this is to be expected and why we have the || true here
-        oc process hawkular-cassandra-node-pv -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v PV_SIZE=$cassandra_pv_size -v NODE=$i | oc create -f - || true
+        oc process hawkular-cassandra-node-pv \
+          -v IMAGE_PREFIX=$image_prefix \
+          -v IMAGE_VERSION=$image_version \
+          -v PV_SIZE=$cassandra_pv_size \
+          -v NODE=$i | oc create -f - || true
       done
     fi
-  else 
+  else
     echo "Setting up Cassandra with Non Persistent Storage"
-    oc process hawkular-cassandra-node-emptydir -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=1 -v MASTER=true | oc create -f -  
+    oc process hawkular-cassandra-node-emptydir \
+      -v IMAGE_PREFIX=$image_prefix \
+      -v IMAGE_VERSION=$image_version \
+      -v NODE=1 \
+      -v MASTER=true | oc create -f -
     for i in $(seq 2 $cassandra_nodes);
     do
-      oc process hawkular-cassandra-node-emptydir -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v NODE=$i | oc create -f -
+      oc process hawkular-cassandra-node-emptydir \
+        -v IMAGE_PREFIX=$image_prefix \
+        -v IMAGE_VERSION=$image_version \
+        -v NODE=$i | oc create -f -
     done
   fi
 }

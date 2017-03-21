@@ -884,11 +884,9 @@ server_encryption_options:
     internode_encryption: ${INTERNODE_ENCRYPTION}
     keystore: ${KEYSTORE_FILE}
     keystore_password: ${KEYSTORE_PASSWORD}
-    truststore: ${TRUSTSTORE_FILE}
-    truststore_password: ${TRUSTSTORE_PASSWORD}
+    truststore: ${TRUSTSTORE_NODES_FILE}
+    truststore_password: ${TRUSTSTORE_NODES_PASSWORD}
     require_client_auth: ${REQUIRE_NODE_AUTH}
-    #TODO: add back in the EC suites once OpenJDK fixes their encryption issues
-    cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA]
     # More advanced defaults below:
     # protocol: TLS
     # algorithm: SunX509
@@ -902,10 +900,8 @@ client_encryption_options:
     keystore: ${KEYSTORE_FILE}
     keystore_password: ${KEYSTORE_PASSWORD}
     require_client_auth: ${REQUIRE_CLIENT_AUTH}
-    truststore: ${TRUSTSTORE_FILE}
-    truststore_password: ${TRUSTSTORE_PASSWORD}
-    #TODO: add back in the EC suites once OpenJDK fixes their encryption issues
-    cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA]
+    truststore: ${TRUSTSTORE_CLIENT_FILE}
+    truststore_password: ${TRUSTSTORE_CLIENT_PASSWORD}
     # More advanced defaults below:
     # protocol: TLS
     # algorithm: SunX509
