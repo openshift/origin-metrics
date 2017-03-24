@@ -51,7 +51,7 @@ COPY modules/org/jgroups/main/module.xml $JBOSS_HOME/modules/system/layers/base/
 
 # Enable http2/spdy
 # TODO: remove when we are running on JDK9 which will already have this support added
-ENV ALPN_VERSION="8.1.7.v20160121" 
+ENV ALPN_VERSION="8.1.9.v20160720" 
 RUN curl -Lo $JBOSS_HOME/bin/alpn-boot-$ALPN_VERSION.jar http://central.maven.org/maven2/org/mortbay/jetty/alpn/alpn-boot/$ALPN_VERSION/alpn-boot-$ALPN_VERSION.jar && \
     echo 'JAVA_OPTS="$JAVA_OPTS' " -Xbootclasspath/p:$JBOSS_HOME/bin/alpn-boot-$ALPN_VERSION.jar" '"' >> $JBOSS_HOME/bin/standalone.conf
 
