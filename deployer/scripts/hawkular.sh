@@ -85,7 +85,8 @@ EOF
         "data":
         {
           "hawkular-metrics.username": "$(base64 <<< `echo hawkular`)",
-          "hawkular-metrics.password": "$(base64 <<< `echo $hawkular_metrics_password`)"
+          "hawkular-metrics.password": "$(base64 <<< `echo $hawkular_metrics_password`)",
+          "hawkular-metrics.htpasswd.file": "$(base64 -w 0 $dir/hawkular-metrics.htpasswd)"
         }
       }
 EOF

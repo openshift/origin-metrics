@@ -90,14 +90,14 @@ objects:
           - "-Dhawkular.metrics.cassandra.nodes=hawkular-cassandra"
           - "-Dhawkular.metrics.cassandra.use-ssl"
           - "-Dhawkular.metrics.openshift.auth-methods=openshift-oauth,htpasswd"
-          - "-Dhawkular.metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
+          - "-Dhawkular.metrics.openshift.htpasswd-file=/client-secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.metrics.allowed-cors-access-control-allow-headers=authorization"
           - "-Dhawkular.metrics.default-ttl=${METRIC_DURATION}"
           - "-Dhawkular.metrics.admin-tenant=_hawkular_admin"
           - "-Dhawkular-alerts.cassandra-nodes=hawkular-cassandra"
           - "-Dhawkular-alerts.cassandra-use-ssl"
           - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
-          - "-Dhawkular.alerts.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
+          - "-Dhawkular.alerts.openshift.htpasswd-file=/client-secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.alerts.allowed-cors-access-control-allow-headers=authorization"
           - "-Dcom.datastax.driver.FORCE_NIO=true"
           - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
@@ -125,6 +125,8 @@ objects:
           volumeMounts:
           - name: hawkular-metrics-certs
             mountPath: "/hawkular-metrics-certs"
+          - name: hawkular-metrics-client-secrets
+            mountPath: "/client-secrets"
           readinessProbe:
             exec:
               command:
@@ -137,15 +139,6 @@ objects:
         - name: hawkular-metrics-certs
           secret:
             secretName: hawkular-metrics-certs
-#- apiVersion: v1
-#  kind: Route
-#  metadata:
-#    creationTimestamp: null
-#    name: hawkular-metrics-route
-#  spec:
-#    tls:
-#      insecureEdgeTerminationPolicy: Allow
-#      termination: reencrypt
-#    to:
-#      kind: Service
-#      name: hawkular-metrics
+        - name: hawkular-metrics-client-secrets
+          secret:
+            secretName: hawkular-metrics-account

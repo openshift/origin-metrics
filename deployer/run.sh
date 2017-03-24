@@ -83,7 +83,7 @@ metric_resolution=${METRIC_RESOLUTION:-30s}
 project=${PROJECT:-openshift-infra}
 
 # the master certificate and service account tokens
-master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt}
+master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
 token_file=${TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}
 
 # directory to perform all the processing
@@ -100,7 +100,7 @@ openshift admin ca create-signer-cert  \
   --key="${dir}/ca.key" \
   --cert="${dir}/ca.crt" \
   --serial="${dir}/ca.serial.txt" \
---name="metrics-signer@$(date +%s)"
+  --name="metrics-signer@$(date +%s)"
 
 # set up configuration for client
 if [ -n "${WRITE_KUBECONFIG:-}" ]; then
