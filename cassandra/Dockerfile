@@ -27,7 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 EXPOSE 9042 9160 7000 7001
 
 # The Cassandra version
-ENV CASSANDRA_VERSION="3.0.9" \
+ENV CASSANDRA_VERSION="3.0.12" \
     CASSANDRA_HOME="/opt/apache-cassandra" \
     HOME="/home/cassandra" \
     PATH="/opt/apache-cassandra/bin:$PATH" \
@@ -39,7 +39,7 @@ USER root
 # Remove once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
 COPY 0001-Handle-exabyte-sized-filesystems.patch /tmp/
 # Remove once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
-RUN yum install -y -q bind-utils git ant patch maven openssl && \
+RUN yum install -y -q bind-utils git ant ant-junit patch maven openssl && \
     yum clean all && \
     mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get -Dartifact=org.jboss.byteman:byteman-install:3.0.3 && \
     export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 && \
@@ -54,7 +54,9 @@ RUN yum install -y -q bind-utils git ant patch maven openssl && \
     cp /tmp/cassandra/build/apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz . && \
     tar xzf apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz && \
     rm apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD}-bin.tar.gz && \
-    ln -s apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD} apache-cassandra
+    ln -s apache-cassandra-${CASSANDRA_VERSION}-${CASSANDRA_BUILD} apache-cassandra && \
+    rm -rf /tmp/cassandra && \
+    rm -rf /root/.m2
 
 
 #Uncomment the following sections once https://issues.apache.org/jira/browse/CASSANDRA-13067 is fixed
