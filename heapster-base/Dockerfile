@@ -23,15 +23,15 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 EXPOSE 8082
 
-#Commit for version v1.2.0
-ENV HEAPSTER_COMMIT=v1.2.0
+#Commit for version v1.3.0
+ENV HEAPSTER_COMMIT=v1.3.0
 
 #Remove once golang 1.6 is available in centos
 RUN yum install -y -q wget && \
     mkdir -p /opt/golang && \
     cd /opt/golang && \
-    wget https://storage.googleapis.com/golang/go1.6.3.linux-amd64.tar.gz && \
-    tar xf go1.6.3.linux-amd64.tar.gz
+    wget https://storage.googleapis.com/golang/go1.7.5.linux-amd64.tar.gz && \
+    tar xf go1.7.5.linux-amd64.tar.gz
 ENV PATH=/opt/golang/go/bin/:$PATH
 ENV GOROOT=/opt/golang/go
 #
