@@ -95,7 +95,6 @@ rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
 mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
 hawkular_metrics_hostname=${HAWKULAR_METRICS_HOSTNAME:-hawkular-metrics.example.com}
-hawkular_metrics_alias=${HAWKULAR_METRICS_ALIAS:-hawkular-metrics}
 
 openshift admin ca create-signer-cert  \
   --key="${dir}/ca.key" \
@@ -144,7 +143,6 @@ deploy|redeploy|refresh)
         validate_preflight
     fi
     handle_previous_deployment
-    create_signer_cert "${dir}"
     [ -z "${HEAPSTER_STANDALONE:-}" ] && deploy_hawkular
     deploy_heapster
     validate_deployment

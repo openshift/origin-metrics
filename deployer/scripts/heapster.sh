@@ -28,6 +28,7 @@ function deploy_heapster() {
 
   echo
   echo "Creating the Heapster Secrets configuration json file"
+  heapster_tls_truststore=$(base64 -w 0 ${dir}/hawkular-metrics-ca.cert)
   cat > $dir/heapster-secrets.json <<EOF
       {
         "apiVersion": "v1",
@@ -40,7 +41,8 @@ function deploy_heapster() {
         },
         "data":
         {
-          "heapster.allowed-users":"$(base64 -w 0 $dir/heapster_allowed_users)"
+          "heapster.allowed-users":"$(base64 -w 0 $dir/heapster_allowed_users)",
+          "heapster.tls.truststore":"${heapster_tls_truststore}"
         }
       }
 EOF

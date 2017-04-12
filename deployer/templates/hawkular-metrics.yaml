@@ -33,6 +33,10 @@ parameters:
   name: JGROUPS_PASSWORD
   from: '[a-zA-Z0-9]{23}'
   generate: expression
+- description: Path within the container to the file containing the Certificate Authorities to add to the trust store
+  name: TRUSTSTORE_AUTHORITIES
+  value: '/hawkular-metrics-certs/tls.truststore.crt'
+  required: false
 objects:
 - apiVersion: v1
   kind: Service
@@ -41,6 +45,8 @@ objects:
     labels:
       metrics-infra: hawkular-metrics
       name: hawkular-metrics
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": hawkular-metrics-certs
   spec:
     selector:
       name: hawkular-metrics
@@ -84,24 +90,21 @@ objects:
           - "-Dhawkular.metrics.cassandra.nodes=hawkular-cassandra"
           - "-Dhawkular.metrics.cassandra.use-ssl"
           - "-Dhawkular.metrics.openshift.auth-methods=openshift-oauth,htpasswd"
-          - "-Dhawkular.metrics.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
+          - "-Dhawkular.metrics.openshift.htpasswd-file=/client-secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.metrics.allowed-cors-access-control-allow-headers=authorization"
           - "-Dhawkular.metrics.default-ttl=${METRIC_DURATION}"
           - "-Dhawkular.metrics.admin-tenant=_hawkular_admin"
           - "-Dhawkular-alerts.cassandra-nodes=hawkular-cassandra"
           - "-Dhawkular-alerts.cassandra-use-ssl"
           - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
-          - "-Dhawkular.alerts.openshift.htpasswd-file=/secrets/hawkular-metrics.htpasswd.file"
+          - "-Dhawkular.alerts.openshift.htpasswd-file=/client-secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.alerts.allowed-cors-access-control-allow-headers=authorization"
           - "-Dcom.datastax.driver.FORCE_NIO=true"
           - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
           - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
           - "-DKUBERNETES_MASTER_URL=${MASTER_URL}"
           - "-DUSER_WRITE_ACCESS=${USER_WRITE_ACCESS}"
-          - "--hmw.keystore=/secrets/hawkular-metrics.keystore"
-          - "--hmw.truststore=/secrets/hawkular-metrics.truststore"
-          - "--hmw.keystore_password_file=/secrets/hawkular-metrics.keystore.password"
-          - "--hmw.truststore_password_file=/secrets/hawkular-metrics.truststore.password"
+          - "--hmw.truststore_authorities=${TRUSTSTORE_AUTHORITIES}"
           env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -120,8 +123,8 @@ objects:
           - name: JGROUPS_PASSWORD
             value: ${JGROUPS_PASSWORD}
           volumeMounts:
-          - name: hawkular-metrics-secrets
-            mountPath: "/secrets"
+          - name: hawkular-metrics-certs
+            mountPath: "/hawkular-metrics-certs"
           - name: hawkular-metrics-client-secrets
             mountPath: "/client-secrets"
           readinessProbe:
@@ -133,9 +136,9 @@ objects:
               command:
               - "/opt/hawkular/scripts/hawkular-metrics-liveness.py"
         volumes:
-        - name: hawkular-metrics-secrets
+        - name: hawkular-metrics-certs
           secret:
-            secretName: hawkular-metrics-secrets
+            secretName: hawkular-metrics-certs
         - name: hawkular-metrics-client-secrets
           secret:
             secretName: hawkular-metrics-account

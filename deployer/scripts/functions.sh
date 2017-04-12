@@ -11,7 +11,7 @@ function parse_bool {
 
 # $1: name (eg [hawkular-metrics|hawkular-cassandra])
 # $2: hostnames to use
-# $3: environment variable containing base64 pem 
+# $3: environment variable containing base64 pem
 function setup_certificate {
   local name="${1:-}"
   local hostnames="${2:-}"

@@ -37,7 +37,6 @@ objects:
       metrics-infra: support
   secrets:
   - name: heapster-secrets
-  - name: hawkular-metrics-certificate
   - name: hawkular-metrics-account
 - apiVersion: v1
   kind: Service
@@ -85,7 +84,7 @@ objects:
           - "--wrapper.allowed_users_file=/secrets/heapster.allowed-users"
           - "--wrapper.endpoint_check=https://hawkular-metrics:443/hawkular/metrics/status"
           - "--source=kubernetes.summary_api:${MASTER_URL}?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250"
-          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=namespace_name&labelNodeId=${NODE_ID}&caCert=/hawkular-cert/hawkular-metrics-ca.certificate&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
+          - "--sink=hawkular:https://hawkular-metrics:443?tenant=_system&labelToTenant=namespace_name&labelNodeId=${NODE_ID}&caCert=/secrets/heapster.tls.truststore&user=%username%&pass=%password%&filter=label(container_name:^system.slice.*|^user.slice)"
           - "--tls_cert=/heapster-certs/tls.crt"
           - "--tls_key=/heapster-certs/tls.key"
           - "--tls_client_ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -94,11 +93,13 @@ objects:
           env:
           - name: STARTUP_TIMEOUT
             value: ${STARTUP_TIMEOUT}
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           volumeMounts:
           - name: heapster-secrets
             mountPath: "/secrets"
-          - name: hawkular-metrics-certificate
-            mountPath: "/hawkular-cert"
           - name: hawkular-metrics-account
             mountPath: "/hawkular-account"
           - name: heapster-certs
@@ -114,9 +115,6 @@ objects:
         - name: heapster-certs
           secret:
             secretName: heapster-certs
-        - name: hawkular-metrics-certificate
-          secret:
-            secretName: hawkular-metrics-certificate
         - name: hawkular-metrics-account
           secret:
             secretName: hawkular-metrics-account

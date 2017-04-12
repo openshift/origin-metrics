@@ -25,29 +25,43 @@ for args in "$@"
 do
   if [[ $args == --hmw\.* ]]; then
     case $args in
-      --hmw.keystore=*)
-        KEYSTORE="${args#*=}"
+        --hmw.tls_certificate=*)
+          SERVICE_CERT="${args#*=}"
         ;;
-      --hmw.truststore=*)
-        TRUSTSTORE="${args#*=}"
+        --hmw.tls_certificate_key=*)
+          SERVICE_CERT_KEY="${args#*=}"
         ;;
-      --hmw.keystore_password=*)
-        KEYSTORE_PASSWORD="${args#*=}"
-        ;;
-      --hmw.keystore_password_file=*)
-        KEYSTORE_PASSWORD_FILE="${args#*=}"
-        ;;
-      --hmw.truststore_password=*)
-        TRUSTSTORE_PASSWORD="${args#*=}"
-        ;;
-      --hmw.truststore_password_file=*)
-        TRUSTSTORE_PASSWORD_FILE="${args#*=}"
+        --hmw.truststore_authorities=*)
+          TRUSTSTORE_AUTHORITIES="${args#*=}"
         ;;
     esac
   else
     as_args="$as_args $args"
   fi
 done
+
+HAWKULAR_METRICS_DIRECTORY=${HAWKULAR_METRICS_DIRECTORY:-"/opt/hawkular"}
+KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
+HAWKULAR_METRICS_AUTH_DIR=${HAWKULAR_METRICS_DIRECTORY}/auth
+
+KEYSTORE_DIR=${KEYSTORE_DIR:-"${HAWKULAR_METRICS_AUTH_DIR}"}
+KEYSTORE=${KEYSTORE:-"${KEYSTORE_DIR}/hawkular-metrics.keystore"}
+KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-$(openssl rand -base64 512 | tr -dc A-Z-a-z-0-9 | head -c 17)}
+
+TRUSTSTORE_DIR=${TRUSTSTORE_DIR:-"${HAWKULAR_METRICS_AUTH_DIR}"}
+TRUSTSTORE=${TRUSTSTORE:-"${KEYSTORE_DIR}/hawkular-metrics.truststore"}
+TRUSTSTORE_PASSWORD=${TRUSTSTORE_PASSWORD:-$(openssl rand -base64 512 | tr -dc A-Z-a-z-0-9 | head -c 17)}
+
+SERVICE_ALIAS=${SERVICE_ALIAS:-"hawkular-metrics"}
+SERVICE_CERT=${SERVICE_CERT:-"/hawkular-metrics-certs/tls.crt"}
+SERVICE_CERT_KEY=${SERVICE_CERT_KEY:-"/hawkular-metrics-certs/tls.key"}
+
+PKCS12_FILE=${PKCS12_FILE:-"${KEYSTORE_DIR}/hawkular-metrics.pkcs12"}
+
+if [ -z "${TRUSTSTORE_AUTHORITIES}" ]; then
+ echo "The --truststore_authorities value is not specified. Aborting"
+ exit 1
+fi
 
 # Check Read Permission
 token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
@@ -61,14 +75,6 @@ if [ "$status_code" != 200 ]; then
   exit 1
 else
   echo "The service account has read permissions for its project. Proceeding"
-fi
-
-if [ -n "$KEYSTORE_PASSWORD_FILE" ]; then
-   KEYSTORE_PASSWORD=$(cat $KEYSTORE_PASSWORD_FILE)
-fi
-
-if [ -n "$TRUSTSTORE_PASSWORD_FILE" ]; then
-   TRUSTSTORE_PASSWORD=$(cat $TRUSTSTORE_PASSWORD_FILE)
 fi
 
 # Setup additional logging if the ADDITIONAL_LOGGING variable is set
@@ -90,30 +96,43 @@ else
 fi
 sed -i "s|<!-- ##ADDITIONAL LOGGERS## -->|$additional_loggers|g" ${JBOSS_HOME}/standalone/configuration/standalone.xml
 
-# Setup the truststore so that it will accept the OpenShift cert
-HAWKULAR_METRICS_AUTH_DIR=$HAWKULAR_METRICS_DIRECTORY/auth
-mkdir $HAWKULAR_METRICS_AUTH_DIR
-pushd $HAWKULAR_METRICS_AUTH_DIR
+if [ ! -d ${KEYSTORE_DIR} ]; then
+    mkdir -p "${KEYSTORE_DIR}"
+fi
 
-cp $KEYSTORE hawkular-metrics.keystore
-cp $TRUSTSTORE hawkular-metrics.truststore
-
-chmod a+rw hawkular-metrics.*
-
-KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
-$KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
-
-PREV_DIR=${PWD}
-cd ${HAWKULAR_METRICS_AUTH_DIR}
-csplit -z -f cas-to-import /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+echo "Creating the Hawkular Metrics keystore from the Secret's cert data"
+openssl pkcs12 -export -in ${SERVICE_CERT} -inkey ${SERVICE_CERT_KEY} -out ${PKCS12_FILE} -name ${SERVICE_ALIAS} -noiter -nomaciter -password pass:${KEYSTORE_PASSWORD}
 if [ $? != 0 ]; then
-    echo "Failed to split the original service-ca into individual cert files. Aborting."
+    echo "Failed to create a PKCS12 certificate file with the service-specific certificate. Aborting."
     exit 1
 fi
-$KEYTOOL_COMMAND -noprompt -import -v -alias services-ca -file cas-to-import01 -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
-cd ${PREV_DIR}
+echo "Converting the PKCS12 keystore into a Java Keystore"
+${KEYTOOL_COMMAND} -v -importkeystore -srckeystore ${PKCS12_FILE} -srcstoretype PKCS12 -destkeystore ${KEYSTORE} -deststoretype JKS -deststorepass ${KEYSTORE_PASSWORD} -srcstorepass ${KEYSTORE_PASSWORD}
+if [ $? != 0 ]; then
+    echo "Failed to create a Java Keystore file with the service-specific certificate. Aborting."
+    exit 1
+fi
 
-popd
+PREV_DIR=${PWD}
+cd ${KEYSTORE_DIR}
+csplit -z -f cas-to-import ${TRUSTSTORE_AUTHORITIES} '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+if [ $? != 0 ]; then
+    echo "Failed to split the trust store input file into individual cert files. Aborting."
+    exit 1
+fi
+
+echo "Building the trust store"
+for file in $(ls cas-to-import*);
+do
+    ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
+    if [ $? != 0 ]; then
+        echo "Failed to import the authority from '${file}' into the trust store. Aborting."
+        exit 1
+    fi
+done
+
+rm cas-to-import*
+cd ${PREV_DIR}
 
 if [ "x${JGROUPS_PASSWORD}" == "x" ]; then
     echo "Could not determine the JGroups password. Without it, we cannot get a cluster lock, which could lead to unpredictable results."
@@ -121,17 +140,17 @@ if [ "x${JGROUPS_PASSWORD}" == "x" ]; then
     exit 1
 fi
 
-cat > $HAWKULAR_METRICS_DIRECTORY/server.properties << EOL
-javax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD
-javax.net.ssl.trustStorePassword=$TRUSTSTORE_PASSWORD
+cat > ${HAWKULAR_METRICS_DIRECTORY}/server.properties << EOL
+javax.net.ssl.keyStorePassword=${KEYSTORE_PASSWORD}
+javax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD}
 jgroups.password=${JGROUPS_PASSWORD}
 EOL
 
 exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
-  -Djavax.net.ssl.keyStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.keystore \
-  -Djavax.net.ssl.trustStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.truststore \
+  -Djavax.net.ssl.keyStore=${KEYSTORE} \
+  -Djavax.net.ssl.trustStore=${TRUSTSTORE} \
   -Djboss.node.name=$HOSTNAME \
   -b `hostname -i` \
   -bprivate `hostname -i` \
-  -P $HAWKULAR_METRICS_DIRECTORY/server.properties \
+  -P ${HAWKULAR_METRICS_DIRECTORY}/server.properties \
   $as_args
