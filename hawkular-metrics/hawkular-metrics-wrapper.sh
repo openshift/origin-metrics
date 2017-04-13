@@ -131,6 +131,9 @@ do
     fi
 done
 
+echo "Adding the system CA to the truststore"
+$KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
+
 rm cas-to-import*
 cd ${PREV_DIR}
 
