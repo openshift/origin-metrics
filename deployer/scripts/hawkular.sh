@@ -109,7 +109,8 @@ EOF
 
   # this may return an error code if the route already exists, this is to be expected with a refresh and is why we have the || true here
   ## once BZ 1401081 is done, the Route specified on `hawkular-metrics.yaml` should work and this command here should be removed.
-  oc create route reencrypt --service hawkular-metrics --dest-ca-cert=${dir}/hawkular-metrics-ca.cert || true
+  echo "Creating the route with the hostname ${hawkular_metrics_hostname}"
+  oc create route reencrypt --hostname=${hawkular_metrics_hostname} --service hawkular-metrics --dest-ca-cert=${dir}/hawkular-metrics-ca.cert || true
 
   if [ "${use_persistent_storage}" = true ]; then
     if [ "${dynamically_provision_storage}" = true ]; then
