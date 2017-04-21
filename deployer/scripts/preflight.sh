@@ -3,7 +3,7 @@
 # determine whether DNS resolves the master successfully
 function validate_master_accessible() {
   local output
-  if output=$(curl -sSI --stderr - --connect-timeout 2 --cacert "$master_ca" "$master_url"); then
+  if output=$(curl -sSI --stderr - --connect-timeout 20 --cacert "$master_ca" "$master_url"); then
     echo "ok"
     return 0
   fi
