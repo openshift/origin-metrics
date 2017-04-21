@@ -56,7 +56,18 @@ EOF
   if [ -n "${HEAPSTER_STANDALONE:-}" ]; then
     oc create -f templates/heapster-standalone.yaml
   else
-    oc create -f templates/heapster.yaml
+    echo "Processing sinks for Heapster"
+    if [ -n "${ADDITIONAL_HEAPSTER_SINKS:-}"  ]; then
+        cp templates/heapster.yaml /tmp/heapster.yaml
+        for SINK in $(echo -e "$ADDITIONAL_HEAPSTER_SINKS");do
+          sed -i "/--source/a \
+              \ \ \ \ \ \ \ \ \ \ - \"--sink=${SINK}\" /tmp/heapster.yaml"
+        done
+        oc create -f /tmp/heapster.yaml
+        rm -f /tmp/heapster.yaml
+    else
+        oc create -f templates/heapster.yaml
+    fi
   fi
   
   echo "Deploying the Heapster component"
