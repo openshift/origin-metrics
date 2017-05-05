@@ -70,8 +70,14 @@ cacrt="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
 status_code=$(curl --cacert ${cacrt} --max-time 10 --connect-timeout 10 -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" $url)
 if [ "$status_code" != 200 ]; then
-  echo "Error: the service account for Hawkular Metrics does not have permission to view resources in this namespace. View permissions are required for Hawkular Metrics to function properly."
-  echo "Usually this can be resolved by running: oc adm policy add-role-to-user view system:serviceaccount:${POD_NAMESPACE}:hawkular -n ${POD_NAMESPACE}"
+  if [ "$status_code" == "403" ]; then
+    echo "Error: the service account for Hawkular Metrics does not have permission to view resources in this namespace. View permissions are required for Hawkular Metrics to function properly."
+    echo "Usually this can be resolved by running: oc adm policy add-role-to-user view system:serviceaccount:${POD_NAMESPACE}:hawkular -n ${POD_NAMESPACE}"
+  elif [ "$status_code" == "401" ]; then
+    echo "Error: the credentials for Hawkular Metrics are not valid."
+  else
+    echo "Error: An error was encountered fetching ${url} (status code ${status_code})."
+  fi
   exit 1
 else
   echo "The service account has read permissions for its project. Proceeding"
