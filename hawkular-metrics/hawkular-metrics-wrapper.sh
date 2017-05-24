@@ -137,8 +137,22 @@ do
     fi
 done
 
-echo "Adding the system CA to the truststore"
-$KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
+echo "Splitting up the Kubernetes CA into individual certificates"
+csplit -z -f kubernetes-cas-to-import /var/run/secrets/kubernetes.io/serviceaccount/ca.crt '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+if [ $? != 0 ]; then
+    echo "Failed to split the kubernetes CA file into individual cert files. Aborting."
+    exit 1
+fi
+
+echo "Adding the Kubernetes CAs into the trust store"
+for file in $(ls kubernetes-cas-to-import*);
+do
+    ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
+    if [ $? != 0 ]; then
+        echo "Failed to import the authority from '${file}' into the trust store. Aborting."
+        exit 1
+    fi
+done
 
 rm cas-to-import*
 cd ${PREV_DIR}
