@@ -19,6 +19,9 @@ parameters:
 - description: Specify the number of days that metrics should be stored for.
   name: METRIC_DURATION
   value: '7'
+- description: URL to the Elasticsearch Logging service.
+  name: LOGGING_URL
+  value: 'https://logging-es.logging.svc.cluster.local:9200'
 - description: Internal URL for the master, for authentication retrieval
   name: MASTER_URL
   value: https://kubernetes.default.svc:443
@@ -99,6 +102,9 @@ objects:
           - "-Dhawkular.alerts.openshift.auth-methods=openshift-oauth,htpasswd"
           - "-Dhawkular.alerts.openshift.htpasswd-file=/client-secrets/hawkular-metrics.htpasswd.file"
           - "-Dhawkular.alerts.allowed-cors-access-control-allow-headers=authorization"
+          - "-Dhawkular-alerts.elasticsearch-url=${LOGGING_URL}"
+          - "-Dhawkular-alerts.elasticsearch-proxy-remote-user=hawkular"
+          - "-Dhawkular-alerts.elasticsearch-forwarded-for=127.0.0.1"
           - "-Dcom.datastax.driver.FORCE_NIO=true"
           - "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
           - "-Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"

@@ -170,6 +170,21 @@ done
 rm cas-to-import*
 cd ${PREV_DIR}
 
+echo "Retrieving the Logging's CA and adding to the trust store, if Logging is available"
+url="${MASTER_URL:-https://kubernetes.default.svc:443}/api/${KUBERNETES_API_VERSION:-v1}/namespaces/logging/secrets/logging-elasticsearch"
+logging_secret_command="curl -s --cacert ${cacrt} --max-time 10 --connect-timeout 10 -L -H \"Authorization: Bearer ${token}\""
+status_code=$(eval "$logging_secret_command -s -o /dev/null -w \"%{http_code}\" \"$url\"")
+
+if [ "$status_code" == 200 ]; then
+  logging_secret=$(eval "$logging_secret_command $url" | python -c 'import sys, json; print json.load(sys.stdin)["data"]["admin-ca"]')
+  echo $logging_secret | base64 -d | ${KEYTOOL_COMMAND} -noprompt -import -alias logging-ca -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
+  if [ $? != 0 ]; then
+      echo "Failed to import the logging certificate into the store. Continuing, but the logging integration might fail."
+  fi
+else
+  echo "Could not get the logging secret! Status code: ${status_code}. The Hawkular Alerts integration with Logging might not work properly."
+fi
+
 if [ "x${JGROUPS_PASSWORD}" == "x" ]; then
     echo "Could not determine the JGroups password. Without it, we cannot get a cluster lock, which could lead to unpredictable results."
     echo "Set the JGROUPS_PASSWORD environment variable and try again."
@@ -180,6 +195,7 @@ cat > ${HAWKULAR_METRICS_DIRECTORY}/server.properties << EOL
 javax.net.ssl.keyStorePassword=${KEYSTORE_PASSWORD}
 javax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD}
 jgroups.password=${JGROUPS_PASSWORD}
+hawkular-alerts.elasticsearch-token=${token}
 EOL
 
 exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
