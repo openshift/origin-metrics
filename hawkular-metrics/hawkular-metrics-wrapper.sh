@@ -106,6 +106,19 @@ if [ ! -d ${KEYSTORE_DIR} ]; then
     mkdir -p "${KEYSTORE_DIR}"
 fi
 
+if [ -f ${PKCS12_FILE} ]; then
+    echo "Removing the existing PKCS12 certificate file"
+    rm ${PKCS12_FILE}
+fi
+if [ -f ${KEYSTORE} ]; then
+    echo "Removing the existing keystore"
+    rm ${KEYSTORE}
+fi
+if [ -f ${TRUSTSTORE} ]; then
+    echo "Removing the existing trust store"
+    rm ${TRUSTSTORE}
+fi
+
 echo "Creating the Hawkular Metrics keystore from the Secret's cert data"
 openssl pkcs12 -export -in ${SERVICE_CERT} -inkey ${SERVICE_CERT_KEY} -out ${PKCS12_FILE} -name ${SERVICE_ALIAS} -noiter -nomaciter -password pass:${KEYSTORE_PASSWORD}
 if [ $? != 0 ]; then
