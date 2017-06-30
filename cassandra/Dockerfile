@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
+# Copyright 2014-2017 Red Hat, Inc. and/or its affiliates
 # and other contributors as indicated by the @author tags.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 EXPOSE 9042 9160 7000 7001
 
 # The Cassandra version
-ENV CASSANDRA_VERSION="3.0.13" \
+ENV CASSANDRA_VERSION="3.0.14" \
     CASSANDRA_HOME="/opt/apache-cassandra" \
     HOME="/home/cassandra" \
     PATH="/opt/apache-cassandra/bin:$PATH" \
