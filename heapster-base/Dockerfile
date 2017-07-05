@@ -36,6 +36,9 @@ ENV PATH=/opt/golang/go/bin/:$PATH
 ENV GOROOT=/opt/golang/go
 #
 
+# Solve performance regression in Heapster 1.3.0, see BZ1465532
+COPY BZ1465532.patch /tmp/
+
 RUN yum install -y -q go git wget make patch && \
     yum clean all && \
     cd /tmp && \
@@ -46,6 +49,7 @@ RUN yum install -y -q go git wget make patch && \
     git clone https://github.com/kubernetes/heapster && \
     cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
+    git apply BZ1465532.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \
