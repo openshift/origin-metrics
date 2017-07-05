@@ -1,0 +1,36 @@
+From c7abc004ab7359dc1fbd13badf3723d7b39f4bf8 Mon Sep 17 00:00:00 2001
+From: Michael Burman <yak@iki.fi>
+Date: Wed, 5 Jul 2017 16:51:37 +0300
+Subject: [PATCH] [BZ1465532] Create new copy of LabeledMetrics before looping
+ on them
+
+---
+ metrics/sinks/hawkular/driver.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/metrics/sinks/hawkular/driver.go b/metrics/sinks/hawkular/driver.go
+index 9636866..1ff2f2e 100644
+--- a/metrics/sinks/hawkular/driver.go
++++ b/metrics/sinks/hawkular/driver.go
+@@ -94,12 +94,14 @@ func (h *hawkularSink) ExportData(db *core.DataBatch) {
+ 
+ 		for _, ms := range db.MetricSets {
+ 
+-			// // Transform ms.MetricValues to LabeledMetrics first
+-			lms := metricValueToLabeledMetric(ms.MetricValues)
+-			ms.LabeledMetrics = append(ms.LabeledMetrics, lms...)
++			mvlms := metricValueToLabeledMetric(ms.MetricValues)
++			lms := make([]core.LabeledMetric, 0, len(mvlms)+len(ms.LabeledMetrics))
++
++			lms = append(lms, mvlms...)
++			lms = append(lms, ms.LabeledMetrics...)
+ 
+ 		Store:
+-			for _, labeledMetric := range ms.LabeledMetrics {
++			for _, labeledMetric := range lms {
+ 
+ 				for _, filter := range h.filters {
+ 					if !filter(ms, labeledMetric.Name) {
+-- 
+2.7.4
+
