@@ -31,10 +31,16 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
+    PROMETHEUS_PORT="7676" \
     JAVA_OPTS_APPEND="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump"
 
 # The http and https ports
 EXPOSE 8080 8444
+
+# Set up the Prometheus endpoint for monitoring
+RUN cd $JBOSS_HOME/bin && \
+    curl -Lo $JBOSS_HOME/bin/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.9/jmx_prometheus_javaagent-0.9.jar
+COPY prometheus.yaml $JBOSS_HOME/standalone/conf/prometheus.yaml
 
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
