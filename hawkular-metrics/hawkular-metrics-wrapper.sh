@@ -66,10 +66,23 @@ cp $TRUSTSTORE hawkular-metrics.truststore
 chmod a+rw hawkular-metrics.*
 
 KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
-$KEYTOOL_COMMAND -noprompt -import -v -trustcacerts -alias kubernetes-master -file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -keystore hawkular-metrics.truststore -trustcacerts -storepass $TRUSTSTORE_PASSWORD
+
+csplit -z -f kubernetes-cas-to-import /var/run/secrets/kubernetes.io/serviceaccount/ca.crt '/-----BEGIN CERTIFICATE-----/' '{*}' > /dev/null
+if [ $? != 0 ]; then
+    echo "Failed to split the kubernetes CA file into individual cert files. Aborting."
+    exit 1
+fi
+
+for file in $(ls kubernetes-cas-to-import*);
+do
+    ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore hawkular-metrics.truststore -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
+    if [ $? != 0 ]; then
+        echo "Failed to import the authority from '${file}' into the trust store. Aborting."
+        exit 1
+    fi
+done
 
 popd
-
 
 exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -Djavax.net.ssl.keyStore=$HAWKULAR_METRICS_AUTH_DIR/hawkular-metrics.keystore \
