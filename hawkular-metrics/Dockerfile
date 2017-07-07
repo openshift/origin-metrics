@@ -40,7 +40,7 @@ EXPOSE 8080 8444
 # Set up the Prometheus endpoint for monitoring
 RUN cd $JBOSS_HOME/bin && \
     curl -Lo $JBOSS_HOME/bin/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.9/jmx_prometheus_javaagent-0.9.jar
-COPY prometheus.yaml $JBOSS_HOME/standalone/conf/prometheus.yaml
+COPY prometheus.yaml $JBOSS_HOME/standalone/configuration/prometheus.yaml
 
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
