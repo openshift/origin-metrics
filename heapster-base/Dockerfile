@@ -49,7 +49,7 @@ RUN yum install -y -q go git wget make patch && \
     git clone https://github.com/kubernetes/heapster && \
     cd heapster && \
     git checkout $HEAPSTER_COMMIT && \
-    git apply BZ1465532.patch && \
+    git apply /tmp/BZ1465532.patch && \
     make && \
     cp heapster /opt && \
     rm -rf $GOPATH && \
