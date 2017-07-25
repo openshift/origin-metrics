@@ -83,6 +83,41 @@ else
   echo "The service account has read permissions for its project. Proceeding"
 fi
 
+url="${MASTER_URL:-https://kubernetes.default.svc:443}/api/${KUBERNETES_API_VERSION:-v1}/namespaces?watch=true"
+status_code=$(curl --cacert ${cacrt} --max-time 10 --connect-timeout 10 -L -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" $url)
+if [ "$status_code" != 200 ]; then
+  if [ "$status_code" == "403" ]; then
+    echo " "
+    echo "================================================================================"
+    echo "                                WARNING                                         "
+    echo "================================================================================"
+    echo "  The service account for Hawkular Metrics does not have permission to watch"
+    echo "  namespaces. Without this permission Hawkular Metrics may not function"
+    echo "  properly."
+    echo "  "
+    echo "  Installing metrics with a newer version of openshift-ansible should automatically"
+    echo "  create the required roles and add this role to the 'hawkular' user."
+    echo " "
+    echo "  Alternatively, you can also manually do this by running the following commands: "
+    echo " "
+    echo "  oc create clusterrole hawkular-metrics --verb=get,list,watch --resource=namespaces"
+    echo " "
+    echo "  oc adm policy add-cluster-role-to-user hawkular-metrics system:serviceaccount:${POD_NAMESPACE}:hawkular -n ${POD_NAMESPACE}" 
+    echo " "
+    echo "================================================================================"
+    echo " "
+  elif [ "$status_code" == "401" ]; then
+    echo "Error checking namespace permissions: the credentials for Hawkular Metrics are not valid."
+  else
+    echo "Error checking namespace permissions: An error was encountered fetching ${url} (status code ${status_code})."
+  fi
+  echo "Disabling the namespace filter until the 'hawkular' service account can watch namespaces."
+  as_args="-DDISABLE_NAMESPACE_FILTER=true $as_args" 
+else
+  echo "The service account has permission to watch namespaces. Proceeding"
+fi
+
+
 # Setup additional logging if the ADDITIONAL_LOGGING variable is set
 if [ -z "$ADDITIONAL_LOGGING" ]; then
   additional_loggers="            <!-- no additional logging configured -->"
