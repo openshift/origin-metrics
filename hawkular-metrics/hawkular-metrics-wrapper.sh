@@ -111,7 +111,8 @@ if [ "$status_code" != 200 ]; then
   else
     echo "Error checking namespace permissions: An error was encountered fetching ${url} (status code ${status_code})."
   fi
-  as_args="DISABLE_NAMESPACE_FILTER=true $as_args"  
+  echo "Disabling the namespace filter until the 'hawkular' service account can watch namespaces."
+  as_args="-DDISABLE_NAMESPACE_FILTER=true $as_args" 
 else
   echo "The service account has permission to watch namespaces. Proceeding"
 fi
