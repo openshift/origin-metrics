@@ -82,6 +82,11 @@ RUN yum -y install openssl epel-release \
     && yum clean all \
     && pip install --no-cache-dir 'hawkular-client==0.5.2'
 
+# For testing purposes, if you want to test with a custom Hawkular Metrics version, place 
+# the hawkular-metrics-openshift-dist.ear into the directory with this Dockerfile and 
+# uncomment the following line:
+# COPY hawkular-metrics-openshift-dist.ear $JBOSS_HOME/standalone/deployments/hawkular-metrics.ear
+
 # Change the permissions so that the user running the image can start up Hawkular Metrics
 RUN chmod -R 777 /opt
 USER 1000
