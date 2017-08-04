@@ -1,0 +1,372 @@
+From cfb41744b4e6b63a1bc8011ab1d0799e9b9d4d0d Mon Sep 17 00:00:00 2001
+From: Michael Burman <yak@iki.fi>
+Date: Mon, 29 May 2017 16:39:54 +0300
+Subject: [PATCH 1/2] Allow disabling the initial caching of metric definitions
+ and compare the cache on each datapoint store to the given metricSet
+
+(cherry picked from commit 9077e7e3e69c06dafb7e7e9b9c7593df8ac80681)
+---
+ docs/sink-configuration.md            |   1 +
+ metrics/sinks/hawkular/client.go      | 116 +++++++++++++++++++---------------
+ metrics/sinks/hawkular/driver.go      |  33 +++++++---
+ metrics/sinks/hawkular/driver_test.go |  68 ++++++++++++++------
+ metrics/sinks/hawkular/types.go       |   5 +-
+ 5 files changed, 141 insertions(+), 82 deletions(-)
+
+diff --git a/docs/sink-configuration.md b/docs/sink-configuration.md
+index ff17d23..9f631a5 100644
+--- a/docs/sink-configuration.md
++++ b/docs/sink-configuration.md
+@@ -87,6 +87,7 @@ The following options are available:
+ * `batchSize`- How many metrics are sent in each request to Hawkular-Metrics (default is 1000)
+ * `concurrencyLimit`- How many concurrent requests are used to send data to the Hawkular-Metrics (default is 5)
+ * `labelTagPrefix` - A prefix to be placed in front of each label when stored as a tag for the metric (default is `labels.`)
++* `disablePreCache` - Disable cache initialization by fetching metric definitions from Hawkular-Metrics
+ 
+ A combination of `insecure` / `caCert` / `auth` is not supported, only a single of these parameters is allowed at once. Also, combination of `useServiceAccount` and `user` + `pass` is not supported. To increase the performance of Hawkular sink in case of multiple instances of Hawkular-Metrics (such as scaled scenario in OpenShift) modify the parameters of batchSize and concurrencyLimit to balance the load on Hawkular-Metrics instances.
+ 
+diff --git a/metrics/sinks/hawkular/client.go b/metrics/sinks/hawkular/client.go
+index f15a081..764e389 100644
+--- a/metrics/sinks/hawkular/client.go
++++ b/metrics/sinks/hawkular/client.go
+@@ -52,6 +53,7 @@ func (h *hawkularSink) updateDefinitions(mt metrics.MetricType) error {
+ 			h.reg[p.Id] = p
+ 		}
+ 	}
++
+ 	return nil
+ }
+ 
+@@ -148,69 +150,79 @@ func (h *hawkularSink) nodeName(ms *core.MetricSet) string {
+ 	return ms.Labels[core.LabelNodename.Key]
+ }
+ 
+-func (h *hawkularSink) registerLabeledIfNecessary(ms *core.MetricSet, metric core.LabeledMetric, m ...metrics.Modifier) error {
+-	key := h.idName(ms, metric.Name)
+-
+-	if resourceID, found := metric.Labels[core.LabelResourceID.Key]; found {
+-		key = h.idName(ms, metric.Name+separator+resourceID)
+-	}
+-
+-	h.regLock.Lock()
+-	defer h.regLock.Unlock()
++func (h *hawkularSink) createDefinitionFromModel(ms *core.MetricSet, metric core.LabeledMetric) (*metrics.MetricDefinition, error) {
++	if md, f := h.models[metric.Name]; f {
++		// Copy the original map
++		mdd := *md
++		tags := make(map[string]string)
++		for k, v := range mdd.Tags {
++			tags[k] = v
++		}
++		mdd.Tags = tags
+ 
+-	// If found, check it matches the current stored definition (could be old info from
+-	// the stored metrics cache for example)
+-	if _, found := h.reg[key]; !found {
+-		// Register the metric descriptor here..
+-		if md, f := h.models[metric.Name]; f {
+-			// Copy the original map
+-			mdd := *md
+-			tags := make(map[string]string)
+-			for k, v := range mdd.Tags {
+-				tags[k] = v
+-			}
+-			mdd.Tags = tags
+-
+-			// Set tag values
+-			for k, v := range ms.Labels {
+-				mdd.Tags[k] = v
+-				if k == core.LabelLabels.Key {
+-					labels := strings.Split(v, ",")
+-					for _, label := range labels {
+-						labelKeyValue := strings.Split(label, ":")
+-						if len(labelKeyValue) != 2 {
+-							glog.V(4).Infof("Could not split the label %v into its key and value pair. This label will not be added as a tag in Hawkular Metrics.", label)
+-						} else {
+-							mdd.Tags[h.labelTagPrefix+labelKeyValue[0]] = labelKeyValue[1]
+-						}
++		// Set tag values
++		for k, v := range ms.Labels {
++			mdd.Tags[k] = v
++			if k == core.LabelLabels.Key {
++				labels := strings.Split(v, ",")
++				for _, label := range labels {
++					labelKeyValue := strings.Split(label, ":")
++					if len(labelKeyValue) != 2 {
++						glog.V(4).Infof("Could not split the label %v into its key and value pair. This label will not be added as a tag in Hawkular Metrics.", label)
++					} else {
++						mdd.Tags[h.labelTagPrefix+labelKeyValue[0]] = labelKeyValue[1]
+ 					}
+ 				}
+ 			}
++		}
+ 
+-			// Set the labeled values
+-			for k, v := range metric.Labels {
+-				mdd.Tags[k] = v
+-			}
++		// Set the labeled values
++		for k, v := range metric.Labels {
++			mdd.Tags[k] = v
++		}
+ 
+-			mdd.Tags[groupTag] = h.groupName(ms, metric.Name)
+-			mdd.Tags[descriptorTag] = metric.Name
++		mdd.Tags[groupTag] = h.groupName(ms, metric.Name)
++		mdd.Tags[descriptorTag] = metric.Name
+ 
+-			m = append(m, h.modifiers...)
++		return &mdd, nil
++	}
++	return nil, fmt.Errorf("Could not find definition model with name %s", metric.Name)
++}
+ 
+-			// Create metric, use updateTags instead of Create because we know it is unique
+-			if err := h.client.UpdateTags(heapsterTypeToHawkularType(metric.MetricType), key, mdd.Tags, m...); err != nil {
+-				// Log error and don't add this key to the lookup table
+-				glog.Errorf("Could not update tags: %s", err)
+-				return err
+-			}
++func (h *hawkularSink) registerLabeledIfNecessary(ms *core.MetricSet, metric core.LabeledMetric, m ...metrics.Modifier) error {
+ 
+-			// Add to the lookup table
+-			h.reg[key] = &mdd
+-		} else {
+-			return fmt.Errorf("Could not find definition model with name %s", metric.Name)
++	var key string
++	if resourceID, found := metric.Labels[core.LabelResourceID.Key]; found {
++		key = h.idName(ms, metric.Name+separator+resourceID)
++	} else {
++		key = h.idName(ms, metric.Name)
++	}
++
++	mdd, err := h.createDefinitionFromModel(ms, metric)
++	if err != nil {
++		return err
++	}
++
++	h.regLock.RLock()
++	if _, found := h.reg[key]; !found {
++		// I'm going to release the lock to allow concurrent processing, even if that
++		// can cause dual updates (highly unlikely). The UpdateTags is idempotent in any case.
++		h.regLock.RUnlock()
++		m = append(m, h.modifiers...)
++
++		// Create metric, use updateTags instead of Create because we don't care about uniqueness
++		if err := h.client.UpdateTags(heapsterTypeToHawkularType(metric.MetricType), key, mdd.Tags, m...); err != nil {
++			// Log error and don't add this key to the lookup table
++			glog.Errorf("Could not update tags: %s", err)
++			return err
+ 		}
++
++		h.regLock.Lock()
++		h.reg[key] = mdd
++		h.regLock.Unlock()
++	} else {
++		h.regLock.RUnlock()
+ 	}
+-	// TODO Compare the definition tags and update if necessary? Quite expensive operation..
+ 
+ 	return nil
+ }
+diff --git a/metrics/sinks/hawkular/driver.go b/metrics/sinks/hawkular/driver.go
+index 9636866..17452f1 100644
+--- a/metrics/sinks/hawkular/driver.go
++++ b/metrics/sinks/hawkular/driver.go
+@@ -58,12 +58,14 @@ func (h *hawkularSink) Register(mds []core.MetricDescriptor) error {
+ 		h.models[md.Name] = &hmd
+ 	}
+ 
+-	// Fetch currently known metrics from Hawkular-Metrics and cache them
+-	types := []metrics.MetricType{metrics.Gauge, metrics.Counter}
+-	for _, t := range types {
+-		err := h.updateDefinitions(t)
+-		if err != nil {
+-			return err
++	if !h.disablePreCaching {
++		// Fetch currently known metrics from Hawkular-Metrics and cache them
++		types := []metrics.MetricType{metrics.Gauge, metrics.Counter}
++		for _, t := range types {
++			err := h.updateDefinitions(t)
++			if err != nil {
++				return err
++			}
+ 		}
+ 	}
+ 
+@@ -94,12 +96,15 @@ func (h *hawkularSink) ExportData(db *core.DataBatch) {
+ 
+ 		for _, ms := range db.MetricSets {
+ 
+-			// // Transform ms.MetricValues to LabeledMetrics first
+-			lms := metricValueToLabeledMetric(ms.MetricValues)
+-			ms.LabeledMetrics = append(ms.LabeledMetrics, lms...)
++			// Transform ms.MetricValues to LabeledMetrics first
++			mvlms := metricValueToLabeledMetric(ms.MetricValues)
++			lms := make([]core.LabeledMetric, 0, len(mvlms)+len(ms.LabeledMetrics))
++
++			lms = append(lms, mvlms...)
++			lms = append(lms, ms.LabeledMetrics...)
+ 
+ 		Store:
+-			for _, labeledMetric := range ms.LabeledMetrics {
++			for _, labeledMetric := range lms {
+ 
+ 				for _, filter := range h.filters {
+ 					if !filter(ms, labeledMetric.Name) {
+@@ -321,6 +326,14 @@ func (h *hawkularSink) init() error {
+ 		h.batchSize = bs
+ 	}
+ 
++	if v, found := opts["disablePreCache"]; found {
++		dpc, err := strconv.ParseBool(v[0])
++		if err != nil {
++			return fmt.Errorf("disablePreCache parameter value %s is invalid", v[0])
++		}
++		h.disablePreCaching = dpc
++	}
++
+ 	c, err := metrics.NewHawkularClient(p)
+ 	if err != nil {
+ 		return err
+diff --git a/metrics/sinks/hawkular/driver_test.go b/metrics/sinks/hawkular/driver_test.go
+index ebdffd4..25c131c 100644
+--- a/metrics/sinks/hawkular/driver_test.go
++++ b/metrics/sinks/hawkular/driver_test.go
+@@ -367,6 +367,23 @@ func TestRegister(t *testing.T) {
+ 	assert.True(t, definitionsCalled["gauge"], "Gauge definitions were not fetched")
+ 	assert.True(t, definitionsCalled["counter"], "Counter definitions were not fetched")
+ 	assert.True(t, updateTagsCalled, "Updating outdated tags was not called")
++
++	// Try without pre caching
++	definitionsCalled = make(map[string]bool)
++	updateTagsCalled = false
++
++	hSink, err = integSink(s.URL + "?tenant=test-heapster&disablePreCache=true")
++	assert.NoError(t, err)
++
++	err = hSink.Register(md)
++	assert.NoError(t, err)
++
++	assert.Equal(t, 2, len(hSink.models))
++	assert.Equal(t, 0, len(hSink.reg))
++
++	assert.False(t, definitionsCalled["gauge"], "Gauge definitions were fetched")
++	assert.False(t, definitionsCalled["counter"], "Counter definitions were fetched")
++	assert.False(t, updateTagsCalled, "Updating outdated tags was called")
+ }
+ 
+ // Store timeseries with both gauges and cumulatives
+@@ -381,7 +398,7 @@ func TestStoreTimeseries(t *testing.T) {
+ 		w.Header().Set("Content-Type", "application/json")
+ 
+ 		typ := r.RequestURI[strings.Index(r.RequestURI, "hawkular/metrics/")+17:]
+-		typ = typ[:len(typ)-5]
++		typ = typ[:len(typ)-4]
+ 
+ 		switch typ {
+ 		case "counters":
+@@ -460,6 +477,7 @@ func TestStoreTimeseries(t *testing.T) {
+ func TestTags(t *testing.T) {
+ 	m := &sync.Mutex{}
+ 	calls := make([]string, 0, 2)
++	serverTags := make(map[string]string)
+ 	// how many times tags have been updated
+ 	tagsUpdated := 0
+ 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+@@ -473,23 +491,8 @@ func TestTags(t *testing.T) {
+ 		assert.NoError(t, err)
+ 
+ 		if strings.HasSuffix(r.RequestURI, "/tags") {
+-			tags := make(map[string]string)
+-			err := json.Unmarshal(b, &tags)
++			err := json.Unmarshal(b, &serverTags)
+ 			assert.NoError(t, err)
+-
+-			assert.Equal(t, 10, len(tags))
+-			assert.Equal(t, "test-label", tags["projectId"])
+-			assert.Equal(t, "test-container", tags[core.LabelContainerName.Key])
+-			assert.Equal(t, "test-podid", tags[core.LabelPodId.Key])
+-			assert.Equal(t, "test-container/test/metric/A", tags["group_id"])
+-			assert.Equal(t, "test/metric/A", tags["descriptor_name"])
+-			assert.Equal(t, "XYZ", tags[core.LabelResourceID.Key])
+-			assert.Equal(t, "bytes", tags["units"])
+-
+-			assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB", tags[core.LabelLabels.Key])
+-			assert.Equal(t, "testValueA", tags["labels.testLabelA"])
+-			assert.Equal(t, "testValueB", tags["labels.testLabelB"])
+-
+ 			tagsUpdated++
+ 		}
+ 	}))
+@@ -555,6 +558,35 @@ func TestTags(t *testing.T) {
+ 	assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB", tags[core.LabelLabels.Key])
+ 	assert.Equal(t, "testValueA", tags["labels.testLabelA"])
+ 	assert.Equal(t, "testValueB", tags["labels.testLabelB"])
++
++	assert.Equal(t, 10, len(serverTags))
++	assert.Equal(t, "test-label", serverTags["projectId"])
++	assert.Equal(t, "test-container", serverTags[core.LabelContainerName.Key])
++	assert.Equal(t, "test-podid", serverTags[core.LabelPodId.Key])
++	assert.Equal(t, "test-container/test/metric/A", serverTags["group_id"])
++	assert.Equal(t, "test/metric/A", serverTags["descriptor_name"])
++	assert.Equal(t, "XYZ", serverTags[core.LabelResourceID.Key])
++	assert.Equal(t, "bytes", serverTags["units"])
++
++	assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB", serverTags[core.LabelLabels.Key])
++	assert.Equal(t, "testValueA", serverTags["labels.testLabelA"])
++	assert.Equal(t, "testValueB", serverTags["labels.testLabelB"])
++
++	// Make modifications to the metrics and check that they're updated correctly
++
++	// First, no changes - no update should happen
++	hSink.registerLabeledIfNecessary(&metricSet, labeledMetric)
++	assert.Equal(t, 1, tagsUpdated)
++
++	// Now modify the labels and expect an update
++	metricSet.Labels[core.LabelLabels.Key] = "testLabelA:testValueA,testLabelB:testValueB,testLabelC:testValueC"
++	hSink.registerLabeledIfNecessary(&metricSet, labeledMetric)
++	assert.Equal(t, 2, tagsUpdated)
++
++	assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB,testLabelC:testValueC", serverTags[core.LabelLabels.Key])
++	assert.Equal(t, "testValueA", serverTags["labels.testLabelA"])
++	assert.Equal(t, "testValueB", serverTags["labels.testLabelB"])
++	assert.Equal(t, "testValueC", serverTags["labels.testLabelC"])
+ }
+ 
+ func TestUserPass(t *testing.T) {
+@@ -594,7 +626,7 @@ func TestFiltering(t *testing.T) {
+ 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		m.Lock()
+ 		defer m.Unlock()
+-		if strings.Contains(r.RequestURI, "data") {
++		if strings.Contains(r.RequestURI, "raw") {
+ 			defer r.Body.Close()
+ 			b, err := ioutil.ReadAll(r.Body)
+ 			assert.NoError(t, err)
+diff --git a/metrics/sinks/hawkular/types.go b/metrics/sinks/hawkular/types.go
+index 2bdd9fb..d6a19a5 100644
+--- a/metrics/sinks/hawkular/types.go
++++ b/metrics/sinks/hawkular/types.go
+@@ -48,7 +48,7 @@ func (f FilterType) From(s string) FilterType {
+ type hawkularSink struct {
+ 	client  *metrics.Client
+ 	models  map[string]*metrics.MetricDefinition // Model definitions
+-	regLock sync.Mutex
++	regLock sync.RWMutex
+ 	reg     map[string]*metrics.MetricDefinition // Real definitions
+ 
+ 	uri *url.URL
+@@ -59,7 +59,8 @@ type hawkularSink struct {
+ 	modifiers      []metrics.Modifier
+ 	filters        []Filter
+ 
+-	batchSize int
++	disablePreCaching bool
++	batchSize         int
+ }
+ 
+ func heapsterTypeToHawkularType(t core.MetricType) metrics.MetricType {
+-- 
+2.7.4
+
