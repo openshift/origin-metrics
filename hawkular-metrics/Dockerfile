@@ -27,7 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.27.2.Final" \
+    HAWKULAR_METRICS_VERSION="0.27.3.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
@@ -35,6 +35,11 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
 
 # The http and https ports
 EXPOSE 8080 8444
+
+# Set up the Prometheus endpoint for monitoring
+RUN cd $JBOSS_HOME/bin && \
+    curl -Lo $JBOSS_HOME/bin/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.9/jmx_prometheus_javaagent-0.9.jar
+COPY prometheus.yaml $JBOSS_HOME/standalone/configuration/prometheus.yaml
 
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \

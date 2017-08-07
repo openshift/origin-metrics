@@ -1,0 +1,6 @@
+whitelistObjectNames:
+  - "org.hawkular.metrics:name=ReadTimeouts,type=Error,namespace=org.hawkular.metrics,scope=com.datastax.driver"
+  - "org.hawkular.metrics:name=WriteTimeouts,type=Error,namespace=org.hawkular.metrics,scope=com.datastax.driver"
+  - "org.hawkular.metrics:name=Unavailables,type=Error,namespace=org.hawkular.metrics,scope=com.datastax.driver"
+blacklistObjectNames:
+  - "java.lang:*"
