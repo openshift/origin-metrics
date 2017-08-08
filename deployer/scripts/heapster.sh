@@ -61,8 +61,8 @@ EOF
   
   echo "Deploying the Heapster component"
   if [ -n "${HEAPSTER_STANDALONE:-}" ]; then
-    oc process heapster-standalone -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v MASTER_URL=$master_url -v METRIC_RESOLUTION=$metric_resolution -v STARTUP_TIMEOUT=$startup_timeout | oc create -f -
+    oc process heapster-standalone -p IMAGE_PREFIX=$image_prefix -p IMAGE_VERSION=$image_version -p MASTER_URL=$master_url -p METRIC_RESOLUTION=$metric_resolution -p STARTUP_TIMEOUT=$startup_timeout | oc create -f -
   else
-    oc process hawkular-heapster -v IMAGE_PREFIX=$image_prefix -v IMAGE_VERSION=$image_version -v MASTER_URL=$master_url -v NODE_ID=$heapster_node_id -v METRIC_RESOLUTION=$metric_resolution -v STARTUP_TIMEOUT=$startup_timeout | oc create -f -
+    oc process hawkular-heapster -p IMAGE_PREFIX=$image_prefix -p IMAGE_VERSION=$image_version -p MASTER_URL=$master_url -p NODE_ID=$heapster_node_id -p METRIC_RESOLUTION=$metric_resolution -p STARTUP_TIMEOUT=$startup_timeout | oc create -f -
   fi
 }

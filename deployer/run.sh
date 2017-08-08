@@ -106,7 +106,6 @@ openshift admin ca create-signer-cert  \
 if [ -n "${WRITE_KUBECONFIG:-}" ]; then
     # craft a kubeconfig, usually at $KUBECONFIG location
     oc config set-cluster master \
-      --api-version='v1' \
       --certificate-authority="${master_ca}" \
       --server="${master_url}"
     oc config set-credentials account \
@@ -123,7 +122,6 @@ old_kc="$KUBECONFIG"
 KUBECONFIG="$dir/kube.conf"
 [ -z "${WRITE_KUBECONFIG:-}" ] && cp "$old_kc" $dir/kube.conf
 oc config set-cluster deployer-master \
-  --api-version='v1' \
   --certificate-authority="${master_ca}" \
   --server="${master_url}"
 oc config set-credentials deployer-account \
