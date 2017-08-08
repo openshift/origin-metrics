@@ -1,10 +1,13 @@
-hostPort: 127.0.0.1:7199
-
 whitelistObjectNames:
   - "org.apache.cassandra.metrics:type=ClientRequest,scope=*,name=*"
   - "org.apache.cassandra.metrics:type=DroppedMessage,scope=MUTATION,name=Dropped"
   - "org.apache.cassandra.metrics:type=DroppedMessage,scope=READ,name=Dropped"
   - "org.apache.cassandra.metrics:type=DroppedMessage,scope=RANGE_SLICE,name=Dropped"
   - "org.apache.cassandra.metrics:type=DroppedMessage,scope=PAGED_RANGE,name=Dropped"
-  - "java.lang:type=GarbageCollector,name=ParNew"
-  - "java.lang:type=GarbageCollector,name=ConcurrentMarkSweep"
+blacklistObjectNames: 
+  - "java.lang:type=*"
+  - "java.lang:type=MemoryPool,*"
+rules:
+  - pattern: org.apache.cassandra.metrics<type=DroppedMessage, scope=(\S*), name=(\S*)><>(Count|Value)
+  - pattern: org.apache.cassandra.metrics<type=(ClientRequest|DroppedMessage), scope=(RangeSlice|Read|Write), name=(Failures|Timeouts|Unavailables)><>(Count|Value)
+

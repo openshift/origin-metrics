@@ -94,7 +94,6 @@ COPY cassandra-docker.sh \
 RUN cd /opt/apache-cassandra/lib && \
     curl -Lo jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.9/jmx_prometheus_javaagent-0.9.jar
 COPY prometheus.yaml /opt/hawkular/prometheus_agent/prometheus.yaml
-ENV JVM_AGENT_OPTS="-javaagent:/opt/apache-cassandra/lib/jmx_prometheus_javaagent.jar=localhost:7575:/opt/hawkular/prometheus_agent/prometheus.yaml" 
 
 # Create a 'Cassandra' user to own the directory and set it to be readable & writable by any user
 RUN groupadd -r cassandra -g 312 && \
