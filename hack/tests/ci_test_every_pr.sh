@@ -96,7 +96,7 @@ os::cmd::expect_success 'oadm policy add-cluster-role-to-user cluster-admin metr
 os::cmd::expect_success 'oadm policy add-cluster-role-to-user cluster-admin metrics-admin'
 os::cmd::expect_success 'oc login -u metrics-admin -p g1b315H'
 
-"${ORIGIN_METRICS_DIR}/hack/e2e-tests.sh" -x --test=test.DefaultInstall --timeout=1000
+"${ORIGIN_METRICS_DIR}/hack/e2e-tests.sh" -x --test=test.DefaultInstall --timeout=1500
 
 ### finished tests ###
 
