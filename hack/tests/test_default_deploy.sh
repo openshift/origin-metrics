@@ -43,6 +43,7 @@ function checkDeployer {
   while : 
   do
     if [[ $(($(date +%s) - $DEPLOYER_START)) -ge $timeout ]]; then
+      oc logs `oc get pods | grep -i metrics-deployer | awk '{print $1}'`
       Fail "Deployer Pod took longer than the timeout of $timeout seconds"
     fi
 
