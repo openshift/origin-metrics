@@ -26,6 +26,8 @@ statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/sta
 timeout = os.environ.get("STARTUP_TIMEOUT", 500)
 
 uptime = os.popen("ps -eo comm,etimes | grep -i standalone.sh | awk '{print $2}'").read()
+if type(uptime) == str:
+  uptime = 0
 
 try:
   # need to set a timeout, the default is to never timeout.
@@ -33,7 +35,7 @@ try:
   statusCode = response.getcode();
   # if the status is 200, then continue
   if (statusCode == 200):
-    responseHTML = response.read() 
+    responseHTML = response.read()
     jsonResponse = json.loads(responseHTML)
     # if the metrics service is started then we are good
     if (jsonResponse["MetricsService"] == "STARTED"):
