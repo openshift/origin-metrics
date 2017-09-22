@@ -22,7 +22,7 @@
 HOSTIP=`cat /etc/hosts | grep $HOSTNAME | awk '{print $1}' | head -n 1`
 
 # Get the status of this machine from the Cassandra nodetool
-STATUS=`nodetool status | grep $HOSTIP | awk '{print $1}'`
+STATUS=`nodetool status | grep " $HOSTIP " | awk '{print $1}'`
 
 if [ ${STATUS:-""} = "" ]; then
   echo "Could not get the Cassandra status. This may mean that the Cassandra instance is not up yet. Will try again"
