@@ -324,8 +324,8 @@ commitlog_segment_size_in_mb: 32
 # Compression to apply to the commit log. If omitted, the commit log
 # will be written uncompressed.  LZ4, Snappy, and Deflate compressors
 # are supported.
-commitlog_compression:
-   - class_name: LZ4Compressor
+#commitlog_compression:
+#   - class_name: LZ4Compressor
 #     parameters:
 #         -
 
