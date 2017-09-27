@@ -17,7 +17,7 @@
 #
 
 # Check to see if we need to perform an upgrade on the data or not
-if [ "$(ls -A ${CASSANDRA_DATA_VOLUME})" ]; then
+if [ -d ${CASSANDRA_DATA_VOLUME} ] && [ "$(ls -A ${CASSANDRA_DATA_VOLUME})" ]; then
   echo "The Cassandra datavolume (${CASSANDRA_DATA_VOLUME}) is not empty. Checking if an update is required."
   
   if [ -f ${CASSANDRA_DATA_VOLUME}/.cassandra.version ]; then
@@ -91,5 +91,11 @@ else
   echo "There is no existing data to upgrade. Skipping upgrade process."
 fi
 
+# If the data directory doesn't already exist, then create it.
+if [ ! -d ${CASSANDRA_DATA_VOLUME} ]; then
+  mkdir -p ${CASSANDRA_DATA_VOLUME}
+fi
 # set the version flag to the current version of Cassandra
 echo ${CASSANDRA_VERSION} > ${CASSANDRA_DATA_VOLUME}/.cassandra.version
+
+echo "Post Start Check completed."
