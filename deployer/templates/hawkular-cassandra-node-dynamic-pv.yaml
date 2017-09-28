@@ -36,7 +36,23 @@ parameters:
   name: TRUSTSTORE_CLIENT_AUTHORITIES
   value: '/hawkular-cassandra-certs/tls.client.truststore.crt'
   required: false
+- description: The size of log storage requested.
+  name: PV_LOG_SIZE
+  value: '10Gi'
+  required: false
 objects:
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: "cassandra-logs-${NODE}"
+    labels:
+      metrics-infra: hawkular-cassandra
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: "${PV_LOG_SIZE}"
 - kind: PersistentVolumeClaim
   apiVersion: v1
   metadata:
@@ -119,6 +135,8 @@ objects:
             mountPath: "/cassandra_data"
           - name: hawkular-cassandra-certs
             mountPath: "/hawkular-cassandra-certs"
+          - name: hawkular-cassandra-logs
+            mountPath: "/opt/apache-cassandra/logs"
           readinessProbe:
             exec:
               command:
@@ -140,3 +158,6 @@ objects:
         - name: hawkular-cassandra-certs
           secret:
             secretName: hawkular-cassandra-certs
+        - name: cassandra-logs
+          persistentVolumeClaim:
+            claimName: "cassandra-logs-${NODE}"

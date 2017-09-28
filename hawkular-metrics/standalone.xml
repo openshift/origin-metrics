@@ -46,7 +46,7 @@
             <security-realm name="ApplicationRealm">
                 <server-identities>
                     <ssl>
-                        <keystore path="${HAWKULAR_METRICS_KEYSTORE,javax.net.ssl.keyStore}" 
+                        <keystore path="${HAWKULAR_METRICS_KEYSTORE,javax.net.ssl.keyStore}"
                                   keystore-password="${HAWKULAR_METRICS_KEYSTORE_PASSWORD,javax.net.ssl.keyStorePassword}"
                                  alias="${HAWKULAR_METRICS_KEYSTORE_ALIAS:hawkular-metrics}"/>
                     </ssl>
@@ -95,6 +95,14 @@
                     <named-formatter name="COLOR-PATTERN"/>
                 </formatter>
             </console-handler>
+
+            <size-rotating-file-handler rotate-size="50m" name="ROTATELOG">
+              <formatter>
+                  <named-formatter name="PATTERN"/>
+              </formatter>
+              <file relative-to="/" path="/opt/hawkular/metrics-logs/server.log"/>
+            </size-rotating-file-handler>
+
             <logger category="com.arjuna">
                 <level name="WARN"/>
             </logger>

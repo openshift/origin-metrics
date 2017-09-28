@@ -40,6 +40,10 @@ parameters:
   name: TRUSTSTORE_AUTHORITIES
   value: '/hawkular-metrics-certs/tls.truststore.crt'
   required: false
+- description: The size of log storage requested.
+  name: PV_LOG_SIZE
+  value: '10Gi'
+  required: false
 objects:
 - apiVersion: v1
   kind: Service
@@ -57,6 +61,18 @@ objects:
     - name: https-endpoint
       port: 443
       targetPort: https-endpoint
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: "hawkular-metrics-logs-claim"
+    labels:
+      metrics-infra: hawkular-metrics
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: "${PV_LOG_SIZE}"
 - apiVersion: v1
   kind: ReplicationController
   metadata:
@@ -133,6 +149,8 @@ objects:
             mountPath: "/hawkular-metrics-certs"
           - name: hawkular-metrics-client-secrets
             mountPath: "/client-secrets"
+          - name: hawkular-metrics-logs
+            mountPath: "/opt/hawkular/metrics-logs/"
           readinessProbe:
             exec:
               command:
@@ -148,3 +166,6 @@ objects:
         - name: hawkular-metrics-client-secrets
           secret:
             secretName: hawkular-metrics-account
+        - name: hawkular-metrics-logs
+          persistentVolumeClaim:
+            claimName: "hawkular-metrics-logs-claim"
