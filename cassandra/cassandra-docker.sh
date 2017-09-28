@@ -187,7 +187,7 @@ sed -i 's/${HEAP_NEWSIZE}/'$HEAP_NEWSIZE'/g' /opt/apache-cassandra/conf/cassandr
 cp /opt/apache-cassandra/conf/cassandra.yaml.template /opt/apache-cassandra/conf/cassandra.yaml
 
 if [ "x$ENABLE_PROMETHEUS_ENDPOINT" = "xtrue" ]; then
-  export JVM_OPTS="$JVM_OPTS -javaagent:/opt/apache-cassandra/lib/jmx_prometheus_javaagent.jar=localhost:7575:/opt/hawkular/prometheus_agent/prometheus.yaml"
+  export JVM_OPTS="$JVM_OPTS -javaagent:/opt/apache-cassandra/lib/jmx_prometheus_javaagent.jar=7575:/opt/hawkular/prometheus_agent/prometheus.yaml"
 fi
 
 # set the hostname in the cassandra configuration file
