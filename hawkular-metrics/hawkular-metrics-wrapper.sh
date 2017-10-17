@@ -178,7 +178,7 @@ fi
 echo "Building the trust store"
 for file in $(ls cas-to-import*);
 do
-    sed -i 's/\s$//gi' ${file} # See BZ 1471251: remove trailing spaces, as the Java Keytool hates whitespace.
+    sed -i 's/\s*$//gi' ${file} # See BZ 1471251: remove trailing spaces, as the Java Keytool hates whitespace.
     sed -i '/^\s*$/d' ${file} # Let's also remove empty lines
     ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
     if [ $? != 0 ]; then
@@ -197,7 +197,7 @@ fi
 echo "Adding the Kubernetes CAs into the trust store"
 for file in $(ls kubernetes-cas-to-import*);
 do
-    sed -i 's/\s$//gi' ${file}
+    sed -i 's/\s*$//gi' ${file}
     sed -i '/^\s*$/d' ${file}
     ${KEYTOOL_COMMAND} -noprompt -import -alias ${file} -file ${file} -keystore ${TRUSTSTORE} -trustcacerts -storepass ${TRUSTSTORE_PASSWORD}
     if [ $? != 0 ]; then
