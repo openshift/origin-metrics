@@ -25,7 +25,7 @@ statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/sta
 
 timeout = os.environ.get("STARTUP_TIMEOUT", 500)
 
-uptime = os.popen("ps -eo comm,etimes | grep -i standalone.sh | awk '{print $2}'").read()
+uptime = os.popen("ps -eo comm,etimes | grep -i standalone.sh | awk '{print $2}'").readline().strip()
 
 try:
   # need to set a timeout, the default is to never timeout.
@@ -44,6 +44,13 @@ try:
       exit(1)
 except Exception as e:
   print "Failed to access the status endpoint : %s." % e
+
+if uptime=='':
+  # if standalone.sh isn't running yet, we'll use the uptime of the start-up script instead
+  uptime = os.popen("ps -eo comm,etimes | grep -i hawkular-metrics-wrapper.sh | awk '{print $2}'").readline().strip()
+  if uptime=='':
+    print "Hawkular metrics wrapper script is not running. Aborting"
+    exit(1)
 
 if int(uptime) < int(timeout):
   print "Hawkular metrics has only been running for " + uptime + " seconds not aborting yet."
