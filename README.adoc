@@ -100,7 +100,7 @@ Please see the link:https://github.com/hawkular/hawkular-client-python[Hawkular 
 
 == Accessing Heapster Directly
 
-The Heapster deployed as part of origin-metrics is configured to be only accessible via the API Proxy. Access will require either cluster-reader or cluster-admin privileges.
+The Heapster deployed as part of origin-metrics is configured to be only accessible via the API Proxy. Access will require cluster-admin privileges or modifications to your policy to allow another user access to this API Proxy endpoint.
 
 For example, to reach the Heapster `metrics` endpoint, you would need to access it by doing something like:
 
