@@ -16,7 +16,7 @@
 #
 
 # Heapster Docker Image
-FROM openshift/origin-metrics-heapster-base:v1.3.0-2
+FROM burmanm/origin-metrics-heapster-base:v1.3.0-3
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
