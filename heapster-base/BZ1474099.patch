@@ -1,0 +1,1970 @@
+From a9794d894389764397158a3f2bcf82cc23088263 Mon Sep 17 00:00:00 2001
+From: Michael Burman <yak@iki.fi>
+Date: Mon, 29 May 2017 16:39:54 +0300
+Subject: [PATCH] Allow disabling the initial caching of metric definitions and
+ compare the cache on each datapoint store to the given metricSet
+
+(cherry picked from commit 9077e7e3e69c06dafb7e7e9b9c7593df8ac80681)
+
+Update Hawkular-Metrics driver
+
+(cherry picked from commit 114a808374faf2daeabc93b038f4b191a1d8ab5b)
+
+Instead of storing a struct in the memory, store only a hash of it. Also, fetch with descriptorTag from HWKMETRICS and not all the metric definitions for caching purposes
+
+Cache all tenants
+
+(cherry picked from commit 364dd317376473a6b732260f71ff9e17742c8202)
+
+Improve hash function
+
+Create hash in the same process as definition modeling
+
+Use new Openshift endpoint that fetches all the cached metrics
+
+Add expiring cache for the tags updates
+
+Fix race condition in the tests, also make expiration block
+
+(cherry picked from commit 4f5215036ef2c5003b60c3ae64c955e0755dce4a)
+
+Address PR review comments
+
+(cherry picked from commit c77c20304b7a1d6b99a62e1bb65444ffee9b55e0)
+---
+ Godeps/Godeps.json                                 |   3 +-
+ docs/sink-configuration.md                         |   1 +
+ metrics/sinks/hawkular/client.go                   | 230 ++++++++++----
+ metrics/sinks/hawkular/driver.go                   |  32 +-
+ metrics/sinks/hawkular/driver_test.go              | 314 ++++++++++++++-----
+ metrics/sinks/hawkular/types.go                    |  15 +-
+ .../hawkular/hawkular-client-go/metrics/client.go  | 346 ++++++++++++++++-----
+ .../hawkular/hawkular-client-go/metrics/helpers.go |  11 +-
+ .../hawkular/hawkular-client-go/metrics/types.go   | 179 ++++++-----
+ 9 files changed, 814 insertions(+), 317 deletions(-)
+
+diff --git a/Godeps/Godeps.json b/Godeps/Godeps.json
+index 652fc90f..569de1b0 100644
+--- a/Godeps/Godeps.json
++++ b/Godeps/Godeps.json
+@@ -225,8 +225,7 @@
+ 		},
+ 		{
+ 			"ImportPath": "github.com/hawkular/hawkular-client-go/metrics",
+-			"Comment": "v0.6.0",
+-			"Rev": "50f4099dfd739f913ed7d8f33288aeeca338516a"
++			"Rev": "3ec6f27f0d339f9aee02ee4ad545581e52b40e19"
+ 		},
+ 		{
+ 			"ImportPath": "github.com/howeyc/gopass",
+diff --git a/docs/sink-configuration.md b/docs/sink-configuration.md
+index ff17d238..9f631a5b 100644
+--- a/docs/sink-configuration.md
++++ b/docs/sink-configuration.md
+@@ -87,6 +87,7 @@ The following options are available:
+ * `batchSize`- How many metrics are sent in each request to Hawkular-Metrics (default is 1000)
+ * `concurrencyLimit`- How many concurrent requests are used to send data to the Hawkular-Metrics (default is 5)
+ * `labelTagPrefix` - A prefix to be placed in front of each label when stored as a tag for the metric (default is `labels.`)
++* `disablePreCache` - Disable cache initialization by fetching metric definitions from Hawkular-Metrics
+ 
+ A combination of `insecure` / `caCert` / `auth` is not supported, only a single of these parameters is allowed at once. Also, combination of `useServiceAccount` and `user` + `pass` is not supported. To increase the performance of Hawkular sink in case of multiple instances of Hawkular-Metrics (such as scaled scenario in OpenShift) modify the parameters of batchSize and concurrencyLimit to balance the load on Hawkular-Metrics instances.
+ 
+diff --git a/metrics/sinks/hawkular/client.go b/metrics/sinks/hawkular/client.go
+index f15a0814..c4cbb737 100644
+--- a/metrics/sinks/hawkular/client.go
++++ b/metrics/sinks/hawkular/client.go
+@@ -16,6 +16,7 @@ package hawkular
+ 
+ import (
+ 	"fmt"
++	"hash/fnv"
+ 	"math"
+ 	"regexp"
+ 	"strings"
+@@ -27,34 +28,99 @@ import (
+ 	"k8s.io/heapster/metrics/core"
+ )
+ 
+-// Fetches definitions from the server and checks that they're matching the descriptors
+-func (h *hawkularSink) updateDefinitions(mt metrics.MetricType) error {
+-	m := make([]metrics.Modifier, len(h.modifiers), len(h.modifiers)+1)
+-	copy(m, h.modifiers)
+-	m = append(m, metrics.Filters(metrics.TypeFilter(mt)))
+-
+-	mds, err := h.client.Definitions(m...)
+-	if err != nil {
+-		return err
++// cacheDefinitions Fetches all known definitions from all tenants (all projects in Openshift)
++func (h *hawkularSink) cacheDefinitions() error {
++	if !h.disablePreCaching {
++		mds, err := h.client.AllDefinitions(h.modifiers...)
++		if err != nil {
++			return err
++		}
++		err = h.updateDefinitions(mds)
++		if err != nil {
++			return err
++		}
+ 	}
+ 
++	glog.V(4).Infof("Hawkular definition pre-caching completed, cached %d definitions\n", len(h.expReg))
++
++	return nil
++}
++
++// cache inserts the item to the cache
++func (h *hawkularSink) cache(md *metrics.MetricDefinition) {
++	h.pushToCache(md.ID, hashDefinition(md))
++}
++
++// toCache inserts the item and updates the TTL in the cache to current time
++func (h *hawkularSink) pushToCache(key string, hash uint64) {
++	h.regLock.Lock()
++	h.expReg[key] = &expiringItem{
++		hash: hash,
++		ttl:  h.runId,
++	}
++	h.regLock.Unlock()
++}
++
++// checkCache returns false if the cached instance is not current. Updates the TTL in the cache
++func (h *hawkularSink) checkCache(key string, hash uint64) bool {
+ 	h.regLock.Lock()
+ 	defer h.regLock.Unlock()
++	_, found := h.expReg[key]
++	if !found || h.expReg[key].hash != hash {
++		return false
++	}
++	// Update the TTL
++	h.expReg[key].ttl = h.runId
++	return true
++}
+ 
++// expireCache will process the map and check for any item that has been expired and release it
++func (h *hawkularSink) expireCache(runId uint64) {
++	h.regLock.Lock()
++	defer h.regLock.Unlock()
++
++	for k, v := range h.expReg {
++		if (v.ttl + h.cacheAge) <= runId {
++			delete(h.expReg, k)
++		}
++	}
++}
++
++// Fetches definitions from the server and checks that they're matching the descriptors
++func (h *hawkularSink) updateDefinitions(mds []*metrics.MetricDefinition) error {
+ 	for _, p := range mds {
+-		// If no descriptorTag is found, this metric does not belong to Heapster
+-		if mk, found := p.Tags[descriptorTag]; found {
+-			if model, f := h.models[mk]; f && !h.recent(p, model) {
+-				if err := h.client.UpdateTags(mt, p.Id, p.Tags, h.modifiers...); err != nil {
+-					return err
+-				}
++		if model, f := h.models[p.Tags[descriptorTag]]; f && !h.recent(p, model) {
++			if err := h.client.UpdateTags(p.Type, p.ID, p.Tags, h.modifiers...); err != nil {
++				return err
+ 			}
+-			h.reg[p.Id] = p
+ 		}
++		h.cache(p)
+ 	}
++
+ 	return nil
+ }
+ 
++func hashDefinition(md *metrics.MetricDefinition) uint64 {
++	h := fnv.New64a()
++
++	h.Write([]byte(md.Type))
++	h.Write([]byte(md.ID))
++
++	helper := fnv.New64a()
++
++	var hashCode uint64
++
++	for k, v := range md.Tags {
++		helper.Reset()
++		helper.Write([]byte(k))
++		helper.Write([]byte(v))
++		vH := helper.Sum64()
++		hashCode = hashCode ^ vH
++	}
++
++	return hashCode
++}
++
+ // Checks that stored definition is up to date with the model
+ func (h *hawkularSink) recent(live *metrics.MetricDefinition, model *metrics.MetricDefinition) bool {
+ 	recent := true
+@@ -86,7 +152,7 @@ func (h *hawkularSink) descriptorToDefinition(md *core.MetricDescriptor) metrics
+ 	tags[descriptorTag] = md.Name
+ 
+ 	hmd := metrics.MetricDefinition{
+-		Id:   md.Name,
++		ID:   md.Name,
+ 		Tags: tags,
+ 		Type: heapsterTypeToHawkularType(md.Type),
+ 	}
+@@ -148,70 +214,98 @@ func (h *hawkularSink) nodeName(ms *core.MetricSet) string {
+ 	return ms.Labels[core.LabelNodename.Key]
+ }
+ 
+-func (h *hawkularSink) registerLabeledIfNecessary(ms *core.MetricSet, metric core.LabeledMetric, m ...metrics.Modifier) error {
+-	key := h.idName(ms, metric.Name)
++func (h *hawkularSink) createDefinitionFromModel(ms *core.MetricSet, metric core.LabeledMetric) (*metrics.MetricDefinition, uint64) {
++	if md, f := h.models[metric.Name]; f {
++		hasher := fnv.New64a()
+ 
+-	if resourceID, found := metric.Labels[core.LabelResourceID.Key]; found {
+-		key = h.idName(ms, metric.Name+separator+resourceID)
+-	}
++		hasher.Write([]byte(md.Type))
++		hasher.Write([]byte(md.ID))
+ 
+-	h.regLock.Lock()
+-	defer h.regLock.Unlock()
++		helper := fnv.New64a()
+ 
+-	// If found, check it matches the current stored definition (could be old info from
+-	// the stored metrics cache for example)
+-	if _, found := h.reg[key]; !found {
+-		// Register the metric descriptor here..
+-		if md, f := h.models[metric.Name]; f {
+-			// Copy the original map
+-			mdd := *md
+-			tags := make(map[string]string)
+-			for k, v := range mdd.Tags {
+-				tags[k] = v
+-			}
+-			mdd.Tags = tags
+-
+-			// Set tag values
+-			for k, v := range ms.Labels {
+-				mdd.Tags[k] = v
+-				if k == core.LabelLabels.Key {
+-					labels := strings.Split(v, ",")
+-					for _, label := range labels {
+-						labelKeyValue := strings.Split(label, ":")
+-						if len(labelKeyValue) != 2 {
+-							glog.V(4).Infof("Could not split the label %v into its key and value pair. This label will not be added as a tag in Hawkular Metrics.", label)
+-						} else {
+-							mdd.Tags[h.labelTagPrefix+labelKeyValue[0]] = labelKeyValue[1]
+-						}
++		var hashCode uint64
++
++		helperFunc := func(k string, v string, hashCode uint64) uint64 {
++			helper.Reset()
++			helper.Write([]byte(k))
++			helper.Write([]byte(v))
++			vH := helper.Sum64()
++			hashCode = hashCode ^ vH
++
++			return hashCode
++		}
++
++		// Copy the original map
++		mdd := *md
++		tags := make(map[string]string, len(mdd.Tags)+len(ms.Labels)+len(metric.Labels)+2+8) // 8 is just arbitrary extra for potential splits
++		for k, v := range mdd.Tags {
++			tags[k] = v
++			hashCode = helperFunc(k, v, hashCode)
++		}
++		mdd.Tags = tags
++
++		// Set tag values
++		for k, v := range ms.Labels {
++			mdd.Tags[k] = v
++			if k == core.LabelLabels.Key {
++				labels := strings.Split(v, ",")
++				for _, label := range labels {
++					labelKeyValue := strings.Split(label, ":")
++					if len(labelKeyValue) != 2 {
++						glog.V(4).Infof("Could not split the label %v into its key and value pair. This label will not be added as a tag in Hawkular Metrics.", label)
++					} else {
++						labelKey := h.labelTagPrefix + labelKeyValue[0]
++						mdd.Tags[labelKey] = labelKeyValue[1]
++						hashCode = helperFunc(labelKey, labelKeyValue[1], hashCode)
+ 					}
+ 				}
+ 			}
++		}
+ 
+-			// Set the labeled values
+-			for k, v := range metric.Labels {
+-				mdd.Tags[k] = v
+-			}
++		// Set the labeled values
++		for k, v := range metric.Labels {
++			mdd.Tags[k] = v
++			hashCode = helperFunc(k, v, hashCode)
++		}
+ 
+-			mdd.Tags[groupTag] = h.groupName(ms, metric.Name)
+-			mdd.Tags[descriptorTag] = metric.Name
++		groupName := h.groupName(ms, metric.Name)
++		mdd.Tags[groupTag] = groupName
++		mdd.Tags[descriptorTag] = metric.Name
+ 
+-			m = append(m, h.modifiers...)
++		hashCode = helperFunc(groupTag, groupName, hashCode)
++		hashCode = helperFunc(descriptorTag, metric.Name, hashCode)
++
++		return &mdd, hashCode
++	}
++	return nil, 0
++	// return nil, fmt.Errorf("Could not find definition model with name %s", metric.Name)
++}
++
++func (h *hawkularSink) registerLabeledIfNecessaryInline(ms *core.MetricSet, metric core.LabeledMetric, wg *sync.WaitGroup, m ...metrics.Modifier) error {
++	var key string
++	if resourceID, found := metric.Labels[core.LabelResourceID.Key]; found {
++		key = h.idName(ms, metric.Name+separator+resourceID)
++	} else {
++		key = h.idName(ms, metric.Name)
++	}
++
++	mdd, mddHash := h.createDefinitionFromModel(ms, metric)
++	if mddHash != 0 && !h.checkCache(key, mddHash) {
+ 
+-			// Create metric, use updateTags instead of Create because we know it is unique
++		wg.Add(1)
++		go func(ms *core.MetricSet, labeledMetric core.LabeledMetric, m ...metrics.Modifier) {
++			defer wg.Done()
++			m = append(m, h.modifiers...)
++			// Create metric, use updateTags instead of Create because we don't care about uniqueness
+ 			if err := h.client.UpdateTags(heapsterTypeToHawkularType(metric.MetricType), key, mdd.Tags, m...); err != nil {
+ 				// Log error and don't add this key to the lookup table
+ 				glog.Errorf("Could not update tags: %s", err)
+-				return err
++				return
++				// return err
+ 			}
+-
+-			// Add to the lookup table
+-			h.reg[key] = &mdd
+-		} else {
+-			return fmt.Errorf("Could not find definition model with name %s", metric.Name)
+-		}
++			h.pushToCache(key, mddHash)
++		}(ms, metric, m...)
+ 	}
+-	// TODO Compare the definition tags and update if necessary? Quite expensive operation..
+-
+ 	return nil
+ }
+ 
+@@ -275,11 +369,11 @@ func (h *hawkularSink) pointToLabeledMetricHeader(ms *core.MetricSet, metric cor
+ 
+ 	m := metrics.Datapoint{
+ 		Value:     value,
+-		Timestamp: metrics.UnixMilli(timestamp),
++		Timestamp: timestamp,
+ 	}
+ 
+ 	mh := &metrics.MetricHeader{
+-		Id:   name,
++		ID:   name,
+ 		Data: []metrics.Datapoint{m},
+ 		Type: heapsterTypeToHawkularType(metric.MetricType),
+ 	}
+diff --git a/metrics/sinks/hawkular/driver.go b/metrics/sinks/hawkular/driver.go
+index 1ff2f2e6..ca6f3f7a 100644
+--- a/metrics/sinks/hawkular/driver.go
++++ b/metrics/sinks/hawkular/driver.go
+@@ -58,10 +58,9 @@ func (h *hawkularSink) Register(mds []core.MetricDescriptor) error {
+ 		h.models[md.Name] = &hmd
+ 	}
+ 
+-	// Fetch currently known metrics from Hawkular-Metrics and cache them
+-	types := []metrics.MetricType{metrics.Gauge, metrics.Counter}
+-	for _, t := range types {
+-		err := h.updateDefinitions(t)
++	if !h.disablePreCaching {
++		// Fetch currently known metrics from Hawkular-Metrics and cache them
++		err := h.cacheDefinitions()
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -78,6 +77,7 @@ func (h *hawkularSink) Stop() {
+ 
+ func (h *hawkularSink) ExportData(db *core.DataBatch) {
+ 	totalCount := 0
++	h.runId++
+ 	for _, ms := range db.MetricSets {
+ 		totalCount += len(ms.MetricValues)
+ 		totalCount += len(ms.LabeledMetrics)
+@@ -94,6 +94,7 @@ func (h *hawkularSink) ExportData(db *core.DataBatch) {
+ 
+ 		for _, ms := range db.MetricSets {
+ 
++			// Transform ms.MetricValues to LabeledMetrics first
+ 			mvlms := metricValueToLabeledMetric(ms.MetricValues)
+ 			lms := make([]core.LabeledMetric, 0, len(mvlms)+len(ms.LabeledMetrics))
+ 
+@@ -117,12 +118,7 @@ func (h *hawkularSink) ExportData(db *core.DataBatch) {
+ 					}
+ 				}
+ 
+-				wg.Add(1)
+-				go func(ms *core.MetricSet, labeledMetric core.LabeledMetric, tenant string) {
+-					defer wg.Done()
+-					h.registerLabeledIfNecessary(ms, labeledMetric, metrics.Tenant(tenant))
+-				}(ms, labeledMetric, tenant)
+-
++				h.registerLabeledIfNecessaryInline(ms, labeledMetric, wg, metrics.Tenant(tenant))
+ 				mH, err := h.pointToLabeledMetricHeader(ms, labeledMetric, db.Timestamp)
+ 				if err != nil {
+ 					// One transformation error should not prevent the whole process
+@@ -139,7 +135,9 @@ func (h *hawkularSink) ExportData(db *core.DataBatch) {
+ 		}
+ 		h.sendData(tmhs, wg) // Send to a limited channel? Only batches.. egg.
+ 		wg.Wait()
++		// glog.V(4).Infof("ExportData updated %d tags, total size of cached tags is %d\n", updatedTags, len(h.reg))
+ 	}
++	h.expireCache(h.runId)
+ }
+ 
+ func metricValueToLabeledMetric(msValues map[string]core.MetricValue) []core.LabeledMetric {
+@@ -160,7 +158,7 @@ func (h *hawkularSink) DebugInfo() string {
+ 
+ 	h.regLock.Lock()
+ 	defer h.regLock.Unlock()
+-	info += fmt.Sprintf("Known metrics: %d\n", len(h.reg))
++	info += fmt.Sprintf("Cached metrics: %d\n", len(h.expReg))
+ 	if len(h.labelTenant) > 0 {
+ 		info += fmt.Sprintf("Using label '%s' as tenant information\n", h.labelTenant)
+ 	}
+@@ -195,11 +193,13 @@ func NewHawkularSink(u *url.URL) (core.DataSink, error) {
+ }
+ 
+ func (h *hawkularSink) init() error {
+-	h.reg = make(map[string]*metrics.MetricDefinition)
+ 	h.models = make(map[string]*metrics.MetricDefinition)
+ 	h.modifiers = make([]metrics.Modifier, 0)
+ 	h.filters = make([]Filter, 0)
+ 	h.batchSize = batchSizeDefault
++	h.expReg = make(map[string]*expiringItem)
++	h.cacheAge = 2
++	h.runId = 0
+ 
+ 	p := metrics.Parameters{
+ 		Tenant:      "heapster",
+@@ -323,6 +323,14 @@ func (h *hawkularSink) init() error {
+ 		h.batchSize = bs
+ 	}
+ 
++	if v, found := opts["disablePreCache"]; found {
++		dpc, err := strconv.ParseBool(v[0])
++		if err != nil {
++			return fmt.Errorf("disablePreCache parameter value %s is invalid", v[0])
++		}
++		h.disablePreCaching = dpc
++	}
++
+ 	c, err := metrics.NewHawkularClient(p)
+ 	if err != nil {
+ 		return err
+diff --git a/metrics/sinks/hawkular/driver_test.go b/metrics/sinks/hawkular/driver_test.go
+index ebdffd4f..f534c8fe 100644
+--- a/metrics/sinks/hawkular/driver_test.go
++++ b/metrics/sinks/hawkular/driver_test.go
+@@ -21,6 +21,7 @@ import (
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -34,7 +35,7 @@ import (
+ 
+ func dummySink() *hawkularSink {
+ 	return &hawkularSink{
+-		reg:    make(map[string]*metrics.MetricDefinition),
++		expReg: make(map[string]*expiringItem),
+ 		models: make(map[string]*metrics.MetricDefinition),
+ 	}
+ }
+@@ -57,7 +58,7 @@ func TestDescriptorTransform(t *testing.T) {
+ 
+ 	md := hSink.descriptorToDefinition(&smd)
+ 
+-	assert.Equal(t, smd.Name, md.Id)
++	assert.Equal(t, smd.Name, md.ID)
+ 	assert.Equal(t, 3, len(md.Tags)) // descriptorTag, unitsTag, typesTag, k1
+ 
+ 	assert.Equal(t, smd.Units.String(), md.Tags[unitsTag])
+@@ -122,7 +123,7 @@ func TestMetricTransform(t *testing.T) {
+ 	assert.NoError(t, err)
+ 
+ 	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key],
+-		metricSet.Labels[core.LabelPodId.Key], metricName), m.Id)
++		metricSet.Labels[core.LabelPodId.Key], metricName), m.ID)
+ 
+ 	assert.Equal(t, 1, len(m.Data))
+ 	_, ok := m.Data[0].Value.(float64)
+@@ -134,7 +135,7 @@ func TestMetricTransform(t *testing.T) {
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[2], now)
+ 	assert.NoError(t, err)
+ 
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelNodename.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelNodename.Key], metricName), m.ID)
+ 
+ 	//
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+@@ -142,13 +143,13 @@ func TestMetricTransform(t *testing.T) {
+ 
+ 	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key],
+ 		metricSet.Labels[core.LabelNodename.Key], labeledMetricNameA,
+-		metricSet.LabeledMetrics[0].Labels[core.LabelResourceID.Key]), m.Id)
++		metricSet.LabeledMetrics[0].Labels[core.LabelResourceID.Key]), m.ID)
+ 
+ 	//
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[1], now)
+ 	assert.NoError(t, err)
+ 	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key],
+-		metricSet.Labels[core.LabelNodename.Key], labeledMetricNameB), m.Id)
++		metricSet.Labels[core.LabelNodename.Key], labeledMetricNameB), m.ID)
+ }
+ 
+ func TestMetricIds(t *testing.T) {
+@@ -181,43 +182,43 @@ func TestMetricIds(t *testing.T) {
+ 	//
+ 	m, err := hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelPodId.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelPodId.Key], metricName), m.ID)
+ 
+ 	//
+ 	metricSet.Labels[core.LabelMetricSetType.Key] = core.MetricSetTypeNode
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s", "machine", metricSet.Labels[core.LabelNodename.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s", "machine", metricSet.Labels[core.LabelNodename.Key], metricName), m.ID)
+ 
+ 	//
+ 	metricSet.Labels[core.LabelMetricSetType.Key] = core.MetricSetTypePod
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s", core.MetricSetTypePod, metricSet.Labels[core.LabelPodId.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s", core.MetricSetTypePod, metricSet.Labels[core.LabelPodId.Key], metricName), m.ID)
+ 
+ 	//
+ 	metricSet.Labels[core.LabelMetricSetType.Key] = core.MetricSetTypePodContainer
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelPodId.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s", metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelPodId.Key], metricName), m.ID)
+ 
+ 	//
+ 	metricSet.Labels[core.LabelMetricSetType.Key] = core.MetricSetTypeSystemContainer
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", core.MetricSetTypeSystemContainer, metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelPodId.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s/%s", core.MetricSetTypeSystemContainer, metricSet.Labels[core.LabelContainerName.Key], metricSet.Labels[core.LabelPodId.Key], metricName), m.ID)
+ 
+ 	//
+ 	metricSet.Labels[core.LabelMetricSetType.Key] = core.MetricSetTypeCluster
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s", core.MetricSetTypeCluster, metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s", core.MetricSetTypeCluster, metricName), m.ID)
+ 
+ 	//
+ 	metricSet.Labels[core.LabelMetricSetType.Key] = core.MetricSetTypeNamespace
+ 	m, err = hSink.pointToLabeledMetricHeader(&metricSet, metricSet.LabeledMetrics[0], now)
+ 	assert.NoError(t, err)
+-	assert.Equal(t, fmt.Sprintf("%s/%s/%s", core.MetricSetTypeNamespace, metricSet.Labels[core.LabelNamespaceName.Key], metricName), m.Id)
++	assert.Equal(t, fmt.Sprintf("%s/%s/%s", core.MetricSetTypeNamespace, metricSet.Labels[core.LabelNamespaceName.Key], metricName), m.ID)
+ 
+ }
+ 
+@@ -232,7 +233,7 @@ func TestRecentTest(t *testing.T) {
+ 	modelT["hep"+descriptionTag] = "n"
+ 
+ 	model := metrics.MetricDefinition{
+-		Id:   id,
++		ID:   id,
+ 		Tags: modelT,
+ 	}
+ 
+@@ -242,7 +243,7 @@ func TestRecentTest(t *testing.T) {
+ 	}
+ 
+ 	live := metrics.MetricDefinition{
+-		Id:   "test/" + id,
++		ID:   "test/" + id,
+ 		Tags: liveT,
+ 	}
+ 
+@@ -295,40 +296,45 @@ func integSink(uri string) (*hawkularSink, error) {
+ // Test that the tags for metric is updated..
+ func TestRegister(t *testing.T) {
+ 	m := &sync.Mutex{}
+-	definitionsCalled := make(map[string]bool)
++	// definitionsCalled := make(map[string]bool)
+ 	updateTagsCalled := false
++	requests := 0
+ 
+ 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		m.Lock()
+ 		defer m.Unlock()
+ 		w.Header().Set("Content-Type", "application/json")
+ 
+-		if strings.Contains(r.RequestURI, "metrics?type=") {
+-			typ := r.RequestURI[strings.Index(r.RequestURI, "type=")+5:]
+-			definitionsCalled[typ] = true
+-			if typ == "gauge" {
+-				fmt.Fprintln(w, `[{ "id": "test.create.gauge.1", "tenantId": "test-heapster", "type": "gauge", "tags": { "descriptor_name": "test/metric/1" } }]`)
+-			} else {
++		if strings.Contains(r.RequestURI, "tenants") {
++			fmt.Fprintln(w, `[{ "id": "test-heapster"},{"id": "fgahj-fgas-basf-gegsg" }]`)
++		} else {
++			tenant := r.Header.Get("Hawkular-Tenant")
++			if tenant != "test-heapster" {
++				requests++
+ 				w.WriteHeader(http.StatusNoContent)
++				return
+ 			}
+-		} else if strings.Contains(r.RequestURI, "/tags") && r.Method == "PUT" {
+-			updateTagsCalled = true
+-			// assert.True(t, strings.Contains(r.RequestURI, "k1:d1"), "Tag k1 was not updated with value d1")
+-			defer r.Body.Close()
+-			b, err := ioutil.ReadAll(r.Body)
+-			assert.NoError(t, err)
++			if strings.Contains(r.RequestURI, "metrics?tags=descriptor_name%3A%2A") || strings.Contains(r.RequestURI, "openshift") {
++				requests++
++				fmt.Fprintln(w, `[{ "id": "test.create.gauge.1", "tenantId": "test-heapster", "type": "gauge", "tags": { "descriptor_name": "test/metric/1" } }]`)
++			} else if strings.Contains(r.RequestURI, "/tags") && r.Method == "PUT" {
++				updateTagsCalled = true
++				defer r.Body.Close()
++				b, err := ioutil.ReadAll(r.Body)
++				assert.NoError(t, err)
+ 
+-			tags := make(map[string]string)
+-			err = json.Unmarshal(b, &tags)
+-			assert.NoError(t, err)
++				tags := make(map[string]string)
++				err = json.Unmarshal(b, &tags)
++				assert.NoError(t, err)
+ 
+-			_, kt1 := tags["k1_description"]
+-			_, dt := tags["descriptor_name"]
++				_, kt1 := tags["k1_description"]
++				_, dt := tags["descriptor_name"]
+ 
+-			assert.True(t, kt1, "k1_description tag is missing")
+-			assert.True(t, dt, "descriptor_name is missing")
++				assert.True(t, kt1, "k1_description tag is missing")
++				assert.True(t, dt, "descriptor_name is missing")
+ 
+-			w.WriteHeader(http.StatusOK)
++				w.WriteHeader(http.StatusOK)
++			}
+ 		}
+ 	}))
+ 	defer s.Close()
+@@ -362,11 +368,24 @@ func TestRegister(t *testing.T) {
+ 	assert.NoError(t, err)
+ 
+ 	assert.Equal(t, 2, len(hSink.models))
+-	assert.Equal(t, 1, len(hSink.reg))
++	assert.Equal(t, 1, len(hSink.expReg))
+ 
+-	assert.True(t, definitionsCalled["gauge"], "Gauge definitions were not fetched")
+-	assert.True(t, definitionsCalled["counter"], "Counter definitions were not fetched")
+ 	assert.True(t, updateTagsCalled, "Updating outdated tags was not called")
++	assert.Equal(t, 1, requests)
++
++	// Try without pre caching
++	updateTagsCalled = false
++
++	hSink, err = integSink(s.URL + "?tenant=test-heapster&disablePreCache=true")
++	assert.NoError(t, err)
++
++	err = hSink.Register(md)
++	assert.NoError(t, err)
++
++	assert.Equal(t, 2, len(hSink.models))
++	assert.Equal(t, 0, len(hSink.expReg))
++
++	assert.False(t, updateTagsCalled, "Updating outdated tags was called")
+ }
+ 
+ // Store timeseries with both gauges and cumulatives
+@@ -381,7 +400,7 @@ func TestStoreTimeseries(t *testing.T) {
+ 		w.Header().Set("Content-Type", "application/json")
+ 
+ 		typ := r.RequestURI[strings.Index(r.RequestURI, "hawkular/metrics/")+17:]
+-		typ = typ[:len(typ)-5]
++		typ = typ[:len(typ)-4]
+ 
+ 		switch typ {
+ 		case "counters":
+@@ -404,7 +423,7 @@ func TestStoreTimeseries(t *testing.T) {
+ 
+ 		assert.Equal(t, 1, len(mH))
+ 
+-		ids = append(ids, mH[0].Id)
++		ids = append(ids, mH[0].ID)
+ 	}))
+ 	defer s.Close()
+ 
+@@ -460,6 +479,7 @@ func TestStoreTimeseries(t *testing.T) {
+ func TestTags(t *testing.T) {
+ 	m := &sync.Mutex{}
+ 	calls := make([]string, 0, 2)
++	serverTags := make(map[string]string)
+ 	// how many times tags have been updated
+ 	tagsUpdated := 0
+ 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+@@ -473,23 +493,8 @@ func TestTags(t *testing.T) {
+ 		assert.NoError(t, err)
+ 
+ 		if strings.HasSuffix(r.RequestURI, "/tags") {
+-			tags := make(map[string]string)
+-			err := json.Unmarshal(b, &tags)
++			err := json.Unmarshal(b, &serverTags)
+ 			assert.NoError(t, err)
+-
+-			assert.Equal(t, 10, len(tags))
+-			assert.Equal(t, "test-label", tags["projectId"])
+-			assert.Equal(t, "test-container", tags[core.LabelContainerName.Key])
+-			assert.Equal(t, "test-podid", tags[core.LabelPodId.Key])
+-			assert.Equal(t, "test-container/test/metric/A", tags["group_id"])
+-			assert.Equal(t, "test/metric/A", tags["descriptor_name"])
+-			assert.Equal(t, "XYZ", tags[core.LabelResourceID.Key])
+-			assert.Equal(t, "bytes", tags["units"])
+-
+-			assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB", tags[core.LabelLabels.Key])
+-			assert.Equal(t, "testValueA", tags["labels.testLabelA"])
+-			assert.Equal(t, "testValueB", tags["labels.testLabelB"])
+-
+ 			tagsUpdated++
+ 		}
+ 	}))
+@@ -538,23 +543,115 @@ func TestTags(t *testing.T) {
+ 	//register the metric definitions
+ 	hSink.Register([]core.MetricDescriptor{smd})
+ 	//register the metrics themselves
+-	hSink.registerLabeledIfNecessary(&metricSet, labeledMetric)
++	wg := &sync.WaitGroup{}
++	hSink.registerLabeledIfNecessaryInline(&metricSet, labeledMetric, wg)
+ 
++	wg.Wait()
+ 	assert.Equal(t, 1, tagsUpdated)
+ 
+-	tags := hSink.reg["test-container/test-podid/test/metric/A/XYZ"].Tags
+-	assert.Equal(t, 10, len(tags))
+-	assert.Equal(t, "test-label", tags["projectId"])
+-	assert.Equal(t, "test-container", tags[core.LabelContainerName.Key])
+-	assert.Equal(t, "test-podid", tags[core.LabelPodId.Key])
+-	assert.Equal(t, "test-container/test/metric/A", tags["group_id"])
+-	assert.Equal(t, "test/metric/A", tags["descriptor_name"])
+-	assert.Equal(t, "XYZ", tags[core.LabelResourceID.Key])
+-	assert.Equal(t, "bytes", tags["units"])
+-
+-	assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB", tags[core.LabelLabels.Key])
+-	assert.Equal(t, "testValueA", tags["labels.testLabelA"])
+-	assert.Equal(t, "testValueB", tags["labels.testLabelB"])
++	assert.True(t, hSink.expReg["test-container/test-podid/test/metric/A/XYZ"].hash > 0)
++
++	assert.Equal(t, 10, len(serverTags))
++	assert.Equal(t, "test-label", serverTags["projectId"])
++	assert.Equal(t, "test-container", serverTags[core.LabelContainerName.Key])
++	assert.Equal(t, "test-podid", serverTags[core.LabelPodId.Key])
++	assert.Equal(t, "test-container/test/metric/A", serverTags["group_id"])
++	assert.Equal(t, "test/metric/A", serverTags["descriptor_name"])
++	assert.Equal(t, "XYZ", serverTags[core.LabelResourceID.Key])
++	assert.Equal(t, "bytes", serverTags["units"])
++
++	assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB", serverTags[core.LabelLabels.Key])
++	assert.Equal(t, "testValueA", serverTags["labels.testLabelA"])
++	assert.Equal(t, "testValueB", serverTags["labels.testLabelB"])
++
++	// Make modifications to the metrics and check that they're updated correctly
++
++	// First, no changes - no update should happen
++	hSink.registerLabeledIfNecessaryInline(&metricSet, labeledMetric, wg)
++	wg.Wait()
++	assert.Equal(t, 1, tagsUpdated)
++
++	// Now modify the labels and expect an update
++	metricSet.Labels[core.LabelLabels.Key] = "testLabelA:testValueA,testLabelB:testValueB,testLabelC:testValueC"
++	hSink.registerLabeledIfNecessaryInline(&metricSet, labeledMetric, wg)
++	wg.Wait()
++	assert.Equal(t, 2, tagsUpdated)
++
++	assert.Equal(t, "testLabelA:testValueA,testLabelB:testValueB,testLabelC:testValueC", serverTags[core.LabelLabels.Key])
++	assert.Equal(t, "testValueA", serverTags["labels.testLabelA"])
++	assert.Equal(t, "testValueB", serverTags["labels.testLabelB"])
++	assert.Equal(t, "testValueC", serverTags["labels.testLabelC"])
++}
++
++func TestExpiringCache(t *testing.T) {
++	total := 10
++	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.WriteHeader(http.StatusOK)
++	}))
++	defer s.Close()
++
++	hSink, err := integSink(s.URL + "?tenant=test-heapster&labelToTenant=projectId&batchSize=20&concurrencyLimit=5")
++	assert.NoError(t, err)
++
++	l := make(map[string]string)
++	l["projectId"] = "test-label"
++	l[core.LabelContainerName.Key] = "test-container"
++	l[core.LabelPodId.Key] = "test-podid"
++
++	metrics := make(map[string]core.MetricValue, total)
++	descriptors := make([]core.MetricDescriptor, total)
++	for i := 0; i < total; i++ {
++		id := fmt.Sprintf("test/metric/%d", i)
++		metrics[id] = core.MetricValue{
++			ValueType:  core.ValueInt64,
++			MetricType: core.MetricCumulative,
++			IntValue:   123 * int64(i),
++		}
++		descriptors = append(descriptors, core.MetricDescriptor{
++			Name:      id,
++			Units:     core.UnitsBytes,
++			ValueType: core.ValueInt64,
++			Type:      core.MetricGauge,
++		})
++	}
++
++	err = hSink.Register(descriptors)
++	assert.NoError(t, err)
++
++	metricSet := core.MetricSet{
++		Labels:       l,
++		MetricValues: metrics,
++	}
++
++	data := core.DataBatch{
++		Timestamp: time.Now(),
++		MetricSets: map[string]*core.MetricSet{
++			"pod1": &metricSet,
++		},
++	}
++
++	hSink.ExportData(&data)
++	hSink.regLock.RLock()
++	assert.Equal(t, total, len(hSink.expReg))
++	assert.Equal(t, uint64(1), hSink.expReg["test-container/test-podid/test/metric/9"].ttl)
++	hSink.regLock.RUnlock()
++
++	// Now delete part of the metrics and then check that they're expired
++	delete(metrics, "test/metric/1")
++	delete(metrics, "test/metric/6")
++
++	data.Timestamp = time.Now()
++	hSink.ExportData(&data)
++	hSink.regLock.RLock()
++	assert.Equal(t, total, len(hSink.expReg))
++	assert.Equal(t, uint64(2), hSink.expReg["test-container/test-podid/test/metric/9"].ttl)
++	hSink.regLock.RUnlock()
++
++	data.Timestamp = time.Now()
++	hSink.ExportData(&data)
++	hSink.regLock.RLock()
++	assert.Equal(t, total-2, len(hSink.expReg))
++	hSink.regLock.RUnlock()
+ }
+ 
+ func TestUserPass(t *testing.T) {
+@@ -571,6 +668,7 @@ func TestUserPass(t *testing.T) {
+ 
+ 	hSink, err := integSink(s.URL + "?user=tester&pass=hidden")
+ 	assert.NoError(t, err)
++	assert.Equal(t, 1, len(hSink.modifiers))
+ 
+ 	// md := make([]core.MetricDescriptor, 0, 1)
+ 	ld := core.LabelDescriptor{
+@@ -594,7 +692,7 @@ func TestFiltering(t *testing.T) {
+ 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		m.Lock()
+ 		defer m.Unlock()
+-		if strings.Contains(r.RequestURI, "data") {
++		if strings.Contains(r.RequestURI, "raw") {
+ 			defer r.Body.Close()
+ 			b, err := ioutil.ReadAll(r.Body)
+ 			assert.NoError(t, err)
+@@ -699,7 +797,6 @@ func TestFiltering(t *testing.T) {
+ 
+ 	assert.Equal(t, 1, len(mH))
+ }
+-
+ func TestBatchingTimeseries(t *testing.T) {
+ 	total := 1000
+ 	m := &sync.Mutex{}
+@@ -721,7 +818,7 @@ func TestBatchingTimeseries(t *testing.T) {
+ 		assert.NoError(t, err)
+ 
+ 		for _, v := range mH {
+-			ids = append(ids, v.Id)
++			ids = append(ids, v.ID)
+ 		}
+ 
+ 		calls++
+@@ -771,3 +868,72 @@ func TestBatchingTimeseries(t *testing.T) {
+ 		newIds[v] = true
+ 	}
+ }
++
++func BenchmarkTagsUpdates(b *testing.B) {
++	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
++	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.WriteHeader(http.StatusOK)
++	}))
++	defer s.Close()
++	hSink, err := integSink(s.URL + "?tenant=test-heapster&labelToTenant=projectId&batchSize=1000&concurrencyLimit=16")
++	if err != nil {
++		b.FailNow()
++	}
++
++	smd := core.MetricDescriptor{
++		Name:      "test/metric/A",
++		Units:     core.UnitsBytes,
++		ValueType: core.ValueInt64,
++		Type:      core.MetricGauge,
++		Labels:    []core.LabelDescriptor{},
++	}
++
++	//register the metric definitions
++	hSink.Register([]core.MetricDescriptor{smd})
++	total := 10000
++
++	mset := make(map[string]*core.MetricSet)
++	for i := 0; i < total; i++ {
++		id := fmt.Sprintf("pod-%d", i)
++
++		l := make(map[string]string)
++		l["projectId"] = strconv.Itoa(i)
++		for i := 0; i < 32; i++ {
++			tagName := fmt.Sprintf("tag_name_%d", i)
++			tagValue := fmt.Sprintf("tag_value_%d", i)
++			l[tagName] = tagValue
++			l[core.LabelPodId.Key] = id
++		}
++
++		metrics := make(map[string]core.MetricValue)
++		metrics["test/metric/A"] = core.MetricValue{
++			ValueType:  core.ValueInt64,
++			MetricType: core.MetricCumulative,
++			IntValue:   123,
++		}
++
++		metricSet := core.MetricSet{
++			Labels:       l,
++			MetricValues: metrics,
++		}
++		mset[id] = &metricSet
++	}
++
++	data := core.DataBatch{
++		Timestamp:  time.Now(),
++		MetricSets: mset,
++	}
++
++	fmt.Printf("Generated data with %d metricSets\n", len(data.MetricSets))
++	hSink.init()
++	hSink.Register([]core.MetricDescriptor{smd})
++	b.ResetTimer()
++	for j := 0; j < b.N; j++ {
++		for a := 0; a < 10; a++ {
++			data.Timestamp = time.Now()
++			hSink.ExportData(&data)
++		}
++	}
++
++	fmt.Printf("Amount of unique definitions: %d\n", len(hSink.expReg))
++}
+diff --git a/metrics/sinks/hawkular/types.go b/metrics/sinks/hawkular/types.go
+index 2bdd9fb9..459860da 100644
+--- a/metrics/sinks/hawkular/types.go
++++ b/metrics/sinks/hawkular/types.go
+@@ -45,11 +45,19 @@ func (f FilterType) From(s string) FilterType {
+ 	}
+ }
+ 
++type expiringItem struct {
++	hash uint64
++	ttl  uint64
++}
++
+ type hawkularSink struct {
+ 	client  *metrics.Client
+ 	models  map[string]*metrics.MetricDefinition // Model definitions
+-	regLock sync.Mutex
+-	reg     map[string]*metrics.MetricDefinition // Real definitions
++	regLock sync.RWMutex
++	// reg      map[string]uint64 // Hash of real definition
++	expReg   map[string]*expiringItem
++	runId    uint64
++	cacheAge uint64
+ 
+ 	uri *url.URL
+ 
+@@ -59,7 +67,8 @@ type hawkularSink struct {
+ 	modifiers      []metrics.Modifier
+ 	filters        []Filter
+ 
+-	batchSize int
++	disablePreCaching bool
++	batchSize         int
+ }
+ 
+ func heapsterTypeToHawkularType(t core.MetricType) metrics.MetricType {
+diff --git a/vendor/github.com/hawkular/hawkular-client-go/metrics/client.go b/vendor/github.com/hawkular/hawkular-client-go/metrics/client.go
+index 2502b1a4..6d09c6e1 100644
+--- a/vendor/github.com/hawkular/hawkular-client-go/metrics/client.go
++++ b/vendor/github.com/hawkular/hawkular-client-go/metrics/client.go
+@@ -1,5 +1,5 @@
+ /*
+-   Copyright 2015-2016 Red Hat, Inc. and/or its affiliates
++   Copyright 2015-2017 Red Hat, Inc. and/or its affiliates
+    and other contributors.
+ 
+    Licensed under the Apache License, Version 2.0 (the "License");
+@@ -19,6 +19,7 @@ package metrics
+ 
+ import (
+ 	"bytes"
++	"encoding/base64"
+ 	"encoding/json"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -30,8 +31,6 @@ import (
+ 	"time"
+ )
+ 
+-// TODO Instrumentation? To get statistics?
+-
+ func (c *HawkularClientError) Error() string {
+ 	return fmt.Sprintf("Hawkular returned status code %d, error message: %s", c.Code, c.msg)
+ }
+@@ -42,17 +41,27 @@ const (
+ 	baseURL            string        = "hawkular/metrics"
+ 	defaultConcurrency int           = 1
+ 	timeout            time.Duration = time.Duration(30 * time.Second)
++	tenantHeader       string        = "Hawkular-Tenant"
++	adminHeader        string        = "Hawkular-Admin-Token"
+ )
+ 
+-// Tenant Override function to replace the Tenant (defaults to Client default)
++// Tenant function replaces the Tenant in the request (instead of using the default in Client parameters)
+ func Tenant(tenant string) Modifier {
+ 	return func(r *http.Request) error {
+-		r.Header.Set("Hawkular-Tenant", tenant)
++		r.Header.Set(tenantHeader, tenant)
+ 		return nil
+ 	}
+ }
+ 
+-// Data Add payload to the request
++// AdminAuthentication function to add metrics' admin token to the request
++func AdminAuthentication(token string) Modifier {
++	return func(r *http.Request) error {
++		r.Header.Add(adminHeader, token)
++		return nil
++	}
++}
++
++// Data adds payload to the request
+ func Data(data interface{}) Modifier {
+ 	return func(r *http.Request) error {
+ 		jsonb, err := json.Marshal(data)
+@@ -64,8 +73,6 @@ func Data(data interface{}) Modifier {
+ 		rc := ioutil.NopCloser(b)
+ 		r.Body = rc
+ 
+-		// fmt.Printf("Sending: %s\n", string(jsonb))
+-
+ 		if b != nil {
+ 			r.ContentLength = int64(b.Len())
+ 		}
+@@ -73,9 +80,10 @@ func Data(data interface{}) Modifier {
+ 	}
+ }
+ 
+-// URL Set the request URL
+-func (c *Client) Url(method string, e ...Endpoint) Modifier {
++// URL sets the request URL
++func (c *Client) URL(method string, e ...Endpoint) Modifier {
+ 	// TODO Create composite URLs? Add().Add().. etc? Easier to modify on the fly..
++	// And also remove the necessary order of Adds
+ 	return func(r *http.Request) error {
+ 		u := c.createURL(e...)
+ 		r.URL = u
+@@ -84,7 +92,7 @@ func (c *Client) Url(method string, e ...Endpoint) Modifier {
+ 	}
+ }
+ 
+-// Filters Multiple Filter types to execute
++// Filters allows using multiple Filter types in the same request
+ func Filters(f ...Filter) Modifier {
+ 	return func(r *http.Request) error {
+ 		for _, filter := range f {
+@@ -94,7 +102,7 @@ func Filters(f ...Filter) Modifier {
+ 	}
+ }
+ 
+-// Param Add query parameters
++// Param adds query parameters to the request
+ func Param(k string, v string) Filter {
+ 	return func(r *http.Request) {
+ 		q := r.URL.Query()
+@@ -103,38 +111,51 @@ func Param(k string, v string) Filter {
+ 	}
+ }
+ 
+-// TypeFilter Query parameter filtering with type
++// TypeFilter is a query parameter to filter by type
+ func TypeFilter(t MetricType) Filter {
+-	return Param("type", t.shortForm())
++	return Param("type", fmt.Sprint(t))
+ }
+ 
+-// TagsFilter Query parameter filtering with tags
++// TagsFilter is a query parameter to filter with tags query
+ func TagsFilter(t map[string]string) Filter {
+-	j := tagsEncoder(t)
++	j := tagsEncoder(t, false)
+ 	return Param("tags", j)
+ }
+ 
+-// IdFilter Query parameter to add filtering by id name
++// TagsQueryFilter is a query parameter for the new style tags query language
++func TagsQueryFilter(query ...string) Filter {
++	tagQl := strings.Join(query, " AND ")
++	return Param("tags", tagQl)
++}
++
++// IdFilter is a query parameter to add filtering by id name
+ func IdFilter(regexp string) Filter {
+ 	return Param("id", regexp)
+ }
+ 
+-// StartTimeFilter Query parameter to filter with start time
++// StartTimeFilter is a query parameter to filter with start time
+ func StartTimeFilter(startTime time.Time) Filter {
+-	return Param("start", strconv.Itoa(int(startTime.Unix())))
++	// return Param("start", strconv.Itoa(int(startTime.Unix())))
++	return Param("start", strconv.Itoa(int(ToUnixMilli(startTime))))
+ }
+ 
+-// EndTimeFilter Query parameter to filter with end time
++// EndTimeFilter is a query parameter to filter with end time
+ func EndTimeFilter(endTime time.Time) Filter {
+-	return Param("end", strconv.Itoa(int(endTime.Unix())))
++	return Param("end", strconv.Itoa(int(ToUnixMilli(endTime))))
+ }
+ 
+-// BucketsFilter Query parameter to define amount of buckets
++// BucketsFilter is a query parameter to define amount of buckets
+ func BucketsFilter(buckets int) Filter {
+ 	return Param("buckets", strconv.Itoa(buckets))
+ }
+ 
+-// LimitFilter Query parameter to limit result count
++// BucketsDurationFilter is a query parameter to set the size of a bucket based on duration
++// Minimum supported bucket is 1 millisecond
++func BucketsDurationFilter(duration time.Duration) Filter {
++	return Param("bucketDuration", fmt.Sprintf("%dms", (duration.Nanoseconds()/1e6)))
++}
++
++// LimitFilter is a query parameter to limit result count
+ func LimitFilter(limit int) Filter {
+ 	return Param("limit", strconv.Itoa(limit))
+ }
+@@ -144,17 +165,17 @@ func OrderFilter(order Order) Filter {
+ 	return Param("order", order.String())
+ }
+ 
+-// StartFromBeginningFilter Return data from the oldest stored datapoint
++// StartFromBeginningFilter returns data from the oldest stored datapoint
+ func StartFromBeginningFilter() Filter {
+ 	return Param("fromEarliest", "true")
+ }
+ 
+-// StackedFilter Force downsampling of stacked return values
++// StackedFilter forces downsampling of stacked return values
+ func StackedFilter() Filter {
+ 	return Param("stacked", "true")
+ }
+ 
+-// PercentilesFilter Query parameter to define the requested percentiles
++// PercentilesFilter is a query parameter to define the requested percentiles
+ func PercentilesFilter(percentiles []float64) Filter {
+ 	s := make([]string, 0, len(percentiles))
+ 	for _, v := range percentiles {
+@@ -175,7 +196,11 @@ func (c *Client) createRequest() *http.Request {
+ 		Host:       c.url.Host,
+ 	}
+ 	req.Header.Add("Content-Type", "application/json")
+-	req.Header.Add("Hawkular-Tenant", c.Tenant)
++	req.Header.Add(tenantHeader, c.Tenant)
++
++	if len(c.Credentials) > 0 {
++		req.Header.Add("Authorization", fmt.Sprintf("Basic %s", c.Credentials))
++	}
+ 
+ 	if len(c.Token) > 0 {
+ 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.Token))
+@@ -184,7 +209,8 @@ func (c *Client) createRequest() *http.Request {
+ 	return req
+ }
+ 
+-// Send Sends a constructed request to the Hawkular-Metrics server
++// Send sends a constructed request to the Hawkular-Metrics server.
++// All the requests are pooled and limited by set concurrency limits
+ func (c *Client) Send(o ...Modifier) (*http.Response, error) {
+ 	// Initialize
+ 	r := c.createRequest()
+@@ -210,10 +236,64 @@ func (c *Client) Send(o ...Modifier) (*http.Response, error) {
+ 
+ // Commands
+ 
+-// Create Creates new metric Definition
++// Tenants returns a list of tenants from the server
++func (c *Client) Tenants(o ...Modifier) ([]*TenantDefinition, error) {
++	o = prepend(o, c.URL("GET", TenantEndpoint()), AdminAuthentication(c.AdminToken))
++
++	r, err := c.Send(o...)
++	if err != nil {
++		return nil, err
++	}
++
++	defer r.Body.Close()
++
++	if r.StatusCode == http.StatusOK {
++		b, err := ioutil.ReadAll(r.Body)
++		if err != nil {
++			return nil, err
++		}
++		tenants := []*TenantDefinition{}
++		if b != nil {
++			if err = json.Unmarshal(b, &tenants); err != nil {
++				return nil, err
++			}
++		}
++		return tenants, err
++	} else if r.StatusCode > 399 {
++		return nil, c.parseErrorResponse(r)
++	}
++
++	return nil, nil
++}
++
++// CreateTenant creates a tenant definition on the server
++func (c *Client) CreateTenant(tenant TenantDefinition, o ...Modifier) (bool, error) {
++	o = prepend(o, c.URL("POST", TenantEndpoint()), AdminAuthentication(c.AdminToken), Data(tenant))
++
++	r, err := c.Send(o...)
++	if err != nil {
++		return false, err
++	}
++
++	defer r.Body.Close()
++
++	if r.StatusCode > 399 {
++		err = c.parseErrorResponse(r)
++		if err, ok := err.(*HawkularClientError); ok {
++			if err.Code != http.StatusConflict {
++				return false, err
++			}
++			return false, nil
++		}
++		return false, err
++	}
++	return true, nil
++}
++
++// Create creates a new metric definition
+ func (c *Client) Create(md MetricDefinition, o ...Modifier) (bool, error) {
+ 	// Keep the order, add custom prepend
+-	o = prepend(o, c.Url("POST", TypeEndpoint(md.Type)), Data(md))
++	o = prepend(o, c.URL("POST", TypeEndpoint(md.Type)), Data(md))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -227,18 +307,47 @@ func (c *Client) Create(md MetricDefinition, o ...Modifier) (bool, error) {
+ 		if err, ok := err.(*HawkularClientError); ok {
+ 			if err.Code != http.StatusConflict {
+ 				return false, err
+-			} else {
+-				return false, nil
+ 			}
++			return false, nil
+ 		}
+ 		return false, err
+ 	}
+ 	return true, nil
+ }
+ 
+-// Definitions Fetch metric definitions
++// AllDefinitions fetches all metric definitions (for every tenant) from the server. Requires admin/service rights
++func (c *Client) AllDefinitions(o ...Modifier) ([]*MetricDefinition, error) {
++	o = prepend(o, c.URL("GET", OpenshiftEndpoint()), AdminAuthentication(c.AdminToken))
++
++	r, err := c.Send(o...)
++	if err != nil {
++		return nil, err
++	}
++
++	defer r.Body.Close()
++
++	if r.StatusCode == http.StatusOK {
++		b, err := ioutil.ReadAll(r.Body)
++		if err != nil {
++			return nil, err
++		}
++		md := []*MetricDefinition{}
++		if b != nil && len(b) > 0 {
++			if err = json.Unmarshal(b, &md); err != nil {
++				return nil, err
++			}
++		}
++		return md, err
++	} else if r.StatusCode > 399 {
++		return nil, c.parseErrorResponse(r)
++	}
++
++	return nil, nil
++}
++
++// Definitions fetches metric definitions from the server
+ func (c *Client) Definitions(o ...Modifier) ([]*MetricDefinition, error) {
+-	o = prepend(o, c.Url("GET", TypeEndpoint(Generic)))
++	o = prepend(o, c.URL("GET", TypeEndpoint(Generic)))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -266,9 +375,9 @@ func (c *Client) Definitions(o ...Modifier) ([]*MetricDefinition, error) {
+ 	return nil, nil
+ }
+ 
+-// Definition Return a single definition
++// Definition returns a single metric definition
+ func (c *Client) Definition(t MetricType, id string, o ...Modifier) (*MetricDefinition, error) {
+-	o = prepend(o, c.Url("GET", TypeEndpoint(t), SingleMetricEndpoint(id)))
++	o = prepend(o, c.URL("GET", TypeEndpoint(t), SingleMetricEndpoint(id)))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -296,9 +405,39 @@ func (c *Client) Definition(t MetricType, id string, o ...Modifier) (*MetricDefi
+ 	return nil, nil
+ }
+ 
+-// UpdateTags Update tags of a metric (or create if not existing)
++// TagValues queries for available tagValues
++func (c *Client) TagValues(tagQuery map[string]string, o ...Modifier) (map[string][]string, error) {
++	o = prepend(o, c.URL("GET", TypeEndpoint(Generic), TagEndpoint(), TagsEndpoint(tagQuery)))
++
++	r, err := c.Send(o...)
++	if err != nil {
++		return nil, err
++	}
++
++	defer r.Body.Close()
++
++	if r.StatusCode == http.StatusOK {
++		b, err := ioutil.ReadAll(r.Body)
++		if err != nil {
++			return nil, err
++		}
++		md := make(map[string][]string)
++		if b != nil {
++			if err = json.Unmarshal(b, &md); err != nil {
++				return nil, err
++			}
++		}
++		return md, err
++	} else if r.StatusCode > 399 {
++		return nil, c.parseErrorResponse(r)
++	}
++
++	return nil, nil
++}
++
++// UpdateTags modifies the tags of a metric definition
+ func (c *Client) UpdateTags(t MetricType, id string, tags map[string]string, o ...Modifier) error {
+-	o = prepend(o, c.Url("PUT", TypeEndpoint(t), SingleMetricEndpoint(id), TagEndpoint()), Data(tags))
++	o = prepend(o, c.URL("PUT", TypeEndpoint(t), SingleMetricEndpoint(id), TagEndpoint()), Data(tags))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -314,9 +453,9 @@ func (c *Client) UpdateTags(t MetricType, id string, tags map[string]string, o .
+ 	return nil
+ }
+ 
+-// DeleteTags Delete given tags from the definition
+-func (c *Client) DeleteTags(t MetricType, id string, tags map[string]string, o ...Modifier) error {
+-	o = prepend(o, c.Url("DELETE", TypeEndpoint(t), SingleMetricEndpoint(id), TagEndpoint(), TagsEndpoint(tags)))
++// DeleteTags deletes given tags from the definition
++func (c *Client) DeleteTags(t MetricType, id string, tags []string, o ...Modifier) error {
++	o = prepend(o, c.URL("DELETE", TypeEndpoint(t), SingleMetricEndpoint(id), TagEndpoint(), TagNamesEndpoint(tags)))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -332,9 +471,9 @@ func (c *Client) DeleteTags(t MetricType, id string, tags map[string]string, o .
+ 	return nil
+ }
+ 
+-// Tags Fetch metric definition's tags
++// Tags fetches metric definition's tags
+ func (c *Client) Tags(t MetricType, id string, o ...Modifier) (map[string]string, error) {
+-	o = prepend(o, c.Url("GET", TypeEndpoint(t), SingleMetricEndpoint(id), TagEndpoint()))
++	o = prepend(o, c.URL("GET", TypeEndpoint(t), SingleMetricEndpoint(id), TagEndpoint()))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -362,7 +501,7 @@ func (c *Client) Tags(t MetricType, id string, o ...Modifier) (map[string]string
+ 	return nil, nil
+ }
+ 
+-// Write Write datapoints to the server
++// Write writes datapoints to the server
+ func (c *Client) Write(metrics []MetricHeader, o ...Modifier) error {
+ 	if len(metrics) > 0 {
+ 		mHs := make(map[MetricType][]MetricHeader)
+@@ -383,7 +522,7 @@ func (c *Client) Write(metrics []MetricHeader, o ...Modifier) error {
+ 
+ 				// Should be sorted and splitted by type & tenant..
+ 				on := o
+-				on = prepend(on, c.Url("POST", TypeEndpoint(k), DataEndpoint()), Data(v))
++				on = prepend(on, c.URL("POST", TypeEndpoint(k), RawEndpoint()), Data(v))
+ 
+ 				r, err := c.Send(on...)
+ 				if err != nil {
+@@ -413,9 +552,9 @@ func (c *Client) Write(metrics []MetricHeader, o ...Modifier) error {
+ 	return nil
+ }
+ 
+-// ReadMetric Read metric datapoints from the server
+-func (c *Client) ReadMetric(t MetricType, id string, o ...Modifier) ([]*Datapoint, error) {
+-	o = prepend(o, c.Url("GET", TypeEndpoint(t), SingleMetricEndpoint(id), DataEndpoint()))
++// ReadRaw reads metric datapoints from the server for the given metric
++func (c *Client) ReadRaw(t MetricType, id string, o ...Modifier) ([]*Datapoint, error) {
++	o = prepend(o, c.URL("GET", TypeEndpoint(t), SingleMetricEndpoint(id), RawEndpoint()))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -430,7 +569,6 @@ func (c *Client) ReadMetric(t MetricType, id string, o ...Modifier) ([]*Datapoin
+ 			return nil, err
+ 		}
+ 
+-		// Check for GaugeBucketpoint and so on for the rest.. uh
+ 		dp := []*Datapoint{}
+ 		if b != nil {
+ 			if err = json.Unmarshal(b, &dp); err != nil {
+@@ -445,9 +583,9 @@ func (c *Client) ReadMetric(t MetricType, id string, o ...Modifier) ([]*Datapoin
+ 	return nil, nil
+ }
+ 
+-// ReadBuckets Read datapoints from the server with in buckets (aggregates)
++// ReadBuckets reads datapoints from the server, aggregated to buckets with given parameters.
+ func (c *Client) ReadBuckets(t MetricType, o ...Modifier) ([]*Bucketpoint, error) {
+-	o = prepend(o, c.Url("GET", TypeEndpoint(t), DataEndpoint()))
++	o = prepend(o, c.URL("GET", TypeEndpoint(t), StatsEndpoint()))
+ 
+ 	r, err := c.Send(o...)
+ 	if err != nil {
+@@ -477,13 +615,21 @@ func (c *Client) ReadBuckets(t MetricType, o ...Modifier) ([]*Bucketpoint, error
+ 	return nil, nil
+ }
+ 
+-// NewHawkularClient Initialization
++// NewHawkularClient returns a new initialized instance of client
+ func NewHawkularClient(p Parameters) (*Client, error) {
+ 	uri, err := url.Parse(p.Url)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
++	if (p.Username != "" && p.Password == "") || (p.Username == "" && p.Password != "") {
++		return nil, fmt.Errorf("To configure credentials, you must specify both Username and Password")
++	}
++
++	if (p.Username != "" && p.Password != "") && (p.Token != "") {
++		return nil, fmt.Errorf("You cannot specify both Username/Password credentials and a Token.")
++	}
++
+ 	if uri.Path == "" {
+ 		uri.Path = baseURL
+ 	}
+@@ -492,7 +638,7 @@ func NewHawkularClient(p Parameters) (*Client, error) {
+ 		Host:   uri.Host,
+ 		Path:   uri.Path,
+ 		Scheme: uri.Scheme,
+-		Opaque: fmt.Sprintf("//%s/%s", uri.Host, uri.Path),
++		Opaque: fmt.Sprintf("/%s", uri.Path),
+ 	}
+ 
+ 	c := &http.Client{
+@@ -503,16 +649,23 @@ func NewHawkularClient(p Parameters) (*Client, error) {
+ 		c.Transport = transport
+ 	}
+ 
++	var creds string
++	if p.Username != "" && p.Password != "" {
++		creds = base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v:%v", p.Username, p.Password)))
++	}
++
+ 	if p.Concurrency < 1 {
+ 		p.Concurrency = 1
+ 	}
+ 
+ 	client := &Client{
+-		url:    u,
+-		Tenant: p.Tenant,
+-		Token:  p.Token,
+-		client: c,
+-		pool:   make(chan *poolRequest, p.Concurrency),
++		url:         u,
++		Tenant:      p.Tenant,
++		Credentials: creds,
++		Token:       p.Token,
++		AdminToken:  p.AdminToken,
++		client:      c,
++		pool:        make(chan *poolRequest, p.Concurrency),
+ 	}
+ 
+ 	for i := 0; i < p.Concurrency; i++ {
+@@ -522,7 +675,7 @@ func NewHawkularClient(p Parameters) (*Client, error) {
+ 	return client, nil
+ }
+ 
+-// Close Safely close the Hawkular-Metrics client and flush remaining work
++// Close safely closes the Hawkular-Metrics client and flushes remaining writes to the server
+ func (c *Client) Close() {
+ 	close(c.pool)
+ }
+@@ -562,38 +715,80 @@ func (c *Client) createURL(e ...Endpoint) *url.URL {
+ 	return &mu
+ }
+ 
+-// TypeEndpoint URL endpoint setting metricType
++// OpenshiftEndpoint is a URL endpoint only available in the origin-metrics installation
++func OpenshiftEndpoint() Endpoint {
++	return func(u *url.URL) {
++		addToURL(u, "openshift")
++	}
++}
++
++// TenantEndpoint is a URL endpoint to fetch tenant related information
++func TenantEndpoint() Endpoint {
++	return func(u *url.URL) {
++		addToURL(u, "tenants")
++	}
++}
++
++// TypeEndpoint is a URL endpoint setting metricType
+ func TypeEndpoint(t MetricType) Endpoint {
+ 	return func(u *url.URL) {
+-		addToURL(u, t.String())
++		switch t {
++		case Gauge:
++			addToURL(u, "gauges")
++		case Counter:
++			addToURL(u, "counters")
++		case String:
++			addToURL(u, "strings")
++		default:
++			addToURL(u, string(t))
++		}
+ 	}
+ }
+ 
+-// SingleMetricEndpoint URL endpoint for requesting single metricID
++// SingleMetricEndpoint is a URL endpoint for requesting single metricID
+ func SingleMetricEndpoint(id string) Endpoint {
+ 	return func(u *url.URL) {
+-		addToURL(u, url.QueryEscape(id))
++		addToURL(u, URLEscape(id))
+ 	}
+ }
+ 
+-// TagEndpoint URL endpoint to check tags information
++// TagEndpoint is a URL endpoint to check tags information
+ func TagEndpoint() Endpoint {
+ 	return func(u *url.URL) {
+ 		addToURL(u, "tags")
+ 	}
+ }
+ 
+-// TagsEndpoint URL endpoint which adds tags query
++// TagsEndpoint is a URL endpoint which adds tags query
+ func TagsEndpoint(tags map[string]string) Endpoint {
+ 	return func(u *url.URL) {
+-		addToURL(u, tagsEncoder(tags))
++		addToURL(u, tagsEncoder(tags, true))
+ 	}
+ }
+ 
+-// DataEndpoint URL endpoint for inserting / requesting datapoints
+-func DataEndpoint() Endpoint {
++// TagNamesEndpoint is a URL endpoint which adds tags names (no values)
++func TagNamesEndpoint(tagNames []string) Endpoint {
+ 	return func(u *url.URL) {
+-		addToURL(u, "data")
++		escapedNames := make([]string, 0, len(tagNames))
++		for _, v := range tagNames {
++			escapedNames = append(escapedNames, URLEscape(v))
++		}
++		tags := strings.Join(escapedNames, ",")
++		addToURL(u, tags)
++	}
++}
++
++// RawEndpoint is an endpoint to read and write raw datapoints
++func RawEndpoint() Endpoint {
++	return func(u *url.URL) {
++		addToURL(u, "raw")
++	}
++}
++
++// StatsEndpoint is an endpoint to read aggregated metrics
++func StatsEndpoint() Endpoint {
++	return func(u *url.URL) {
++		addToURL(u, "stats")
+ 	}
+ }
+ 
+@@ -602,11 +797,22 @@ func addToURL(u *url.URL, s string) *url.URL {
+ 	return u
+ }
+ 
+-func tagsEncoder(t map[string]string) string {
++func tagsEncoder(t map[string]string, escape bool) string {
+ 	tags := make([]string, 0, len(t))
+ 	for k, v := range t {
++		if escape {
++			k = URLEscape(k)
++			v = URLEscape(v)
++		}
+ 		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+ 	}
+ 	j := strings.Join(tags, ",")
+ 	return j
+ }
++
++// URLEscape Is a fixed version of Golang's URL escaping handling
++func URLEscape(input string) string {
++	escaped := url.QueryEscape(input)
++	escaped = strings.Replace(escaped, "+", "%20", -1)
++	return escaped
++}
+diff --git a/vendor/github.com/hawkular/hawkular-client-go/metrics/helpers.go b/vendor/github.com/hawkular/hawkular-client-go/metrics/helpers.go
+index e6210298..31f98bbc 100644
+--- a/vendor/github.com/hawkular/hawkular-client-go/metrics/helpers.go
++++ b/vendor/github.com/hawkular/hawkular-client-go/metrics/helpers.go
+@@ -75,9 +75,14 @@ func ConvertToFloat64(v interface{}) (float64, error) {
+ 	}
+ }
+ 
+-// UnixMilli Returns milliseconds since epoch
+-func UnixMilli(t time.Time) int64 {
+-	return t.UnixNano() / 1e6
++// ToUnixMilli returns milliseconds since epoch from time.Time
++func ToUnixMilli(t time.Time) int64 {
++	return t.UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
++}
++
++// FromUnixMilli returns time.Time from milliseconds since epoch
++func FromUnixMilli(milli int64) time.Time {
++	return time.Unix(0, milli*int64(time.Millisecond))
+ }
+ 
+ // Prepend Helper function to insert modifier in the beginning of slice
+diff --git a/vendor/github.com/hawkular/hawkular-client-go/metrics/types.go b/vendor/github.com/hawkular/hawkular-client-go/metrics/types.go
+index cd0beb63..0310dc1c 100644
+--- a/vendor/github.com/hawkular/hawkular-client-go/metrics/types.go
++++ b/vendor/github.com/hawkular/hawkular-client-go/metrics/types.go
+@@ -1,5 +1,5 @@
+ /*
+-   Copyright 2015-2016 Red Hat, Inc. and/or its affiliates
++   Copyright 2015-2017 Red Hat, Inc. and/or its affiliates
+    and other contributors.
+ 
+    Licensed under the Apache License, Version 2.0 (the "License");
+@@ -20,9 +20,10 @@ package metrics
+ import (
+ 	"crypto/tls"
+ 	"encoding/json"
+-	"fmt"
++	// "fmt"
+ 	"net/http"
+ 	"net/url"
++	"time"
+ )
+ 
+ // HawkularClientError Extracted error information from Hawkular-Metrics server
+@@ -31,22 +32,27 @@ type HawkularClientError struct {
+ 	Code int
+ }
+ 
+-// Parameters Initialization parameters to the client
++// Parameters is a struct used as initialization parameters to the client
+ type Parameters struct {
+ 	Tenant      string // Technically optional, but requires setting Tenant() option everytime
+ 	Url         string
+ 	TLSConfig   *tls.Config
++	Username    string
++	Password    string
+ 	Token       string
+ 	Concurrency int
++	AdminToken  string
+ }
+ 
+-// Client HawkularClient's data structure
++// Client is HawkularClient's internal data structure
+ type Client struct {
+-	Tenant string
+-	url    *url.URL
+-	client *http.Client
+-	Token  string
+-	pool   chan (*poolRequest)
++	Tenant      string
++	url         *url.URL
++	client      *http.Client
++	Credentials string // base64 encoded username/password for Basic header
++	Token       string // authentication token for Bearer header
++	AdminToken  string // authentication for items behind admin token
++	pool        chan (*poolRequest)
+ }
+ 
+ type poolRequest struct {
+@@ -59,7 +65,7 @@ type poolResponse struct {
+ 	resp *http.Response
+ }
+ 
+-// HawkularClient HawkularClient base type to define available functions..
++// HawkularClient is a base type to define available functions of the client
+ type HawkularClient interface {
+ 	Send(*http.Request) (*http.Response, error)
+ }
+@@ -74,128 +80,125 @@ type Filter func(r *http.Request)
+ type Endpoint func(u *url.URL)
+ 
+ // MetricType restrictions
+-type MetricType int
++type MetricType string
+ 
+ const (
+-	Gauge = iota
+-	Availability
+-	Counter
+-	Generic
++	Gauge        MetricType = "gauge"
++	Availability            = "availability"
++	Counter                 = "counter"
++	Generic                 = "metrics"
++	String                  = "string"
+ )
+ 
+-var longForm = []string{
+-	"gauges",
+-	"availability",
+-	"counters",
+-	"metrics",
++// MetricHeader is the header struct for time series, which has identifiers (tenant, type, id) for uniqueness
++// and []Datapoint to describe the actual time series values.
++type MetricHeader struct {
++	Tenant string      `json:"-"`
++	Type   MetricType  `json:"-"`
++	ID     string      `json:"id"`
++	Data   []Datapoint `json:"data"`
+ }
+ 
+-var shortForm = []string{
+-	"gauge",
+-	"availability",
+-	"counter",
+-	"metrics",
++// Datapoint is a struct that represents a single time series value.
++// Value should be convertible to float64 for gauge/counter series.
++// Timestamp accuracy is milliseconds since epoch
++type Datapoint struct {
++	Timestamp time.Time         `json:"-"`
++	Value     interface{}       `json:"value"`
++	Tags      map[string]string `json:"tags,omitempty"`
+ }
+ 
+-func (mt MetricType) validate() error {
+-	if int(mt) > len(longForm) && int(mt) > len(shortForm) {
+-		return fmt.Errorf("Given MetricType value %d is not valid", mt)
+-	}
+-	return nil
+-}
++// MarshalJSON is modified JSON marshalling for Datapoint object to modify time.Time to milliseconds since epoch
++func (d Datapoint) MarshalJSON() ([]byte, error) {
++	b, err := json.Marshal(map[string]interface{}{
++		"timestamp": ToUnixMilli(d.Timestamp),
++		"value":     d.Value,
++	})
+ 
+-// String Get string representation of type
+-func (mt MetricType) String() string {
+-	if err := mt.validate(); err != nil {
+-		return "unknown"
+-	}
+-	return longForm[mt]
++	return b, err
+ }
+ 
+-func (mt MetricType) shortForm() string {
+-	if err := mt.validate(); err != nil {
+-		return "unknown"
+-	}
+-	return shortForm[mt]
++// To avoid recursion in UnmarshalJSON
++type datapoint Datapoint
++
++type datapointJSON struct {
++	datapoint
++	Ts int64 `json:"timestamp"`
+ }
+ 
+-// UnmarshalJSON Custom unmarshaller for MetricType
+-func (mt *MetricType) UnmarshalJSON(b []byte) error {
+-	var f interface{}
+-	err := json.Unmarshal(b, &f)
++// UnmarshalJSON is a custom unmarshaller for Datapoint for timestamp modifications
++func (d *Datapoint) UnmarshalJSON(b []byte) error {
++	dp := datapointJSON{}
++	err := json.Unmarshal(b, &dp)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	if str, ok := f.(string); ok {
+-		for i, v := range shortForm {
+-			if str == v {
+-				*mt = MetricType(i)
+-				break
+-			}
+-		}
+-	}
++	*d = Datapoint(dp.datapoint)
++	d.Timestamp = FromUnixMilli(dp.Ts)
+ 
+ 	return nil
+ }
+ 
+-// MarshalJSON Custom marshaller for MetricType
+-func (mt MetricType) MarshalJSON() ([]byte, error) {
+-	return json.Marshal(mt.String())
+-}
+-
+-// Hawkular-Metrics external structs
+-// Do I need external.. hmph.
+-
+-type MetricHeader struct {
+-	Tenant string      `json:"-"`
+-	Type   MetricType  `json:"-"`
+-	Id     string      `json:"id"`
+-	Data   []Datapoint `json:"data"`
+-}
+-
+-// Datapoint Value should be convertible to float64 for numeric values, Timestamp is milliseconds since epoch
+-type Datapoint struct {
+-	Timestamp int64             `json:"timestamp"`
+-	Value     interface{}       `json:"value"`
+-	Tags      map[string]string `json:"tags,omitempty"`
+-}
+-
+-// HawkularError Return payload from Hawkular-Metrics if processing failed
++// HawkularError is the return payload from Hawkular-Metrics if processing failed
+ type HawkularError struct {
+ 	ErrorMsg string `json:"errorMsg"`
+ }
+ 
++// MetricDefinition is a struct that describes the stored definition of a time serie
+ type MetricDefinition struct {
+ 	Tenant        string            `json:"-"`
+ 	Type          MetricType        `json:"type,omitempty"`
+-	Id            string            `json:"id"`
++	ID            string            `json:"id"`
+ 	Tags          map[string]string `json:"tags,omitempty"`
+ 	RetentionTime int               `json:"dataRetention,omitempty"`
+ }
+ 
+ // TODO Fix the Start & End to return a time.Time
+ 
+-// Bucketpoint Return structure for bucketed data
++// Bucketpoint is a return structure for bucketed data requests (stats endpoint)
+ type Bucketpoint struct {
+-	Start       int64        `json:"start"`
+-	End         int64        `json:"end"`
++	Start       time.Time    `json:"-"`
++	End         time.Time    `json:"-"`
+ 	Min         float64      `json:"min"`
+ 	Max         float64      `json:"max"`
+ 	Avg         float64      `json:"avg"`
+ 	Median      float64      `json:"median"`
+ 	Empty       bool         `json:"empty"`
+-	Samples     int64        `json:"samples"`
++	Samples     uint64       `json:"samples"`
+ 	Percentiles []Percentile `json:"percentiles"`
+ }
+ 
+-// Percentile Hawkular-Metrics calculated percentiles representation
++type bucketpoint Bucketpoint
++
++type bucketpointJSON struct {
++	bucketpoint
++	StartTs int64 `json:"start"`
++	EndTs   int64 `json:"end"`
++}
++
++// UnmarshalJSON is a custom unmarshaller to transform int64 timestamps to time.Time
++func (b *Bucketpoint) UnmarshalJSON(payload []byte) error {
++	bp := bucketpointJSON{}
++	err := json.Unmarshal(payload, &bp)
++	if err != nil {
++		return err
++	}
++
++	*b = Bucketpoint(bp.bucketpoint)
++	b.Start = FromUnixMilli(bp.StartTs)
++	b.End = FromUnixMilli(bp.EndTs)
++
++	return nil
++}
++
++// Percentile is Hawkular-Metrics' estimated (not exact) percentile
+ type Percentile struct {
+ 	Quantile float64 `json:"quantile"`
+ 	Value    float64 `json:"value"`
+ }
+ 
+-// Order Basetype for selecting the sorting of datapoints
++// Order is a basetype for selecting the sorting of requested datapoints
+ type Order int
+ 
+ const (
+@@ -205,7 +208,7 @@ const (
+ 	DESC
+ )
+ 
+-// String Get string representation of type
++// String returns a string representation of type
+ func (o Order) String() string {
+ 	switch o {
+ 	case ASC:
+@@ -215,3 +218,9 @@ func (o Order) String() string {
+ 	}
+ 	return ""
+ }
++
++// TenantDefinition is the structure that defines a tenant
++type TenantDefinition struct {
++	ID         string             `json:"id"`
++	Retentions map[MetricType]int `json:"retentions"`
++}
+-- 
+2.13.6
+
