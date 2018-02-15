@@ -4,3 +4,4 @@ deployer/_secret
 *~
 .idea
 *.iml
+hawkular-metrics/dev/hawkular-metrics.*

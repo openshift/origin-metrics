@@ -33,6 +33,8 @@ ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
     JAVA_OPTS_APPEND="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump"
 
+ARG DEV_BUILD="false"
+
 # The http and https ports
 EXPOSE 8080 8444
 
@@ -41,9 +43,14 @@ RUN cd $JBOSS_HOME/bin && \
     curl -Lo $JBOSS_HOME/bin/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.9/jmx_prometheus_javaagent-0.9.jar
 COPY prometheus.yaml $JBOSS_HOME/standalone/configuration/prometheus.yaml
 
+RUN mkdir /tmp/hawkular
+COPY dev/* /tmp/hawkular/
+
+RUN ls -l /tmp/hawkular
+
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
-    curl -Lo hawkular-metrics.ear https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-openshift-dist\&e=ear\&v=${HAWKULAR_METRICS_VERSION}
+    if [ ${DEV_BUILD} = "true" ] && [ -s /tmp/hawkular/hawkular-metrics.ear ]; then mv /tmp/hawkular/hawkular-metrics.ear .; rm -rf /tmp/hawkular; else curl -Lo hawkular-metrics.ear https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-openshift-dist\&e=ear\&v=${HAWKULAR_METRICS_VERSION}; fi
 
 # Add in the JGroups Kubernetes clustering module
 RUN mkdir -p $JBOSS_HOME/modules/system/layers/base/org/jgroups/kubernetes/main && \
