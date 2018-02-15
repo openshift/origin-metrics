@@ -46,8 +46,6 @@ COPY prometheus.yaml $JBOSS_HOME/standalone/configuration/prometheus.yaml
 RUN mkdir /tmp/hawkular
 COPY dev/* /tmp/hawkular/
 
-RUN ls -l /tmp/hawkular
-
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
     if [ ${DEV_BUILD} = "true" ] && [ -s /tmp/hawkular/hawkular-metrics.ear ]; then mv /tmp/hawkular/hawkular-metrics.ear .; rm -rf /tmp/hawkular; else curl -Lo hawkular-metrics.ear https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-openshift-dist\&e=ear\&v=${HAWKULAR_METRICS_VERSION}; fi
