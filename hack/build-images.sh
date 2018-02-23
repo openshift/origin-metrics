@@ -10,6 +10,8 @@ source_root=$(dirname "${0}")/..
 prefix="openshift/origin-"
 version="latest"
 verbose=false
+dev_build=false
+build_args=""
 options=""
 help=false
 
@@ -27,6 +29,9 @@ do
         ;;
       --verbose)
         verbose=true
+        ;;
+     --dev)
+        dev_build=true
         ;;
      --help)
         help=true
@@ -56,10 +61,17 @@ if [ "$help" = true ]; then
   echo "  --verbose"
   echo "  Enables printing of the commands as they run."
   echo
+  echo "  --dev"
+  echo "  Specifies that this is a dev build."
+  echo
   echo "  --help"
   echo "  Prints this help message"
   echo
   exit 0
+fi
+
+if [ "$dev_build" = true ]; then
+  build_args="--build-arg DEV_BUILD=true"
 fi
 
 if [ "$verbose" = true ]; then
@@ -73,7 +85,7 @@ for component in deployer heapster hawkular-metrics cassandra; do
   echo
   echo
   echo "--- Building component '$comp_path' with docker tag '$docker_tag' ---"
-  docker build ${options} -t $docker_tag       $comp_path
+  docker build ${options} ${build_args} -t $docker_tag $comp_path
   BUILD_ENDTIME=$(date +%s); echo "--- $docker_tag took $(($BUILD_ENDTIME - $BUILD_STARTTIME)) seconds ---"
   echo
   echo
