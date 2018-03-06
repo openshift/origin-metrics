@@ -1,5 +1,5 @@
 == About
 This directory exists in order to support building development images. If `build-images.sh`
-is executed with `--dev` and if hawkular-metrics.ear exists in this directory, then the
-hawkular-metrics image will be built using the local copy of the EAR instead of downloading
+is executed with `--dev` and if hawkular-metrics.war exists in this directory, then the
+hawkular-metrics image will be built using the local copy of the WAR instead of downloading
 a released artifact from the JBoss nexus repo.
