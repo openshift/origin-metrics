@@ -1,0 +1,5 @@
+== About
+This directory exists in order to support building development images. If `build-images.sh`
+is executed with `--dev` and if hawkular-metrics-schema-installer.jar exists in this 
+directory, then the hawkular-metrics-schema image will be built using the local copy of the 
+JAR instead of downloading a released artifact from the JBoss nexus repo.
