@@ -85,7 +85,7 @@ for component in deployer heapster hawkular-metrics hawkular-metrics-schema cass
   echo
   echo
   echo "--- Building component '$comp_path' with docker tag '$docker_tag' ---"
-  docker build --no-cache ${options} ${build_args} -t $docker_tag $comp_path
+  docker build ${options} ${build_args} -t $docker_tag $comp_path
   BUILD_ENDTIME=$(date +%s); echo "--- $docker_tag took $(($BUILD_ENDTIME - $BUILD_STARTTIME)) seconds ---"
   echo
   echo
