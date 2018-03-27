@@ -26,15 +26,27 @@ FROM jboss/base-jdk:8
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
+ENV HAWKULAR_METRICS_VERSION="0.30.1.Final" \
+    HAWKULAR_METRICS_DIR="/opt/hawkular" \
+    RESET_DB="false" \
+    CASSANDRA_NODES="hawkular-cassandra" \
+    CASSANDRA_CONNECTION_MAX_DELAY="30" \
+    CASSANDRA_CONNECTION_MAX_RETRIES="5" \
+    VERSION_UPDATE_DELAY="5" \
+    VERSION_UPDATE_MAX_RETRIES="10"
+
 ARG DEV_BUILD="false"
 
-COPY dev/* /opt/
-COPY hawkular-metrics-schema.sh /opt
-
-RUN if [ ${DEV_BUILD} = "false" ] || [ ! -s /hawkular-metrics-schema-installer.jar ]; then curl -Lo hawkular-metrics-schema-installer.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-schema-installer\&e=jar\&v=${HAWKULAR_METRICS_VERSION}; fi
-
 USER root
+
+RUN mkdir $HAWKULAR_METRICS_DIR
+COPY dev/* $HAWKULAR_METRICS_DIR
+COPY hawkular-metrics-schema.sh $HAWKULAR_METRICS_DIR
+
+RUN cd $HAWKULAR_METRICS_DIR && \
+    if [ ${DEV_BUILD} = "false" ] || [ ! -s /hawkular-metrics-schema-installer.jar ]; then curl -Lo hawkular-metrics-schema-installer.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-schema-installer\&e=jar\&v=${HAWKULAR_METRICS_VERSION}; fi
+
 RUN yum -y install openssl \
     && chmod -R 777 /opt
 
-ENTRYPOINT /opt/hawkular-metrics-schema.sh
+ENTRYPOINT $HAWKULAR_METRICS_DIR/hawkular-metrics-schema.sh

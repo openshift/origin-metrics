@@ -18,7 +18,29 @@
 
 echo $(date "+%Y-%m-%d %H:%M:%S") Starting Hawkular Metrics Schema Installer
 
-HAWKULAR_METRICS_DIRECTORY=${HAWKULAR_METRICS_DIRECTORY:-"/opt"}
+installer_args=
+
+for args in "$@"
+do
+  if [[ $args == --hmw\.* ]]; then
+    case $args in
+        --hmw.tls_certificate=*)
+          SERVICE_CERT="${args#*=}"
+        ;;
+        --hmw.tls_certificate_key=*)
+          SERVICE_CERT_KEY="${args#*=}"
+        ;;
+        --hmw.truststore_authorities=*)
+          TRUSTSTORE_AUTHORITIES="${args#*=}"
+        ;;
+    esac
+  else
+    as_args="$installer_args $args"
+  fi
+done
+
+
+HAWKULAR_METRICS_DIRECTORY=${HAWKULAR_METRICS_DIRECTORY:-"/opt/hawkular"}
 KEYTOOL_COMMAND=/usr/lib/jvm/java-1.8.0/jre/bin/keytool
 HAWKULAR_METRICS_AUTH_DIR=${HAWKULAR_METRICS_DIRECTORY}/auth
 
@@ -118,10 +140,15 @@ done
 rm cas-to-import*
 cd ${PREV_DIR}
 
-java -Dhawkular.metrics.cassandra.nodes=hawkular-cassandra \
+java -Dhawkular.metrics.cassandra.nodes=$CASSANDRA_NODES \
      -Dhawkular.metrics.cassandra.use-ssl=true \
+     -Dhawkular.metrics.cassandra.resetdb=$RESET_DB \
+     -Dhawkular.metrics.cassandra.connection.max-delay=$CASSANDRA_CONNECTION_MAX_DELAY \
+     -Dhawkular.metrics.cassandra.connection.max-retries=$CASSANDRA_CONNECTION_MAX_RETRIES \
+     -Dhawkular.metrics.version-update.delay=$VERSION_UPDATE_DELAY \
+     -Dhawkular.metrics.version-update.max-retries=$VERSION_UPDATE_MAX_RETRIES \
      -Djavax.net.ssl.keyStore=${KEYSTORE} \
      -Djavax.net.ssl.trustStore=${TRUSTSTORE} \
      -Djavax.net.ssl.keyStorePassword=${KEYSTORE_PASSWORD} \
      -Djavax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD} \
-     -jar /opt/hawkular-metrics-schema-installer.jar 
+     -jar $HAWKULAR_METRICS_DIR/hawkular-metrics-schema-installer.jar 
