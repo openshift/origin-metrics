@@ -20,14 +20,14 @@
 # This dockerfile can be used to create a Hawkular-Metrics docker
 # image to be run on Openshift.
 
-FROM jboss/wildfly:10.1.0.Final
+FROM jboss/wildfly:11.0.0.Final
 
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.30.1.Final" \
+    HAWKULAR_METRICS_VERSION="0.30.3.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
