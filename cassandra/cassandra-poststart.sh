@@ -16,6 +16,31 @@
 # limitations under the License.
 #
 
+wait_for_cassandra_to_be_up () {
+  echo "Waiting for Cassandra to enter the up and normal state"
+  while : ;do
+    # Get the machines IP address from hosts
+    HOSTIP=`cat /etc/hosts | grep $HOSTNAME | awk '{print $1}' | head -n 1`
+
+    # Get the status of this machine from the Cassandra nodetool
+    STATUS=`nodetool status | grep $HOSTIP | awk '{print $1}'`
+
+    if [ ${STATUS:-""} = "" ]; then
+      echo "Could not get the Cassandra status. This may mean that the Cassandra instance is not up yet. Will try again"
+    fi
+
+    # Once the status is Up and Normal, then we are ready
+    if [ ${STATUS} = "UN" ]; then
+      echo "Cassandra is in the up and normal state. It is now ready."
+      break
+    else
+      echo "Cassandra not in the up and normal state. Current state is $STATUS"
+    fi
+    #wait 1 second and try again
+    sleep 1
+  done
+}
+
 # Check to see if we need to perform an upgrade on the data or not
 if [ -d ${CASSANDRA_DATA_VOLUME} ] && [ "$(ls -A ${CASSANDRA_DATA_VOLUME})" ]; then
   echo "The Cassandra datavolume (${CASSANDRA_DATA_VOLUME}) is not empty. Checking if an update is required."
@@ -48,30 +73,7 @@ if [ -d ${CASSANDRA_DATA_VOLUME} ] && [ "$(ls -A ${CASSANDRA_DATA_VOLUME})" ]; t
   fi
 
   if $update; then
-    echo "Waiting for Cassandra to enter the up and normal state"
-    while : ;do
-      # Get the machines IP address from hosts
-      HOSTIP=`cat /etc/hosts | grep $HOSTNAME | awk '{print $1}' | head -n 1`
-
-      # Get the status of this machine from the Cassandra nodetool
-      STATUS=`nodetool status | grep $HOSTIP | awk '{print $1}'`
-
-      if [ ${STATUS:-""} = "" ]; then
-        echo "Could not get the Cassandra status. This may mean that the Cassandra instance is not up yet. Will try again"
-      fi
-
-      # Once the status is Up and Normal, then we are ready
-      if [ ${STATUS} = "UN" ]; then
-        echo "Cassandra is in the up and normal state. It is now ready."
-        break
-      else
-        echo "Cassandra not in the up and normal state. Current state is $STATUS"
-      fi
-
-      #wait 1 second and try again
-      sleep 1
-    done
-    
+    wait_for_cassandra_to_be_up
     echo "About to upgrade Cassandra's data"
     output=$(nodetool upgradesstables 2>&1)
     if [ "$?" == 0 ]; then
@@ -95,6 +97,14 @@ fi
 if [ ! -d ${CASSANDRA_DATA_VOLUME} ]; then
   mkdir -p ${CASSANDRA_DATA_VOLUME}
 fi
+
+if [ "x${TAKE_SNAPSHOT,,}" = "xtrue" ]; then
+  wait_for_cassandra_to_be_up
+  echo "[$(date -u)] Generating snapshot" > ${CASSANDRA_DATA_VOLUME}/.snapshot
+  snapshot_output=$(nodetool snapshot hawkular_metrics 2>&1)
+  echo $snapshot_output >> ${CASSANDRA_DATA_VOLUME}/.snapshot
+fi
+
 # set the version flag to the current version of Cassandra
 echo ${CASSANDRA_VERSION} > ${CASSANDRA_DATA_VOLUME}/.cassandra.version
 
