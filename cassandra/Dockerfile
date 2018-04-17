@@ -31,7 +31,8 @@ ENV CASSANDRA_VERSION="3.0.15" \
     CASSANDRA_HOME="/opt/apache-cassandra" \
     HOME="/home/cassandra" \
     PATH="/opt/apache-cassandra/bin:$PATH" \
-    CASSANDRA_NODES_SERVICE_NAME="hawkular-cassandra-nodes"
+    CASSANDRA_NODES_SERVICE_NAME="hawkular-cassandra-nodes" \
+    TAKE_SNAPSHOT="false"
 
 # Become the root user to be able to install and setup Cassandra under /opt
 USER root
