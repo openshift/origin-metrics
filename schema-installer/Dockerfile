@@ -27,7 +27,7 @@ FROM jboss/base-jdk:8
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 ENV HAWKULAR_METRICS_VERSION="0.30.3.Final" \
-    HAWKULAR_METRICS_DIR="/opt/hawkular" \
+    HAWKULAR_METRICS_DIR="/opt/hawkular/" \
     RESET_DB="false" \
     CASSANDRA_NODES="hawkular-cassandra" \
     CASSANDRA_CONNECTION_MAX_DELAY="30" \
@@ -44,7 +44,7 @@ COPY dev/* $HAWKULAR_METRICS_DIR
 COPY hawkular-metrics-schema.sh $HAWKULAR_METRICS_DIR
 
 RUN cd $HAWKULAR_METRICS_DIR && \
-    if [ ${DEV_BUILD} = "false" ] || [ ! -s /hawkular-metrics-schema-installer.jar ]; then curl -Lo hawkular-metrics-schema-installer.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-schema-installer\&e=jar\&v=${HAWKULAR_METRICS_VERSION}; fi
+    if [ ${DEV_BUILD} != "true" ] || [ ! -s ${HAWKULAR_METRICS_DIR}/hawkular-metrics-schema-installer.jar ]; then echo "!!!NOT A DEV BUILD!!!"; curl -Lo hawkular-metrics-schema-installer.jar https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-schema-installer\&e=jar\&v=${HAWKULAR_METRICS_VERSION}; fi
 
 RUN yum -y install openssl \
     && chmod -R 777 /opt

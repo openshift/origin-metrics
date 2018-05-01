@@ -7,6 +7,6 @@ deployer/_secret
 hawkular-metrics/dev/*.jar
 hawkular-metrics/dev/*.war
 hawkular-metrics/dev/*.ear
-hawkular-metrics-schema/dev/*.jar
-hawkular-metrics-schema/dev/*.war
-hawkular-metrics-schema/dev/*.ear
+schema-installer/dev/*.jar
+schema-installer/dev/*.war
+schema-installer/dev/*.ear
