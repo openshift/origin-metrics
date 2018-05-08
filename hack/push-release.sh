@@ -36,6 +36,7 @@ images=(
   ${PREFIX}metrics-hawkular-metrics
   ${PREFIX}metrics-cassandra
   ${PREFIX}metrics-heapster
+  ${PREFIX}metrics-deployer
   ${PREFIX}metrics-schema-installer
 )
 
