@@ -37,6 +37,7 @@ images=(
   ${PREFIX}metrics-cassandra
   ${PREFIX}metrics-heapster
   ${PREFIX}metrics-deployer
+  ${PREFIX}metrics-schema-installer
 )
 
 PUSH_OPTS=""
