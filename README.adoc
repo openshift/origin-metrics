@@ -1,3 +1,5 @@
+DO NOT MERGE
+
 [NOTE]
 ====
 How metrics is installed has changed from using the deployer pod to using ansible.
