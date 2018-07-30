@@ -44,6 +44,10 @@ objects:
   metadata:
     name: metrics-heapster
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: metrics-schema-installer
+- apiVersion: v1
   kind: BuildConfig
   metadata:
     name: metrics-deployer
@@ -152,6 +156,36 @@ objects:
         from:
           kind: ImageStreamTag
           name: heapster:latest
+      type: Docker
+    triggers:
+    - github:
+        secret: ${TRIGGER_SECRET}
+      type: GitHub
+    - generic:
+        secret: ${TRIGGER_SECRET}
+      type: Generic
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: metrics-schema-installer
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: metrics-schema-installer:${IMAGE_TAG}
+    source:
+      contextDir: schema-installer
+      git:
+        uri: ${GIT_URI}
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: java-jdk:8
       type: Docker
     triggers:
     - github:
