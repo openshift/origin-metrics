@@ -26,7 +26,7 @@ FROM jboss/base-jdk:8
 # The image is maintained by the Hawkular Metrics team
 MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
-ENV HAWKULAR_METRICS_VERSION="0.30.3.Final" \
+ENV HAWKULAR_METRICS_VERSION="0.31.0.Final" \
     HAWKULAR_METRICS_DIR="/opt/hawkular/" \
     RESET_DB="false" \
     CASSANDRA_NODES="hawkular-cassandra" \
