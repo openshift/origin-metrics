@@ -38,6 +38,7 @@ images=(
   ${PREFIX}metrics-heapster
   ${PREFIX}metrics-deployer
   ${PREFIX}metrics-schema-installer
+  ${PREFIX}metrics-truncator-cronjob
 )
 
 PUSH_OPTS=""

@@ -41,7 +41,7 @@ done
 
 # allow ENV to take precedent over switches
 prefix="${PREFIX:-$prefix}"
-version="${OS_TAG:-$version}" 
+version="${OS_TAG:-$version}"
 
 if [ "$help" = true ]; then
   echo "Builds the docker images for metrics"
@@ -54,7 +54,7 @@ if [ "$help" = true ]; then
   echo "  --version=VERSION"
   echo "  The version used to tag the image"
   echo "  default: latest"
-  echo 
+  echo
   echo "  --no-cache"
   echo "  If set will perform the build without a cache."
   echo
@@ -78,7 +78,7 @@ if [ "$verbose" = true ]; then
   set -x
 fi
 
-for component in deployer heapster hawkular-metrics schema-installer cassandra; do
+for component in deployer heapster hawkular-metrics schema-installer cassandra truncator-cronjob; do
   BUILD_STARTTIME=$(date +%s)
   comp_path=$source_root/$component/
   docker_tag=${prefix}metrics-${component}:${version}
