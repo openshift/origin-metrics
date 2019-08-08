@@ -27,7 +27,7 @@ MAINTAINER Hawkular Metrics <hawkular-dev@lists.jboss.org>
 
 #
 ENV HAWKULAR_METRICS_ENDPOINT_PORT="8080" \
-    HAWKULAR_METRICS_VERSION="0.31.0.Final" \
+    HAWKULAR_METRICS_VERSION="0.31.2.Final" \
     HAWKULAR_METRICS_DIRECTORY="/opt/hawkular" \
     HAWKULAR_METRICS_SCRIPT_DIRECTORY="/opt/hawkular/scripts/" \
     PATH=$PATH:$HAWKULAR_METRICS_SCRIPT_DIRECTORY \
@@ -49,6 +49,7 @@ COPY dev/* /tmp/hawkular/
 # Get and copy the hawkular metrics war to the deployment directory
 RUN cd $JBOSS_HOME/standalone/deployments/ && \
     if [ ${DEV_BUILD} = "true" ] && [ -s /tmp/hawkular/hawkular-metrics.war ]; then mv /tmp/hawkular/hawkular-metrics.war .; rm -rf /tmp/hawkular; else curl -Lo hawkular-metrics.war https://origin-repository.jboss.org/nexus/service/local/artifact/maven/content?r=public\&g=org.hawkular.metrics\&a=hawkular-metrics-openshift\&e=war\&v=${HAWKULAR_METRICS_VERSION}; fi
+
 
 # Enable http2/spdy
 # TODO: remove when we are running on JDK9 which will already have this support added
@@ -84,6 +85,11 @@ RUN yum -y install openssl epel-release \
     && pip install --no-cache-dir 'hawkular-client==0.5.2'
 
 # Change the permissions so that the user running the image can start up Hawkular Metrics
+# Get and copy the hawkular metrics htpasswd util to the deployment directory
+RUN cd $HAWKULAR_METRICS_SCRIPT_DIRECTORY  && \
+    if [ ${DEV_BUILD} = "true" ] && [ -s /tmp/hawkular/hawkular-htpasswd.jar ]; then mv /tmp/hawkular/hawkular-htpasswd.jar .; rm -rf /tmp/hawkular; else curl -Lo hawkular-htpasswd.jar https://origin-repository.jboss.org/nexus/service/local/repositories/releases/content/org/hawkular/metrics/hawkular-htpasswd/${HAWKULAR_METRICS_VERSION}/hawkular-htpasswd-0.31.2.Final.jar; fi
+
+
 RUN chmod -R 777 /opt
 USER 1000
 
