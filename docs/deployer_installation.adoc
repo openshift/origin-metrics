@@ -155,6 +155,12 @@ $ oc process -f metrics.yaml \
      | oc create -n openshift-infra -f -
 ----
 
+(IMPORTANT!!!) If you use OpenShift version 3.9 or later you additionaly need to deploy an extra configmap for correct using of deployer.
+
+----
+oc create -f metrics-configmap.yaml -n openshift-infra
+----
+
 [NOTE]
 ====
 If you ever wish to undeploy and then redeploy all the metric components, you can do so by setting the `MODE` template parameter to 'redeploy'. Note that this will also remove any persistent volume claims and any persisted data will be lost.
