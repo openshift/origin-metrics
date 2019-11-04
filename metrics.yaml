@@ -45,6 +45,24 @@ objects:
         readOnly: true
       - name: empty
         mountPath: /etc/deploy
+      - name: deployer
+        mountPath: /opt/deploy/run.sh
+        subPath: run.sh
+      - name: deployer
+        mountPath: /opt/deploy/scripts/functions.sh
+        subPath: functions.sh
+      - name: deployer
+        mountPath: /opt/deploy/scripts/heapster.sh
+        subPath: heapster.sh
+      - name: deployer
+        mountPath: /opt/deploy/scripts/hawkular.sh
+        subPath: hawkular.sh
+      - name: deployer
+        mountPath: /opt/deploy/templates/hawkular-metrics.yaml
+        subPath: hawkular-metrics.yaml
+      - name: deployer
+        mountPath: /opt/deploy/templates/heapster.yaml
+        subPath: heapster.yaml
       env:
         - name: PROJECT
           valueFrom:
@@ -97,6 +115,10 @@ objects:
     - name: secret
       secret:
         secretName: metrics-deployer
+    - name: deployer
+      configMap:
+        name: deployer
+        defaultMode: 0777
 parameters:
 -
   description: 'Specify prefix for metrics components; e.g. for "openshift/origin-metrics-deployer:latest", set prefix "openshift/origin-"'
