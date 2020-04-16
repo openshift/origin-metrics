@@ -237,6 +237,13 @@ jgroups.password=${JGROUPS_PASSWORD}
 hawkular-alerts.elasticsearch-token=${token}
 EOL
 
+if [ -n "${GENERATED_HTPASSWD_PATH}" ] && [ -n "${PASSWORD_SECRET_FILE}" ] && [ -n "${USERNAME_SECRET_FILE}" ]; then
+  java -Dhtpasswd.username=$(cat "${USERNAME_SECRET_FILE}") -Dhtpasswd.password=$(cat "${PASSWORD_SECRET_FILE}") -jar
+  /opt/hawkular/scripts/hawkular-htpasswd.jar -Dhtpasswd.file="${GENERATED_HTPASSWD_PATH}"
+  java -Dhtpasswd.username=$(cat "${USERNAME_SECRET_FILE}") -Dhtpasswd.password=$(cat "${PASSWORD_SECRET_FILE}") -Dhtpasswd.file="${GENERATED_HTPASSWD_PATH}" -jar /opt/hawkular/scripts/hawkular-htpasswd.jar
+fi
+
+
 exec 2>&1 /opt/jboss/wildfly/bin/standalone.sh \
   -Djavax.net.ssl.keyStore=${KEYSTORE} \
   -Djavax.net.ssl.trustStore=${TRUSTSTORE} \
