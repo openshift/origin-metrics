@@ -23,7 +23,10 @@ import urllib2
 hawkularEndpointPort = os.environ.get("HAWKULAR_METRICS_ENDPOINT_PORT")
 statusURL = "http://localhost:" + hawkularEndpointPort  + "/hawkular/metrics/status"
 
-timeout = os.environ.get("STARTUP_TIMEOUT", 500)
+try:
+  timeout = int(os.environ.get("STARTUP_TIMEOUT", 500))
+except:
+  timeout = 500
 
 uptime = os.popen("ps -eo comm,etimes | grep -i standalone.sh | awk '{print $2}'").read()
 
